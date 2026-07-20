@@ -1,0 +1,65 @@
+{
+  "name": "default",
+  "description": "团队默认交付 Profile。这里使用相对路径；每个人本机只需要配置 teamConfigRoot 和 repoRoot。",
+  "skills": [
+    "skills/prd-word-to-md",
+    "skills/api-doc-generation"
+  ],
+  "rules": [
+    "rules/java-backend.md",
+    "rules/review-risk.md"
+  ],
+  "capabilities": [
+    {
+      "id": "prd-word-to-md",
+      "type": "skill",
+      "name": "Word PRD to Markdown",
+      "path": "skills/prd-word-to-md",
+      "capabilityTypes": ["prd-convert"],
+      "appliesToSteps": ["import-prd", "01-clarify-requirement"],
+      "description": "Convert Word PRD material into workspace Markdown."
+    },
+    {
+      "id": "java-backend-rule",
+      "type": "rule",
+      "name": "Java backend delivery rule",
+      "path": "rules/java-backend.md",
+      "capabilityTypes": ["rule"],
+      "description": "Default engineering constraints for Java backend delivery."
+    },
+    {
+      "id": "api-doc-generation",
+      "type": "skill",
+      "name": "API documentation generation",
+      "path": "skills/api-doc-generation",
+      "capabilityTypes": ["api-doc"],
+      "appliesToSteps": ["02-generate-technical-design", "06-implement-task"],
+      "description": "Generate API and DTO impact documentation."
+    },
+    {
+      "id": "db-change-review",
+      "type": "rule",
+      "name": "Database change review",
+      "path": "rules/review-risk.md",
+      "capabilityTypes": ["code-review"],
+      "appliesToSteps": ["07-review-code", "06-generate-unit-tests"],
+      "description": "Review data consistency, rollback, and regression risks."
+    }
+  ],
+  "knowledge": [
+    {
+      "name": "业务术语",
+      "path": "knowledge/glossary.md",
+      "description": "团队通用业务术语"
+    }
+  ],
+  "apps": [
+    {
+      "repoKey": "order-service-api",
+      "role": "示例后端服务"
+    }
+  ],
+  "branchPattern": "codex/{demand}-{date}",
+  "loadAppContextForClarification": false,
+  "notes": "默认 Profile 只放团队共识；单个需求的额外约束写入 workspace 配置。"
+}

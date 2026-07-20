@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/delivery-workflow/capability.schema.json",
+  "title": "Delivery Workflow Capability",
+  "type": "object",
+  "required": ["id", "type", "name"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable capability id, for example api-doc-generation."
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "prdSource",
+        "template",
+        "rule",
+        "skill",
+        "appIndex",
+        "executor",
+        "qualityGate",
+        "archiveTarget",
+        "notification",
+        "knowledge"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string",
+      "description": "Relative path inside team-config repo, or an absolute local path for personal experiments."
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": true
+    },
+    "capabilityTypes": {
+      "type": "array",
+      "description": "Workflow routing tags such as prd-convert, rule, api-doc, unit-test, code-review.",
+      "items": { "type": "string" }
+    },
+    "appliesToSteps": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "inputs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "outputs": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "config": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}

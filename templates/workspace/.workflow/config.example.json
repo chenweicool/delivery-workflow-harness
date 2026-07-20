@@ -1,0 +1,29 @@
+{
+  "description": "Delivery Workflow 需求级配置示例。框架只读取配置，不内置业务应用、背景知识或团队规则。",
+  "apps": [
+    {
+      "name": "example-service",
+      "path": "C:\\code\\work-project\\example-service",
+      "type": "java-backend",
+      "role": "主改造应用",
+      "baseBranch": "",
+      "featureBranch": "feature/{demand}-{date}"
+    }
+  ],
+  "knowledge": [
+    {
+      "name": "历史方案",
+      "path": "C:\\code\\team-knowledge\\example",
+      "description": "本次需求可参考的历史方案或业务背景"
+    }
+  ],
+  "skills": [
+    "C:\\code\\team-ai\\skills\\prd-word-to-md"
+  ],
+  "rules": [
+    "C:\\code\\team-ai\\rules\\java-backend.md"
+  ],
+  "branchPattern": "feature/{demand}-{date}",
+  "loadAppContextForClarification": false,
+  "notes": "只写本次需求特有说明；团队通用约束放到团队默认配置。"
+}

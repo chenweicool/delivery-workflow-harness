@@ -1,0 +1,19 @@
+{
+  "apps": [
+    {
+      "id": "settlement-service",
+      "name": "结算服务",
+      "repoKey": "settlement-service",
+      "localDiscovery": {
+        "repoNames": ["settlement-service"]
+      },
+      "remote": {
+        "url": "https://gitlab.example.com/finance/settlement-service.git",
+        "baseBranch": "main"
+      },
+      "type": "java-backend",
+      "role": "账单调整主服务",
+      "testCommand": "mvn test"
+    }
+  ]
+}

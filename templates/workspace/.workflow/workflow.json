@@ -1,0 +1,222 @@
+{
+  "version": 1,
+  "description": "Delivery Workflow 默认流程定义。核心字段保持规范；团队可按需调整 title、summary、inputs、outputs、steps、requires、checklist 和 metadata。",
+  "units": [
+    {
+      "id": "workspace",
+      "title": "Workspace 准备",
+      "summary": "创建需求工作区，并生成基础目录和上下文快照。",
+      "inputs": ["需求名称", "工作区目录"],
+      "outputs": ["AGENTS.md", "CLAUDE.md", "context/knowledge-version.md", ".workflow/workspace.json"],
+      "steps": ["init-workspace"]
+    },
+    {
+      "id": "prd-to-design",
+      "title": "PRD 到技术方案",
+      "summary": "导入并解析 PRD，按配置选择是否加载应用上下文，再完成需求和技术方案确认。",
+      "inputs": ["PRD 文件或飞书链接", "交付配置中的应用上下文", "design/known-facts.md（可选技术定位输入）"],
+      "outputs": ["prd/**", ".workflow/workspace.json", "design/context-summary.md", "design/requirement-confirmation.md", "design/technical-design.md", "design/technical-confirmation.md"],
+      "steps": ["import-prd", "00-load-context", "01-clarify-requirement", "manual-requirement", "02-generate-technical-design", "manual-technical"]
+    },
+    {
+      "id": "design-to-code",
+      "title": "技术方案到代码实现",
+      "summary": "基于已确认技术方案拆分实施任务，确认任务后按单任务方式实现代码。",
+      "inputs": ["design/technical-design.md", "design/technical-confirmation.md", "已确认应用代码", "任务编号"],
+      "outputs": ["tasks/task-list.md", "tasks/task-progress.md", "代码 diff", "review/change-log.md", "review/self-check.md"],
+      "steps": ["05-split-tasks", "manual-task", "06-implement-task"]
+    },
+    {
+      "id": "quality-gate",
+      "title": "质量检查",
+      "summary": "基于实现结果做 AI Review、单测补齐和发布前质量门禁。平台定义检查标准，具体分析和修复交给 Codex / Claude。",
+      "inputs": ["代码 diff", "tasks/task-list.md", "design/**", "review/change-log.md", "review/self-check.md"],
+      "outputs": ["review/ai-review.md", "review/unit-test-plan.md", "review/unit-test-result.md"],
+      "steps": ["07-review-code", "06-generate-unit-tests"]
+    },
+    {
+      "id": "release-and-archive",
+      "title": "上线准备与归档",
+      "summary": "生成上线 checklist，沉淀交付总结和归档材料；远端知识库推送只生成计划，不自动执行。",
+      "inputs": ["design/**", "tasks/**", "review/**", "代码 diff"],
+      "outputs": ["delivery/release-checklist.md", "delivery/delivery-summary.md", "delivery/knowledge-improvement.md", "archive/index.md", "archive/knowledge-card.md"],
+      "steps": ["09-release-checklist", "08-delivery-summary", "10-archive-knowledge"]
+    }
+  ],
+  "steps": {
+    "init-workspace": {
+      "title": "创建 Workspace",
+      "kind": "local",
+      "description": "从 delivery-workflow 模板复制出一个需求工作区，并生成上下文快照。",
+      "outputs": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        ".workflow/workspace.json",
+        ".workflow/workflow.json",
+        ".workflow/progress.md",
+        ".workflow/progress.json",
+        ".workflow/commands/00-load-context.md",
+        "context/knowledge-version.md"
+      ]
+    },
+    "import-prd": {
+      "title": "导入并解析 PRD",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/00-import-and-parse-prd.md",
+      "description": "先在页面选择本地 PRD 或记录外部链接，再调用可用的文档解析 skill 产出 Markdown 版 PRD。",
+      "outputs": ["prd/document.md"],
+      "metadata": {
+        "capabilityTypes": ["prd-convert"]
+      }
+    },
+    "00-load-context": {
+      "title": "00 加载上下文",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/00-load-context.md",
+      "requires": ["prd/document.md"],
+      "outputs": ["design/context-summary.md"],
+      "metadata": {
+        "capabilityTypes": ["rule"]
+      }
+    },
+    "01-clarify-requirement": {
+      "title": "01 需求澄清",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/01-clarify-requirement.md",
+      "outputs": ["design/requirement-confirmation.md"],
+      "metadata": {
+        "capabilityTypes": ["prd-convert", "rule"]
+      }
+    },
+    "manual-requirement": {
+      "title": "人工确认需求口径",
+      "kind": "manual",
+      "description": "确认结果应写回 design/requirement-confirmation.md。",
+      "inputs": ["design/requirement-confirmation.md"],
+      "reviewFiles": ["design/requirement-confirmation.md"],
+      "checklist": [
+        { "id": "reviewed-requirement-file", "label": "已预览并确认需求澄清文档" },
+        { "id": "scope-clear", "label": "需求口径和本次范围已明确，或未明确项已记录" },
+        { "id": "risks-recorded", "label": "关键风险、待澄清问题和 Must Pause 项已知悉" },
+        { "id": "allow-next-step", "label": "允许进入 02 生成技术方案" }
+      ],
+      "approvalFile": "design/requirement-confirmation.approved.json",
+      "rejectionFile": "design/requirement-confirmation.rejected.json",
+      "outputs": ["design/requirement-confirmation.approved.json"]
+    },
+    "02-generate-technical-design": {
+      "title": "02 生成技术方案",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/02-generate-technical-design.md",
+      "requires": ["design/requirement-confirmation.approved.json"],
+      "outputs": ["design/technical-design.md", "design/technical-confirmation.md", "design/technical-design.changelog.md"],
+      "metadata": {
+        "capabilityTypes": ["api-doc", "rule"]
+      }
+    },
+    "manual-technical": {
+      "title": "人工确认技术方案",
+      "kind": "manual",
+      "description": "多轮评审技术方案；可退回写入评审意见，修订完成后再确认终版。",
+      "inputs": ["design/technical-design.md", "design/technical-confirmation.md", "design/technical-review.md"],
+      "reviewFiles": [
+        "design/technical-design.md",
+        "design/technical-confirmation.md",
+        { "path": "design/technical-review.md", "optional": true },
+        { "path": "design/technical-design.changelog.md", "optional": true }
+      ],
+      "checklist": [
+        { "id": "reviewed-technical-files", "label": "已预览技术方案、确认文档和评审记录" },
+        { "id": "app-scope-confirmed", "label": "应用范围、接口边界和数据边界已确认" },
+        { "id": "risk-accepted", "label": "权限、资金、结算、兼容性风险已知悉" },
+        { "id": "review-comments-resolved", "label": "本轮评审意见已处理或已明确保留原因" },
+        { "id": "allow-task-split", "label": "允许进入实施任务拆分" }
+      ],
+      "approvalFile": "design/technical-design.approved.json",
+      "rejectionFile": "design/technical-design.rejected.json",
+      "outputs": ["design/technical-design.approved.json"]
+    },
+    "05-split-tasks": {
+      "title": "05 拆分实施任务",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/05-split-tasks.md",
+      "requires": ["design/technical-design.approved.json"],
+      "outputs": ["tasks/task-list.md"],
+      "metadata": {
+        "capabilityTypes": ["rule"]
+      }
+    },
+    "manual-task": {
+      "title": "人工确认任务",
+      "kind": "manual",
+      "description": "确认任务拆分和本轮允许实施的任务。tasks/task-list.md 保存任务事实，tasks/task-confirmation.md 保存人工准入结论，后续实施会同时读取两个文件。",
+      "inputs": ["tasks/task-list.md", "tasks/task-confirmation.md"],
+      "reviewFiles": ["tasks/task-list.md", "tasks/task-confirmation.md"],
+      "checklist": [
+        { "id": "reviewed-task-list", "label": "已预览任务拆分清单" },
+        { "id": "task-confirmation-written", "label": "已填写任务确认结果，明确允许实施和暂缓任务" },
+        { "id": "task-boundary-clear", "label": "任务边界、顺序、依赖和验收标准已确认" },
+        { "id": "single-task-ready", "label": "已确认下一步可按单任务方式实施指定任务" },
+        { "id": "allow-implementation", "label": "允许进入 06 单任务实现" }
+      ],
+      "approvalFile": "tasks/task-list.approved.json",
+      "rejectionFile": "tasks/task-list.rejected.json",
+      "outputs": ["tasks/task-list.approved.json"]
+    },
+    "06-implement-task": {
+      "title": "06 单任务实现",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/06-implement-task.md",
+      "requires": ["tasks/task-list.approved.json"],
+      "outputs": ["tasks/task-progress.md", "review/change-log.md", "review/self-check.md"],
+      "metadata": {
+        "capabilityTypes": ["unit-test", "api-doc", "rule"]
+      }
+    },
+    "07-review-code": {
+      "title": "07 AI Review",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/07-review-code.md",
+      "outputs": ["review/ai-review.md"],
+      "metadata": {
+        "capabilityTypes": ["code-review", "rule"]
+      }
+    },
+    "06-generate-unit-tests": {
+      "title": "08 生成单测",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/06-generate-unit-tests.md",
+      "outputs": ["review/unit-test-plan.md", "review/unit-test-result.md"],
+      "metadata": {
+        "capabilityTypes": ["unit-test", "rule"]
+      }
+    },
+    "09-release-checklist": {
+      "title": "09 上线 Checklist",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/09-release-checklist.md",
+      "outputs": ["delivery/release-checklist.md"],
+      "metadata": {
+        "capabilityTypes": ["code-review", "rule"]
+      }
+    },
+    "08-delivery-summary": {
+      "title": "10 交付总结",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/08-delivery-summary.md",
+      "outputs": ["delivery/delivery-summary.md", "delivery/knowledge-improvement.md"],
+      "metadata": {
+        "capabilityTypes": ["rule"]
+      }
+    },
+    "10-archive-knowledge": {
+      "title": "11 交付归档",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/10-archive-knowledge.md",
+      "outputs": ["archive/index.md", "archive/knowledge-card.md", "archive/platform-push-plan.md"],
+      "metadata": {
+        "capabilityTypes": ["rule"]
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+# Local runtime state and logs
+.data/
+.logs/
+console/.data/
+console/.logs/
+
+# Node and npm credentials/artifacts
+node_modules/
+.npmrc
+*.tgz
+npm-debug.log*
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# IDE and operating-system files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

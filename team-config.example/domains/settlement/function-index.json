@@ -1,0 +1,15 @@
+{
+  "functions": [
+    {
+      "id": "settlement.bill-adjustment",
+      "name": "账单调整",
+      "aliases": ["账单修正", "费用调整", "金额调整"],
+      "domain": "settlement",
+      "description": "对已生成账单进行可审计的调整。",
+      "whitepaperRefs": ["domains/settlement/whitepaper.md"],
+      "relatedAppIds": ["settlement-service"],
+      "riskTags": ["金额一致性", "幂等", "审计追溯"],
+      "recommendedCapabilities": ["db-change-review", "api-doc-generation"]
+    }
+  ]
+}

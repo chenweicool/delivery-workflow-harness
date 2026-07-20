@@ -1,0 +1,22 @@
+{
+  "apps": [
+    {
+      "name": "order-service-api",
+      "repoKey": "order-service-api",
+      "defaultRelativePath": "order-service-api",
+      "type": "java-backend",
+      "role": "示例后端服务",
+      "baseBranch": "",
+      "worktreePath": "apps/order-service-api"
+    },
+    {
+      "name": "admin-web",
+      "repoKey": "admin-web",
+      "defaultRelativePath": "admin-web",
+      "type": "frontend",
+      "role": "示例管理后台",
+      "baseBranch": "",
+      "worktreePath": "apps/admin-web"
+    }
+  ]
+}

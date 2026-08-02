@@ -59,8 +59,9 @@ For a step-by-step trial guide, see [docs/quick-start.md](docs/quick-start.md).
 ## Local Development
 
 ```bash
-cd delivery-workflow
+cd delivery-workflow-harness
 npm run check
+npm run test:regression
 npm run start
 ```
 
@@ -164,11 +165,11 @@ For a beta release from the publishing computer, run:
 ```bash
 npm login --registry=https://registry.npmjs.org/
 npm whoami
-npm run check
-npm run test:regression
-npm pack --dry-run
 npm publish --tag beta --registry=https://registry.npmjs.org/
 ```
+
+`npm publish` runs `prepublishOnly`, which executes syntax checks, regression
+tests, and `npm pack --dry-run` before the package is uploaded.
 
 Each published version must be new. After the beta trial is accepted, update
 the package version and publish without `--tag beta` to release `latest`.

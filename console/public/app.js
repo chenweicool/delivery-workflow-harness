@@ -290,14 +290,452 @@ function renderGlobalConfigStatus(profile) {
   ];
   const readyCount = checks.filter((item) => item.ok).length;
   els.globalConfigStatus.innerHTML = [
-    `<div class="configStatusHeader"><strong>全局接入</strong><span>${readyCount}/${checks.length}</span></div>`,
+    `<div class="configStatusHeader"><strong>接入状态</strong><span>${readyCount}/${checks.length}</span></div>`,
+    '<div class="configSlotDots">',
     ...checks.map((item) => [
-      `<div class="configStatusLine ${item.ok ? 'done' : 'waiting'}">`,
-      `<span>${escapeHtml(item.label)}</span>`,
-      `<strong>${item.ok ? '可用' : '未配'}</strong>`,
-      '</div>',
+      `<span class="${item.ok ? 'done' : 'waiting'}" title="${escapeHtml(item.label)}：${item.ok ? '可用' : '未配置'}">`,
+      escapeHtml(item.label.slice(0, 2)),
+      '</span>',
     ].join('')),
+    '</div>',
   ].join('');
+  renderConfigDomainStatus();
+}
+
+function setText(selector, value) {
+  const node = $(selector);
+  if (node) {
+    node.textContent = value;
+  }
+}
+
+function basenamePath(value, fallback = '未配置') {
+  const text = String(value || '').trim();
+  if (!text) {
+    return fallback;
+  }
+  const parts = text.split(/[\\/]/).filter(Boolean);
+  return parts[parts.length - 1] || text;
+}
+
+function setupConfigCenterLayout() {
+  const grid = document.querySelector('.setupConfigGrid');
+  if (!grid || grid.dataset.domainLayout === 'true') {
+    return;
+  }
+  grid.dataset.domainLayout = 'true';
+  const originalPanels = Array.from(grid.querySelectorAll(':scope > .toolConfigPanel'));
+  const saveButton = els.saveToolsConfigBtn;
+  const nav = document.createElement('aside');
+  nav.className = 'configDomainNav';
+  const content = document.createElement('div');
+  content.className = 'configDomainContent';
+  const footer = document.createElement('div');
+  footer.className = 'configDomainFooter';
+
+  const domains = [
+    ['startup', '启动', '项目目录和基础运行路径'],
+    ['runners', '执行器', 'Codex、Claude、IDE'],
+    ['knowledge', '知识库', '团队能力、白皮书、索引'],
+    ['business', '业务上下文', '代码仓库和应用范围'],
+    ['external', '外部文档', '飞书、Lark、扩展接入'],
+  ];
+
+  function createDomainPanel(id, title, description) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.configDomain = id;
+    button.innerHTML = `<strong>${escapeHtml(title)}</strong><span>${escapeHtml(description)}</span><em data-config-domain-state="${escapeHtml(id)}">待配置</em>`;
+    nav.append(button);
+
+    const panel = document.createElement('section');
+    panel.className = 'configDomainPanel';
+    panel.dataset.configPanel = id;
+    panel.innerHTML = `<div class="configDomainHeader"><span>Config</span><h3>${escapeHtml(title)}</h3><p>${escapeHtml(description)}</p></div><div class="configDomainBody"></div>`;
+    content.append(panel);
+    return panel.querySelector('.configDomainBody');
+  }
+
+  const bodies = Object.fromEntries(domains.map(([id, title, description]) => [id, createDomainPanel(id, title, description)]));
+  const advancedExternalPanels = Array.from(document.querySelectorAll('.capabilityPopover > details.advancedConfigBox:not(.externalConfigPanel)'));
+
+  function moveField(inputId, target) {
+    const input = document.querySelector(`#${inputId}`);
+    const field = input ? input.closest('label') : null;
+    if (field && target) {
+      target.append(field);
+    }
+  }
+
+  function moveNode(selector, target) {
+    const node = document.querySelector(selector);
+    if (node && target) {
+      target.append(node);
+    }
+  }
+
+  moveField('workspaceRoot', bodies.startup);
+  if (saveButton) {
+    footer.append(saveButton);
+  }
+
+  ['codexPath', 'codexDesktopPath', 'claudePath', 'ideaPath'].forEach((id) => moveField(id, bodies.runners));
+
+  moveNode('.configSummary', bodies.knowledge);
+  moveField('teamConfigRoot', bodies.knowledge);
+  moveField('whitepaperRoot', bodies.knowledge);
+  moveNode('#teamProfileStatus', bodies.knowledge);
+  moveNode('.legacyCapabilityConfig', bodies.knowledge);
+
+  moveField('repoRoot', bodies.business);
+  moveField('appIndexPath', bodies.business);
+  moveField('defaultSkillsRoot', bodies.business);
+  const businessHint = document.createElement('section');
+  businessHint.className = 'configHintCard';
+  businessHint.innerHTML = '<strong>候选应用预留</strong><span>后续这里会从业务代码根目录和应用索引中选择本次需求命中的应用。</span>';
+  bodies.business.append(businessHint);
+
+  moveNode('.externalConfigPanel', bodies.external);
+  moveField('integrationConfig', bodies.external);
+  advancedExternalPanels.forEach((panel) => bodies.external.append(panel));
+
+  originalPanels.forEach((panel) => panel.remove());
+  grid.innerHTML = '';
+  grid.append(nav, content, footer);
+
+  nav.querySelectorAll('[data-config-domain]').forEach((button) => {
+    button.addEventListener('click', () => setActiveConfigDomain(button.dataset.configDomain));
+  });
+  setActiveConfigDomain('startup');
+  renderConfigDomainStatus();
+}
+
+function setActiveConfigDomain(domain = 'startup') {
+  document.querySelectorAll('[data-config-domain]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.configDomain === domain);
+  });
+  document.querySelectorAll('[data-config-panel]').forEach((panel) => {
+    panel.classList.toggle('active', panel.dataset.configPanel === domain);
+  });
+}
+
+function renderConfigDomainStatus() {
+  const tools = state.tools || {};
+  const integrations = tools.integrations || {};
+  const feishu = integrations.feishu || {};
+  const states = configReadinessState(tools, feishu);
+  Object.entries(states).forEach(([domain, item]) => {
+    const node = document.querySelector(`[data-config-domain-state="${domain}"]`);
+    if (node) {
+      node.textContent = item.ready ? '已配置' : '待配置';
+      node.className = item.ready ? 'ready' : 'waiting';
+    }
+  });
+}
+
+function configReadinessState(tools = state.tools || {}, feishu = (state.tools && state.tools.integrations && state.tools.integrations.feishu) || {}) {
+  const workspacePath = els.workspacePath ? els.workspacePath.value.trim() : '';
+  const hasWorkspace = Boolean(workspacePath && state.status && state.status.isWorkspace);
+  return {
+    startup: {
+      title: '项目目录',
+      detail: hasWorkspace ? basenamePath(workspacePath) : '选择或创建项目目录',
+      ready: hasWorkspace,
+      action: 'project',
+      actionLabel: hasWorkspace ? '切换项目' : '选择项目',
+    },
+    runners: {
+      title: '执行器',
+      detail: tools.codexPath || tools.codexDesktopPath || tools.claudePath ? 'Codex / Claude 已有可用入口' : '配置 Codex 或 Claude',
+      ready: Boolean(tools.codexPath || tools.claudePath || tools.codexDesktopPath),
+      domain: 'runners',
+      action: 'config',
+      actionLabel: '配置执行器',
+    },
+    knowledge: {
+      title: '知识库',
+      detail: [tools.teamConfigRoot, tools.whitepaperRoot, tools.appIndexPath].filter(Boolean).length
+        ? '已识别知识来源'
+        : '预留团队能力库、白皮书、应用索引',
+      ready: Boolean(tools.teamConfigRoot || tools.whitepaperRoot || tools.appIndexPath),
+      domain: 'knowledge',
+      action: 'config',
+      actionLabel: '配置知识库',
+    },
+    business: {
+      title: '业务上下文',
+      detail: tools.repoRoot ? basenamePath(tools.repoRoot) : '配置业务代码根目录',
+      ready: Boolean(tools.repoRoot || tools.appIndexPath),
+      domain: 'business',
+      action: 'config',
+      actionLabel: '配置业务上下文',
+    },
+    external: {
+      title: '外部文档',
+      detail: feishu && feishu.enabled && feishu.mode && feishu.mode !== 'disabled' ? `飞书 / Lark：${feishu.mode}` : '飞书、Lark 后续按需接入',
+      ready: Boolean(feishu && feishu.enabled && feishu.mode && feishu.mode !== 'disabled'),
+      domain: 'external',
+      action: 'config',
+      actionLabel: '配置外部文档',
+    },
+  };
+}
+
+function renderStartupReadiness() {
+  const grid = $('#startupReadyGrid');
+  if (!grid) {
+    return;
+  }
+  const tools = state.tools || {};
+  const feishu = tools.integrations && tools.integrations.feishu ? tools.integrations.feishu : {};
+  const items = Object.entries(configReadinessState(tools, feishu));
+  const readyCount = items.filter(([, item]) => item.ready).length;
+  setText('#startupReadySummary', `启动条件 ${readyCount}/${items.length}`);
+  grid.innerHTML = items.map(([key, item]) => [
+    `<button class="startupReadyItem ${item.ready ? 'ready' : 'waiting'}" type="button" data-startup-action="${escapeHtml(item.action)}" data-config-domain-jump="${escapeHtml(item.domain || '')}" data-startup-key="${escapeHtml(key)}">`,
+    `<span>${escapeHtml(item.ready ? '已就绪' : '待处理')}</span>`,
+    `<strong>${escapeHtml(item.title)}</strong>`,
+    `<small>${escapeHtml(item.detail)}</small>`,
+    `<em>${escapeHtml(item.actionLabel)}</em>`,
+    '</button>',
+  ].join('')).join('');
+  grid.querySelectorAll('[data-startup-action]').forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.dataset.startupAction === 'project') {
+        if (els.demandName) {
+          els.demandName.focus();
+        }
+        return;
+      }
+      openDeliveryConfig()
+        .then(() => setActiveConfigDomain(button.dataset.configDomainJump || 'startup'))
+        .catch((error) => setMessage(error.message, 'error'));
+    });
+  });
+}
+
+function renderContextOverview() {
+  const tools = state.tools || {};
+  const workspacePath = els.workspacePath ? els.workspacePath.value.trim() : '';
+  const workspaceName = workspacePath ? basenamePath(workspacePath, workspacePath) : '未选择';
+  const profileName = tools.teamProfile || (state.teamProfile && state.teamProfile.profileName) || 'default';
+  const repoName = tools.repoRoot ? basenamePath(tools.repoRoot) : '未配置';
+  const step = getStep(state.selectedStepId);
+  const contract = step ? agentContractForStep(step.id) : null;
+  const executorName = els.executor && els.executor.value === 'claude' ? 'Claude' : 'Codex';
+  const agentName = contract ? `${contract.name} / ${executorName}` : executorName;
+  const workspaceKnowledge = state.status && state.status.config && Array.isArray(state.status.config.knowledge)
+    ? state.status.config.knowledge
+    : [];
+  const knowledgeChecks = [
+    tools.teamConfigRoot,
+    tools.whitepaperRoot,
+    tools.appIndexPath,
+    workspaceKnowledge.length ? `${workspaceKnowledge.length} local` : '',
+  ].filter(Boolean);
+  const knowledgeState = knowledgeChecks.length ? `${knowledgeChecks.length} 类来源` : '待加载';
+  const workspaceLabel = workspacePath || '创建或打开一个 workspace 后继续。';
+
+  setText('#contextWorkspaceName', workspaceName);
+  setText('#contextWorkspacePath', workspaceLabel);
+  setText('#contextProfileName', profileName);
+  setText('#contextAgentName', agentName);
+  setText('#contextRepoState', repoName);
+  setText('#contextKnowledgeState', knowledgeState);
+
+  setText('#overviewWorkspace', workspaceName === '未选择' ? '未选择项目' : workspaceName);
+  setText('#overviewProfile', profileName);
+  setText('#overviewRepo', repoName);
+  setText('#overviewAgent', agentName);
+  setText('#overviewKnowledge', knowledgeState);
+  setText('#sideProjectName', workspaceName === '未选择' ? '未选择项目' : workspaceName);
+  setText('#sideProjectPath', workspacePath || '选择目录后开始交付');
+  setText('#sideProjectRepo', tools.repoRoot ? `Repo ${repoName}` : 'Repo 未配置');
+}
+
+function renderKnowledgeReservation() {
+  const tools = state.tools || {};
+  const workspaceKnowledge = state.status && state.status.config && Array.isArray(state.status.config.knowledge)
+    ? state.status.config.knowledge
+    : [];
+  const sources = [
+    tools.teamConfigRoot ? '团队能力库' : '',
+    tools.whitepaperRoot ? '领域白皮书' : '',
+    tools.appIndexPath ? '应用索引' : '',
+    workspaceKnowledge.length ? `本次补充 ${workspaceKnowledge.length} 项` : '',
+  ].filter(Boolean);
+  const ready = sources.length > 0;
+  setText('#knowledgeInspectorTitle', ready ? '已识别知识来源' : '知识库加载预留');
+  setText('#knowledgeInspectorBody', ready
+    ? `已识别：${sources.join('、')}。后续在这里选择命中的知识源，再随 handoff 交给 CLI。`
+    : '预留给团队知识库、领域白皮书、应用索引和本次补充知识。');
+  const badge = $('#knowledgeInspectorBadge');
+  if (badge) {
+    badge.textContent = ready ? '已识别' : '待接入';
+    badge.className = `statePill ${ready ? 'active' : 'waiting'}`;
+  }
+}
+
+function renderNavPage(target) {
+  const panel = $('#navPagePanel');
+  const eyebrow = $('#navPageEyebrow');
+  const title = $('#navPageTitle');
+  const body = $('#navPageBody');
+  const actions = $('#navPageActions');
+  if (!panel || !title || !body || !actions) {
+    return;
+  }
+
+  const tools = state.tools || {};
+  const workspacePath = els.workspacePath ? els.workspacePath.value.trim() : '';
+  const workspaceKnowledge = state.status && state.status.config && Array.isArray(state.status.config.knowledge)
+    ? state.status.config.knowledge
+    : [];
+  const prdCount = state.status && state.status.materialPrdCount ? state.status.materialPrdCount : 0;
+  const workspaceLabel = workspacePath || '未选择项目目录';
+  const repoLabel = tools.repoRoot ? basenamePath(tools.repoRoot) : '未配置业务仓库';
+  const knowledgeLabel = [tools.teamConfigRoot, tools.whitepaperRoot, tools.appIndexPath].filter(Boolean).length;
+  const pages = {
+    workspace: {
+      eyebrow: 'Bootstrap',
+      title: '启动配置',
+      body: workspacePath
+        ? `当前项目目录：${workspacePath}`
+        : '先选项目目录，再补全全局接入。Harness 后续只围绕这个目录组织 CLI 交付。',
+      actions: [
+        ['switch', workspacePath ? '切换项目' : '选择项目'],
+        ['new', '新建项目'],
+        ['settings', '全局接入'],
+      ],
+      cards: [
+        { title: '项目目录', body: workspaceLabel, state: workspacePath ? 'ready' : 'waiting', status: workspacePath ? '已选择' : '待选择', action: 'switch', cta: workspacePath ? '切换' : '选择' },
+        { title: '业务仓库', body: repoLabel, state: tools.repoRoot ? 'ready' : 'waiting', status: tools.repoRoot ? '已配置' : '待配置', action: 'settings', cta: '配置' },
+        { title: '全局接入', body: '工具路径、知识源、执行器、插件', state: (tools.codexPath || tools.claudePath) ? 'ready' : 'waiting', status: (tools.codexPath || tools.claudePath) ? '可运行' : '待配置', action: 'settings', cta: '打开' },
+      ],
+    },
+    knowledge: {
+      eyebrow: 'Context',
+      title: '上下文装配',
+      body: '整理 PRD、需求材料、团队知识、领域文档和应用索引，作为 CLI handoff 的输入。',
+      actions: [
+        ['settings', '配置知识源'],
+        ['materials', '补充材料'],
+      ],
+      cards: [
+        { title: 'PRD / 需求材料', body: prdCount ? `已导入 ${prdCount} 个 PRD 来源` : '等待导入 PRD 或补充说明', state: prdCount ? 'ready' : 'waiting', status: prdCount ? '已准备' : '缺输入', action: 'materials', cta: '补材料' },
+        { title: '知识库来源', body: knowledgeLabel ? `已配置 ${knowledgeLabel} 类来源` : '团队能力库、白皮书、应用索引待配置', state: knowledgeLabel ? 'ready' : 'waiting', status: knowledgeLabel ? '可装配' : '待配置', action: 'settings', cta: '配置' },
+        { title: '本次补充知识', body: workspaceKnowledge.length ? `已登记 ${workspaceKnowledge.length} 项` : '后续支持本次需求专属知识源', state: workspaceKnowledge.length ? 'ready' : 'waiting', status: workspaceKnowledge.length ? '已登记' : '预留', action: 'materials', cta: '添加' },
+        { title: 'Handoff 包', body: '把 PRD、知识命中、规则和阶段目标合成 CLI 输入', state: knowledgeLabel || prdCount ? 'ready' : 'waiting', status: '自动生成', action: 'workbench', cta: '进入编排' },
+      ],
+    },
+    agents: {
+      eyebrow: 'Runners',
+      title: '执行器管理',
+      body: '管理 Codex、Claude、IDE 和后续可插拔 CLI。Harness 只负责调度、交接和回收。',
+      actions: [
+        ['settings', '配置执行器'],
+        ['workbench', '进入流程'],
+      ],
+      cards: [
+        { title: 'Codex CLI', body: tools.codexPath || tools.codexDesktopPath || '配置 Codex CLI 或桌面端路径', state: (tools.codexPath || tools.codexDesktopPath) ? 'ready' : 'waiting', status: (tools.codexPath || tools.codexDesktopPath) ? '可调度' : '待配置', action: 'settings', cta: '配置' },
+        { title: 'Claude Code', body: tools.claudePath || '可选执行器，用于切换模型/会话策略', state: tools.claudePath ? 'ready' : 'waiting', status: tools.claudePath ? '可调度' : '可选', action: 'settings', cta: '配置' },
+        { title: 'IDE / 本机工具', body: tools.ideaPath || '打开实现工程、定位代码和验证结果', state: tools.ideaPath ? 'ready' : 'waiting', status: tools.ideaPath ? '可打开' : '待接入', action: 'settings', cta: '配置' },
+        { title: '执行器插槽', body: '后续支持更多 CLI 以同一 handoff 协议接入', state: 'waiting', status: '预留', action: 'message', cta: '查看' },
+      ],
+    },
+    runs: {
+      eyebrow: 'Runs',
+      title: '运行记录',
+      body: '查看 handoff、日志和证据，后续独立成可检索列表。',
+      actions: [
+        ['artifacts', '查看产物与记录'],
+      ],
+    },
+    settings: {
+      eyebrow: 'Settings',
+      title: '全局接入',
+      body: '配置本机工具、知识源、业务仓库和插件接入。',
+      actions: [
+        ['settings', '打开配置中心'],
+      ],
+      cards: [
+        ['基础路径', 'Codex、Claude、IDE、workspace root'],
+        ['知识源', '团队能力库、领域白皮书、应用索引'],
+        ['扩展接入', 'Rules、Skills、外部系统和插件'],
+      ],
+    },
+  };
+  const page = pages[target];
+  if (!page) {
+    panel.classList.add('hidden');
+    return;
+  }
+  if (target === 'workspace' && !(state.status && state.status.isWorkspace)) {
+    panel.classList.add('hidden');
+    return;
+  }
+  eyebrow.textContent = page.eyebrow;
+  title.textContent = page.title;
+  body.textContent = page.body;
+  actions.innerHTML = page.actions
+    .map(([action, label]) => `<button type="button" data-nav-page-action="${escapeHtml(action)}">${escapeHtml(label)}</button>`)
+    .join('');
+  const cardHtml = page.cards && page.cards.length
+    ? `<div class="navPageCards">${page.cards.map((card) => {
+      const item = Array.isArray(card) ? { title: card[0], body: card[1] } : card;
+      return `<button class="navPageCard ${escapeHtml(item.state || '')}" type="button" data-nav-page-action="${escapeHtml(item.action || 'message')}" data-nav-page-card="true">
+        <span>${escapeHtml(item.status || '状态')}</span>
+        <strong>${escapeHtml(item.title)}</strong>
+        <small>${escapeHtml(item.body)}</small>
+        <em>${escapeHtml(item.cta || '查看')}</em>
+      </button>`;
+    }).join('')}</div>`
+    : '';
+  const oldCards = panel.querySelector('.navPageCards');
+  if (oldCards) {
+    oldCards.remove();
+  }
+  if (cardHtml) {
+    actions.insertAdjacentHTML('beforebegin', cardHtml);
+  }
+  panel.querySelectorAll('[data-nav-page-action]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.navPageAction;
+      if (action === 'settings') {
+        openDeliveryConfig().catch((error) => setMessage(error.message, 'error'));
+      } else if (action === 'new') {
+        clearWorkspaceSelection().catch((error) => setMessage(error.message, 'error'));
+      } else if (action === 'materials') {
+        if (!(state.status && state.status.isWorkspace)) {
+          setMessage('请先选择项目目录，再补充本次需求材料。');
+          return;
+        }
+        openStageMaterials();
+      } else if (action === 'switch') {
+        if (els.changeWorkspaceBtn) {
+          els.changeWorkspaceBtn.click();
+        }
+      } else if (action === 'artifacts') {
+        setActiveNavPage('artifacts');
+      } else if (action === 'workbench') {
+        setActiveNavPage('workbench');
+      } else {
+        setMessage('该功能入口已预留。');
+      }
+    });
+  });
+  panel.classList.remove('hidden');
+}
+
+function setActiveNavPage(target = 'workbench') {
+  if (target === 'workbench' && !(state.status && state.status.isWorkspace)) {
+    target = 'workspace';
+  }
+  document.body.dataset.navPage = target;
+  document.querySelectorAll('[data-nav-target]').forEach((item) => {
+    item.classList.toggle('active', item.dataset.navTarget === target);
+  });
+  renderNavPage(target);
 }
 
 async function loadToolsConfig() {
@@ -596,6 +1034,7 @@ function renderCurrentStep() {
     if (els.openCodexCliBtn) els.openCodexCliBtn.disabled = true;
     if (els.openClaudeCliBtn) els.openClaudeCliBtn.disabled = true;
     if (els.openWorkspaceFolderBtn) els.openWorkspaceFolderBtn.disabled = true;
+    if (els.sideOpenWorkspaceBtn) els.sideOpenWorkspaceBtn.disabled = true;
     if (els.openCurrentIdeaBtn) els.openCurrentIdeaBtn.disabled = true;
     if (els.handoffStatus) els.handoffStatus.textContent = '请先选择一个步骤';
     return;
@@ -654,6 +1093,7 @@ function renderCurrentStep() {
     els.openClaudeCliBtn.textContent = hasClaudeSession ? '继续 Claude' : '改用 Claude';
   }
   if (els.openWorkspaceFolderBtn) els.openWorkspaceFolderBtn.disabled = !hasWorkspace;
+  if (els.sideOpenWorkspaceBtn) els.sideOpenWorkspaceBtn.disabled = !hasWorkspace;
   if (els.openCurrentIdeaBtn) els.openCurrentIdeaBtn.disabled = !hasWorkspace;
   els.editTemplateBtn.disabled = !step.commandFile;
   els.resetTemplateBtn.disabled = !step.commandFile;
@@ -984,27 +1424,60 @@ function renderStageActionPlan(unit, nextStep) {
     ? actionPackage.actions
     : actionPackage.items;
   const writebacks = actionPackage.writebacks || [];
+  const currentAction = actions.find((item) => item.current) || actions.find((item) => !item.done) || actions[0] || {};
+  const materialAction = actions.find((item) => item.action === 'materials') || actions[0] || {};
+  const aiAction = actions.find((item) => item.action === 'ai') || actions.find((item) => item.action === 'prompt') || currentAction;
+  const reviewAction = actions.find((item) => item.action === 'review') || actions[actions.length - 1] || currentAction;
+  const outputDoneCount = writebacks.filter((item) => item.done).length;
+  const outputTotal = writebacks.length;
+  const outputReady = outputTotal > 0 && outputDoneCount === outputTotal;
+  const outputPartial = outputDoneCount > 0 && !outputReady;
+  const unitAgentStep = {
+    'prd-to-design': '01-clarify-requirement',
+    'design-to-code': '06-implement-task',
+    'quality-gate': '07-review-code',
+    'release-and-archive': '10-archive-knowledge',
+  }[unit && unit.id];
+  const agentContract = agentContractForStep(unitAgentStep || (nextStep && nextStep.id));
+  const cliName = agentContract ? agentContract.name : 'CLI Agent';
+  const cliState = aiAction.disabled ? '等待输入' : aiAction.done ? '已完成' : '可交接';
   els.stageActionPlan.innerHTML = [
-    '<div class="stageUserFlow">',
-    ...actions.map((item, index) => {
-      const cls = [
-        item.done ? 'done' : '',
-        item.current ? 'current' : '',
-        item.disabled ? 'disabled' : '',
-      ].filter(Boolean).join(' ');
-      const mark = item.done ? '✓' : String(index + 1);
-      const reason = item.reason || item.hint || '';
-      return `<button class="${cls}" type="button" data-stage-plan-action="${escapeHtml(item.action || 'prompt')}" data-stage-plan-disabled="${item.disabled ? 'true' : ''}" data-stage-plan-reason="${escapeHtml(reason)}" title="${escapeHtml(reason)}">
-        <b>${escapeHtml(mark)}</b>
-        <span>${escapeHtml(item.label)}${item.hint ? `<small>${escapeHtml(item.hint)}</small>` : ''}</span>
-      </button>`;
-    }),
+    '<div class="harnessLoop">',
+    [
+      `<button class="loopCard ${materialAction.done ? 'done' : 'current'}" type="button" data-stage-plan-action="${escapeHtml(materialAction.action || 'materials')}" data-stage-plan-disabled="${materialAction.disabled ? 'true' : ''}" data-stage-plan-reason="${escapeHtml(materialAction.reason || materialAction.hint || '')}">`,
+      '<span>Input</span>',
+      '<strong>上下文</strong>',
+      `<em>${materialAction.done ? '已准备' : '补材料'}</em>`,
+      '</button>',
+    ].join(''),
+    [
+      `<button class="loopCard primary ${aiAction.disabled ? 'disabled' : ''} ${aiAction.current ? 'current' : ''}" type="button" data-stage-plan-action="${escapeHtml(aiAction.action || 'ai')}" data-stage-plan-disabled="${aiAction.disabled ? 'true' : ''}" data-stage-plan-reason="${escapeHtml(aiAction.reason || aiAction.hint || '')}">`,
+      '<span>CLI</span>',
+      `<strong>${escapeHtml(cliName)}</strong>`,
+      `<em>${escapeHtml(cliState)}</em>`,
+      '</button>',
+    ].join(''),
+    [
+      `<button class="loopCard ${outputReady ? 'done' : outputPartial ? 'current' : ''}" type="button" data-stage-plan-action="${escapeHtml(reviewAction.action || 'review')}" data-stage-plan-disabled="${reviewAction.disabled ? 'true' : ''}" data-stage-plan-reason="${escapeHtml(reviewAction.reason || reviewAction.hint || '')}">`,
+      '<span>Output</span>',
+      '<strong>产物</strong>',
+      `<em>${outputTotal ? `${outputDoneCount}/${outputTotal}` : '待回写'}</em>`,
+      '</button>',
+    ].join(''),
+    '</div>',
+    '<div class="slotDock">',
+    '<button type="button" data-stage-slot="cli">CLI</button>',
+    '<button type="button" data-stage-slot="knowledge">知识</button>',
+    '<button type="button" data-stage-slot="rules">规则</button>',
+    '<button type="button" data-stage-slot="evidence">证据</button>',
     '</div>',
     writebacks.length ? [
-      '<div class="stageWritebackList">',
-      '<strong>本阶段产物</strong>',
+      '<details class="stageWritebackList">',
+      `<summary>本阶段产物 <span>${outputDoneCount}/${outputTotal}</span></summary>`,
+      '<div>',
       ...writebacks.map((item) => `<button class="${item.done ? 'done' : ''}" type="button" data-stage-artifact-path="${escapeHtml(item.path)}"><span>${escapeHtml(item.label)}</span><small>${escapeHtml(item.path)}</small></button>`),
       '</div>',
+      '</details>',
     ].join('') : '',
   ].join('');
   els.stageActionPlan.querySelectorAll('[data-stage-plan-action]').forEach((button) => {
@@ -1018,6 +1491,17 @@ function renderStageActionPlan(unit, nextStep) {
   });
   els.stageActionPlan.querySelectorAll('[data-stage-artifact-path]').forEach((button) => {
     button.addEventListener('click', () => openCurrentArtifact(button.dataset.stageArtifactPath).catch((error) => setMessage(error.message, 'error')));
+  });
+  els.stageActionPlan.querySelectorAll('[data-stage-slot]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const labels = {
+        cli: 'CLI 插槽',
+        knowledge: '知识库插槽',
+        rules: 'Rules / Skills 插槽',
+        evidence: '产物证据插槽',
+      };
+      setMessage(`${labels[button.dataset.stageSlot] || '插槽'}已预留：后续通过配置中心热插拔，不改变 harness 主流程。`);
+    });
   });
 }
 
@@ -1063,8 +1547,8 @@ function renderNextStepPanel() {
   const agentContract = agentContractForStep(nextStepId);
   const agentBlocker = stageAgentBlocker(unit.id);
   const visibleBlockers = blockers.length ? blockers : (agentBlocker ? [agentBlocker] : []);
-  els.nextStepTitle.textContent = actionPackage.title;
-  els.nextStepSummary.textContent = '';
+  els.nextStepTitle.textContent = actionPackage.primaryAction;
+  els.nextStepSummary.textContent = actionPackage.summary || actionPackage.bridge || '';
   renderStageActionPlan(unit, nextStep);
   if (els.nextStepMeta) {
     els.nextStepMeta.innerHTML = visibleBlockers.length
@@ -1522,6 +2006,9 @@ function renderAiAdjustPanel() {
 function render() {
   renderWorkspaceState();
   renderGlobalConfigStatus(state.teamProfile);
+  renderStartupReadiness();
+  renderContextOverview();
+  renderKnowledgeReservation();
   renderWorkspaceSidebar();
   renderAppAccessPanel();
   renderAiWorkPanel();
@@ -1539,6 +2026,13 @@ function render() {
   renderAiAdjustPanel();
   renderRuns();
   syncPreviewVisibility();
+  if (!document.body.dataset.navPage) {
+    setActiveNavPage(state.status && state.status.isWorkspace ? 'workbench' : 'workspace');
+  } else if (document.body.dataset.navPage === 'workbench' && !(state.status && state.status.isWorkspace)) {
+    setActiveNavPage('workspace');
+  } else if (!['workbench', 'artifacts'].includes(document.body.dataset.navPage)) {
+    renderNavPage(document.body.dataset.navPage);
+  }
 }
 
 function buildStarterPromptText() {
@@ -1609,12 +2103,46 @@ function renderStarterPromptPreview() {
   return true;
 }
 
+function renderArtifactEmptyPreview() {
+  if (!els.preview || !state.status || !state.status.isWorkspace) {
+    return false;
+  }
+  const unit = getSelectedUnit();
+  const step = getStep(state.selectedStepId);
+  const actionPackage = unit && unit.id !== 'workspace' ? stageActionPackage(unit, step) : null;
+  const writebacks = actionPackage && Array.isArray(actionPackage.writebacks) ? actionPackage.writebacks : [];
+  const expected = writebacks.length
+    ? writebacks.map((item) => `- ${item.label}：${item.path}`).join('\n')
+    : '- 当前阶段完成后会在这里展示 Markdown 产物。';
+  state.previewText = '';
+  els.preview.value = [
+    '# 产物展示',
+    '',
+    '当前阶段还没有可展示的产物。',
+    '',
+    '完成右侧动作后，Agent 回写的文件会自动出现在这里。',
+    '',
+    '## 预期产物',
+    expected,
+  ].join('\n');
+  els.previewMeta.textContent = '等待 Agent 回写产物';
+  setPreviewState({ mode: 'prompt' });
+  if (els.workbenchTitle) {
+    els.workbenchTitle.textContent = '产物展示';
+  }
+  if (els.previewSourceLabel) {
+    els.previewSourceLabel.textContent = '产物';
+    els.previewSourceLabel.className = 'statePill';
+  }
+  return true;
+}
+
 function syncPreviewVisibility() {
   if (!els.previewBox) {
     return;
   }
   if (!String(els.preview.value || '').trim() && state.previewMode === 'empty') {
-    renderStarterPromptPreview();
+    renderArtifactEmptyPreview();
   }
   const hasPreviewContent = Boolean(String(els.preview.value || '').trim());
   const shouldHide = state.previewMode === 'empty' || !hasPreviewContent;
@@ -1967,6 +2495,7 @@ async function openDeliveryConfig() {
   }
   els.setupGuidePanel.open = true;
   els.setupGuidePanel.classList.add('modalOpen');
+  setActiveConfigDomain('startup');
   loadAvailableApps().catch((error) => setMessage(error.message, 'error'));
 }
 
@@ -2507,12 +3036,12 @@ async function goReviewStepFromHandoff() {
   setMessage(`已进入验收步骤：${targetStep}`);
 }
 
-async function openWorkspaceFolder() {
+async function openWorkspaceFolder(button = els.openWorkspaceFolderBtn) {
   const workspacePath = els.workspacePath.value.trim();
   if (!workspacePath) {
     throw new Error('请先选择 workspace');
   }
-  setLoading(els.openWorkspaceFolderBtn, true, '打开中...');
+  setLoading(button, true, '打开中...');
   try {
     const data = await api('/api/workspace/open-folder', {
       method: 'POST',
@@ -2520,7 +3049,7 @@ async function openWorkspaceFolder() {
     });
     setMessage(`已打开 workspace：${data.targetPath}`);
   } finally {
-    setLoading(els.openWorkspaceFolderBtn, false);
+    setLoading(button, false);
   }
 }
 
@@ -2629,12 +3158,15 @@ window.DWAppDomains = {
   renderRuns,
   previewPrompt,
   renderStarterPromptPreview,
+  renderArtifactEmptyPreview,
   configToText,
   ensureSelectedStepInUnit,
   focusNextActionAfterWorkspaceInit,
   ensureKnownFactsLoaded,
   autoPreviewSelectedStep,
 };
+
+setupConfigCenterLayout();
 
 els.initBtn.addEventListener('click', () => initWorkspace().catch((error) => setMessage(error.message, 'error')));
 if (els.chooseOutputRootBtn) {
@@ -2687,9 +3219,40 @@ if (els.chooseWorkspacePathBtn) {
 });
 els.useWorkspaceBtn.addEventListener('click', () => useWorkspace().catch((error) => setMessage(error.message, 'error')));
 els.openConfigBtn.addEventListener('click', () => openDeliveryConfig().catch((error) => setMessage(error.message, 'error')));
-if (els.globalConfigBtn) {
-  els.globalConfigBtn.addEventListener('click', () => openDeliveryConfig().catch((error) => setMessage(error.message, 'error')));
+const startupOpenConfigBtn = document.querySelector('#startupOpenConfigBtn');
+if (startupOpenConfigBtn) {
+  startupOpenConfigBtn.addEventListener('click', () => openDeliveryConfig().catch((error) => setMessage(error.message, 'error')));
 }
+document.querySelectorAll('[data-knowledge-source]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const labels = {
+      team: '团队能力库',
+      whitepaper: '领域白皮书',
+      apps: '应用索引',
+      local: '本次补充知识',
+    };
+    setMessage(`${labels[button.dataset.knowledgeSource] || '知识库'}入口已预留，后续会接入加载、命中预览和 handoff 选择。`);
+  });
+});
+document.querySelectorAll('[data-nav-target]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const target = button.dataset.navTarget;
+    if (['workbench', 'artifacts'].includes(target) && !(state.status && state.status.isWorkspace)) {
+      setActiveNavPage('workspace');
+      setMessage('请先选择项目目录，再进入交付流。');
+      return;
+    }
+    setActiveNavPage(target);
+    if (target === 'settings') {
+      openDeliveryConfig().catch((error) => setMessage(error.message, 'error'));
+      return;
+    }
+    if (target === 'knowledge') {
+      setMessage('上下文入口已预留：后续会统一管理 PRD、知识源、应用索引和本次补充材料。');
+      return;
+    }
+  });
+});
 if (els.authorizeFeishuBtn) {
   els.authorizeFeishuBtn.addEventListener('click', () => {
     authorizeFeishu().catch((error) => {
@@ -2756,6 +3319,9 @@ if (els.availableApps) {
 }
 if (els.newSidebarWorkspaceBtn) {
   els.newSidebarWorkspaceBtn.addEventListener('click', () => clearWorkspaceSelection().catch((error) => setMessage(error.message, 'error')));
+}
+if (els.sideSwitchWorkspaceBtn) {
+  els.sideSwitchWorkspaceBtn.addEventListener('click', () => clearWorkspaceSelection().catch((error) => setMessage(error.message, 'error')));
 }
 if (els.workspaceSidebarList) {
   els.workspaceSidebarList.addEventListener('click', (event) => {
@@ -2829,10 +3395,16 @@ els.openClaudeCliBtn.addEventListener('click', () => openAgentCli('claude').catc
   setLoading(els.openClaudeCliBtn, false);
   setMessage(error.message, 'error');
 }));
-els.openWorkspaceFolderBtn.addEventListener('click', () => openWorkspaceFolder().catch((error) => {
+els.openWorkspaceFolderBtn.addEventListener('click', () => openWorkspaceFolder(els.openWorkspaceFolderBtn).catch((error) => {
   setLoading(els.openWorkspaceFolderBtn, false);
   setMessage(error.message, 'error');
 }));
+if (els.sideOpenWorkspaceBtn) {
+  els.sideOpenWorkspaceBtn.addEventListener('click', () => openWorkspaceFolder(els.sideOpenWorkspaceBtn).catch((error) => {
+    setLoading(els.sideOpenWorkspaceBtn, false);
+    setMessage(error.message, 'error');
+  }));
+}
 els.openCurrentIdeaBtn.addEventListener('click', () => openIdea().catch((error) => {
   setLoading(els.openCurrentIdeaBtn, false);
   setMessage(error.message, 'error');

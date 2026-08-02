@@ -14,6 +14,7 @@
   async function loadStatus(...args) { return callApp('loadStatus', ...args); }
   async function previewPrompt(...args) { return callApp('previewPrompt', ...args); }
   function renderStarterPromptPreview(...args) { return callApp('renderStarterPromptPreview', ...args); }
+  function renderArtifactEmptyPreview(...args) { return callApp('renderArtifactEmptyPreview', ...args); }
 
 async function openLocalStepFile(relativePath, editable) {
   const workspacePath = els.workspacePath.value.trim();
@@ -116,18 +117,8 @@ async function autoPreviewCurrentArtifact() {
 async function autoPreviewSelectedStep() {
   const step = getStep(state.selectedStepId);
   if (!step || !step.id || !els.artifactList.value) {
-    if (step && step.kind === 'agent') {
-      try {
-        const shown = await previewPrompt({ silent: true });
-        if (shown) {
-          return;
-        }
-      } catch (error) {
-        console.warn('auto prompt preview failed:', error);
-      }
-      if (renderStarterPromptPreview()) {
-        return;
-      }
+    if (renderArtifactEmptyPreview()) {
+      return;
     }
     state.previewText = '';
     els.preview.value = '';

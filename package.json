@@ -34,10 +34,11 @@
     "test:api": "node scripts/regression-api.js",
     "test:regression": "npm run check:whitepaper && npm run test:api && npm run smoke",
     "pack:dry": "npm pack --dry-run",
-    "prepublishOnly": "npm run check && npm run smoke && npm pack --dry-run"
+    "prepublishOnly": "npm run check && npm run test:regression && npm pack --dry-run"
   },
   "files": [
     "bin/",
+    "scripts/regression-api.js",
     "scripts/smoke.js",
     "scripts/check-feishu.js",
     "scripts/check-whitepaper.js",

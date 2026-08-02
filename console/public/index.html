@@ -4,14 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Delivery Workflow Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260702-config-simple" />
+    <link rel="stylesheet" href="/styles.css?v=20260721-functional-panels" />
   </head>
   <body>
     <main class="shell">
       <header class="topbar">
         <div>
           <p class="eyebrow">Delivery Workflow</p>
-          <h1>本地交付工作台</h1>
+          <h1>CLI Delivery Harness</h1>
+        </div>
+        <div class="topbarActions">
+          <span id="workspaceState" class="statePill">未选择 workspace</span>
+          <button id="changeWorkspaceBtn" type="button">切换工作区</button>
+          <button id="openConfigBtn" class="configShortcut" type="button">设置</button>
         </div>
       </header>
 
@@ -31,13 +36,78 @@
       <div class="appFrame">
         <aside class="workspaceSidebar">
           <div class="sidebarBrand">
-            <strong>工作区</strong>
+            <div>
+              <span>CLI Delivery</span>
+              <strong>CLI Harness</strong>
+            </div>
             <button id="newSidebarWorkspaceBtn" type="button">新建</button>
           </div>
-          <div id="globalConfigStatus" class="globalConfigStatus"></div>
-          <button id="globalConfigBtn" class="configShortcut" type="button">全局配置中心</button>
-          <div class="sidebarSectionTitle">已有工作区</div>
-          <div id="workspaceSidebarList" class="workspaceSidebarList"></div>
+
+          <section class="sidebarProject" aria-label="当前项目目录">
+            <span>项目目录</span>
+            <strong id="sideProjectName">未选择项目</strong>
+            <small id="sideProjectPath">选择目录后开始交付</small>
+            <em id="sideProjectRepo">Repo 未配置</em>
+            <div class="sidebarProjectActions">
+              <button id="sideSwitchWorkspaceBtn" type="button">切换</button>
+              <button id="sideOpenWorkspaceBtn" type="button">打开</button>
+            </div>
+          </section>
+
+          <nav class="harnessNav" aria-label="Harness 功能导航">
+            <button class="navItem active" type="button" data-nav-target="workspace" data-nav-code="BOOT">
+              <strong>启动配置</strong>
+              <span>项目目录、全局接入</span>
+            </button>
+            <button id="loadKnowledgeBtn" class="navItem knowledgeLoadBtn" type="button" data-nav-target="knowledge" data-nav-code="CTX">
+              <strong>上下文装配</strong>
+              <span>PRD、知识源、材料</span>
+            </button>
+            <button class="navItem" type="button" data-nav-target="agents" data-nav-code="CLI">
+              <strong>执行器管理</strong>
+              <span>Codex、Claude、IDE</span>
+            </button>
+            <button class="navItem" type="button" data-nav-target="workbench" data-nav-code="FLOW">
+              <strong>交付编排</strong>
+              <span>阶段推进、CLI 交接</span>
+            </button>
+            <button class="navItem" type="button" data-nav-target="artifacts" data-nav-code="OUT">
+              <strong>产物验收</strong>
+              <span>预览、验收、日志</span>
+            </button>
+          </nav>
+
+          <section class="navSummary">
+            <div class="contextCard active">
+              <span>当前工作区</span>
+              <strong id="contextWorkspaceName">未选择</strong>
+              <small id="contextWorkspacePath">选择 workspace 后组织 CLI 交付。</small>
+            </div>
+            <div class="contextStack">
+              <div class="contextMini">
+                <span>Profile</span>
+                <strong id="contextProfileName">default</strong>
+              </div>
+              <div class="contextMini">
+                <span>Agent</span>
+                <strong id="contextAgentName">Codex</strong>
+              </div>
+              <div class="contextMini">
+                <span>Repo</span>
+                <strong id="contextRepoState">未配置</strong>
+              </div>
+            </div>
+            <div id="globalConfigStatus" class="globalConfigStatus"></div>
+            <section class="knowledgeReserveCard">
+              <div>
+                <span>Knowledge Base</span>
+                <strong id="contextKnowledgeState">预留加载位</strong>
+              </div>
+              <small id="contextKnowledgeMeta">团队知识、白皮书、应用索引和本次补充。</small>
+            </section>
+            <div class="sidebarSectionTitle">最近工作区</div>
+            <div id="workspaceSidebarList" class="workspaceSidebarList"></div>
+          </section>
         </aside>
 
         <div class="workspaceContent">
@@ -45,13 +115,24 @@
         <div class="startCard">
           <div class="startIntro">
             <p class="eyebrow">Step 1</p>
-            <h2>先选择一个工作区</h2>
-            <p>工作区用于保存 PRD、上下文快照、阶段产物和执行记录。创建或打开工作区后，再进入流程控制台。</p>
+            <h2>先选择一个项目</h2>
+            <p>项目目录用于保存 PRD、上下文快照、阶段产物和执行记录。创建或打开项目后，再进入流程。</p>
           </div>
+
+          <section class="startupReadiness">
+            <div class="startupReadinessHeader">
+              <div>
+                <span>Harness Readiness</span>
+                <strong id="startupReadySummary">检查启动条件</strong>
+              </div>
+              <button id="startupOpenConfigBtn" type="button">打开启动配置</button>
+            </div>
+            <div id="startupReadyGrid" class="startupReadyGrid"></div>
+          </section>
 
           <div class="startGrid">
             <section class="startBox">
-              <h3>创建新工作区</h3>
+              <h3>创建项目目录</h3>
               <label>
                 <span>工作区名称</span>
                 <input id="demandName" placeholder="reverse-clear-fee-import" />
@@ -68,7 +149,7 @@
             </section>
 
             <section class="startBox">
-              <h3>打开已有工作区</h3>
+              <h3>打开已有项目</h3>
               <label>
                 <span>已有工作区目录</span>
                 <div class="pathPickerRow">
@@ -93,23 +174,46 @@
             <strong id="currentWorkspaceText">未选择</strong>
           </div>
           <div class="workspaceActions">
-            <button id="openConfigBtn" class="configShortcut" type="button">全局配置</button>
-            <button id="changeWorkspaceBtn" type="button">重新选择工作区</button>
           </div>
         </div>
+
+        <section class="contextOverview">
+          <div class="contextOverviewMain">
+            <span>当前运行上下文</span>
+            <strong id="overviewWorkspace">未选择 workspace</strong>
+          </div>
+          <div class="contextOverviewGrid">
+            <div>
+              <span>Profile</span>
+              <strong id="overviewProfile">default</strong>
+            </div>
+            <div>
+              <span>业务仓库</span>
+              <strong id="overviewRepo">未配置</strong>
+            </div>
+            <div>
+              <span>当前 Agent</span>
+              <strong id="overviewAgent">Codex</strong>
+            </div>
+            <div>
+              <span>知识库</span>
+              <strong id="overviewKnowledge">待加载</strong>
+            </div>
+          </div>
+        </section>
 
         <details class="setupGuidePanel">
           <summary class="setupGuideIntro">
             <div>
-              <strong>全局配置中心</strong>
-              <span>配置本机工具、团队能力库、代码仓库、知识库和扩展接入。</span>
+              <strong>启动配置中心</strong>
+              <span>维护 Harness 运行前置：本机工具、知识库、业务上下文和外部文档接入。</span>
             </div>
             <button id="closeGlobalConfigBtn" type="button">关闭</button>
             <span class="statePill active">可选配置</span>
           </summary>
           <div class="setupConfigGrid">
             <details class="toolConfigPanel" open>
-              <summary>本机工具</summary>
+              <summary>基础工具</summary>
               <div class="toolConfigPopover">
                 <label>
                   <span>Codex CLI</span>
@@ -150,15 +254,15 @@
               </div>
             </details>
             <details class="toolConfigPanel capabilityPanel" open>
-              <summary>能力源</summary>
+              <summary>知识库与业务上下文</summary>
               <div class="toolConfigPopover capabilityPopover">
                 <div class="configSummary">
-                  <strong>全局只配置一次</strong>
-                  <span>新工作区会从这里继承工具、团队能力和代码索引。</span>
+                  <strong>知识库加载预留</strong>
+                  <span>团队能力库、领域白皮书、应用索引和本次补充，后续会统一进入上下文装配。</span>
                 </div>
                 <div class="configSectionTitle">
-                  <strong>团队能力库</strong>
-                  <span>rules、skills、templates 和 app-index 推荐统一维护在这个仓库。</span>
+                  <strong>知识库</strong>
+                  <span>rules、skills、templates、领域材料和后续可检索知识源。</span>
                 </div>
                 <label>
                   <span>团队能力库目录</span>
@@ -188,8 +292,8 @@
                   <button id="appendGlobalRuleFileBtn" type="button"></button>
                 </div>
                 <div class="configSectionTitle">
-                  <strong>代码与应用索引</strong>
-                  <span>本期只需要配置业务代码根目录；团队应用索引后续统一维护。</span>
+                  <strong>业务上下文</strong>
+                  <span>业务代码根目录、应用索引和备用 skills，用来辅助 CLI 定位实现范围。</span>
                 </div>
                 <label>
                   <span>业务代码根目录</span>
@@ -205,11 +309,13 @@
                     <button id="chooseDefaultSkillsRootBtn" type="button">选择目录</button>
                   </div>
                 </label>
-                <div class="configSectionTitle">
-                  <strong>飞书 / Lark 接入</strong>
-                  <span>用于把飞书或 Lark 文档链接读取并转换为 workspace 的 prd/document.md。普通用户只需要选择授权方式和权限范围。</span>
-                </div>
-                <div class="feishuConfigGrid">
+                <details class="advancedConfigBox externalConfigPanel">
+                  <summary>外部文档接入：飞书 / Lark</summary>
+                  <div class="configSectionTitle">
+                    <strong>飞书 / Lark</strong>
+                    <span>把外部文档链接读取并转换为项目内的 prd/document.md。</span>
+                  </div>
+                  <div class="feishuConfigGrid">
                   <label>
                     <span>服务区域</span>
                     <select id="feishuBase">
@@ -254,15 +360,15 @@
                       <input id="feishuCliArgs" placeholder="exec --yes --package=@larksuite/cli -- lark-cli docs +fetch --doc {url} --doc-format markdown --jq .data.document.content" />
                     </label>
                   </details>
-                </div>
-                <div class="feishuAuthCard">
+                  </div>
+                  <div class="feishuAuthCard">
                   <div>
                     <strong>飞书登录授权</strong>
                     <span id="feishuAuthStatus">CLI/MCP 通常会自己拉起飞书扫码登录；如果公司提供统一授权入口，也可以在高级配置里填写后从这里打开。</span>
                   </div>
                   <button id="authorizeFeishuBtn" class="primary" type="button">打开扫码授权</button>
-                </div>
-                <div class="feishuScopeBox">
+                  </div>
+                  <div class="feishuScopeBox">
                   <strong>权限范围</strong>
                   <label class="checkboxLine">
                     <input id="feishuScopeRead" type="checkbox" />
@@ -280,7 +386,8 @@
                     <input id="feishuScopeNotify" type="checkbox" />
                     <span>发送飞书通知（预留）</span>
                   </label>
-                </div>
+                  </div>
+                </details>
                 <details class="advancedConfigBox">
                   <summary>高级：运维适配器</summary>
                   <label>
@@ -325,6 +432,15 @@
           </div>
         </details>
 
+        <section id="navPagePanel" class="navPagePanel hidden" aria-live="polite">
+          <div class="navPageHeader">
+            <span id="navPageEyebrow">Harness</span>
+            <h2 id="navPageTitle">功能页</h2>
+          </div>
+          <p id="navPageBody"></p>
+          <div id="navPageActions" class="navPageActions"></div>
+        </section>
+
         <section class="main">
           <section class="flowPanel flowTopPanel">
             <div id="flow" class="flow"></div>
@@ -368,9 +484,25 @@
           <section class="previewPanel">
             <div class="sectionHeader">
               <div>
-                <h2 id="workbenchTitle">阶段产物</h2>
+                <h2 id="workbenchTitle">Slots</h2>
               </div>
             </div>
+            <section class="inspectorCard knowledgeInspector">
+              <div class="inspectorCardHeader">
+                <div>
+                  <span>Knowledge Base</span>
+                  <strong id="knowledgeInspectorTitle">知识上下文</strong>
+                </div>
+                <span id="knowledgeInspectorBadge" class="statePill waiting">待接入</span>
+              </div>
+              <p id="knowledgeInspectorBody">按需加载知识源，随 handoff 交给 CLI。</p>
+              <div class="knowledgeSourceGrid">
+                <button type="button" data-knowledge-source="team">团队能力库</button>
+                <button type="button" data-knowledge-source="whitepaper">领域白皮书</button>
+                <button type="button" data-knowledge-source="apps">应用索引</button>
+                <button type="button" data-knowledge-source="local">本次补充</button>
+              </div>
+            </section>
             <details class="workflowStepsPanel advancedStageSteps">
               <summary>
                 <span>高级：步骤明细</span>

@@ -2834,3 +2834,2884 @@ select[multiple] option {
   }
 
 }
+
+/* Product shell v1 */
+.shell {
+  padding: 16px;
+}
+
+.topbar {
+  min-height: 58px;
+  border: 1px solid #dce2de;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 10px 28px rgba(28, 36, 32, 0.06);
+  margin-bottom: 12px;
+  padding: 10px 14px;
+}
+
+.topbar h1 {
+  font-size: 21px;
+}
+
+.topbarActions {
+  display: flex;
+}
+
+#openConfigBtn,
+#changeWorkspaceBtn {
+  display: inline-flex;
+  align-items: center;
+}
+
+.appFrame {
+  grid-template-columns: 276px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.workspaceSidebar {
+  top: 12px;
+  gap: 10px;
+  border-color: #dce3df;
+  background: #fbfcfb;
+  box-shadow: 0 14px 34px rgba(25, 35, 30, 0.07);
+  padding: 10px;
+}
+
+.sidebarBrand {
+  align-items: flex-start;
+}
+
+.sidebarBrand > div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sidebarBrand span,
+.contextCard span,
+.contextMini span,
+.knowledgeReserveCard span,
+.contextOverview span,
+.inspectorCardHeader span {
+  color: #68736e;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.sidebarBrand strong {
+  color: #17201c;
+  font-size: 17px;
+}
+
+.contextCard,
+.contextMini,
+.knowledgeReserveCard,
+.contextOverview,
+.inspectorCard {
+  border: 1px solid #dde5e0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.contextCard {
+  display: grid;
+  gap: 5px;
+  padding: 11px;
+}
+
+.contextCard.active {
+  border-color: #b8cfe8;
+  background: #f5f9ff;
+}
+
+.contextCard strong,
+.contextCard small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextCard strong {
+  color: #1f3550;
+  font-size: 14px;
+}
+
+.contextCard small,
+.knowledgeReserveCard small {
+  color: #68736e;
+  font-size: 12px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.contextStack {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 7px;
+}
+
+.contextMini {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 10px;
+}
+
+.contextMini strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #22302a;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledgeReserveCard {
+  display: grid;
+  gap: 8px;
+  border-color: #e1d9bc;
+  background: #fffdf4;
+  padding: 10px;
+}
+
+.knowledgeReserveCard > div {
+  display: grid;
+  gap: 3px;
+}
+
+.knowledgeReserveCard strong {
+  color: #73561a;
+  font-size: 13px;
+}
+
+.configShortcut {
+  justify-content: center;
+}
+
+.globalConfigStatus {
+  box-shadow: none;
+}
+
+.contextOverview {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.1fr) minmax(0, 2fr);
+  gap: 10px;
+  align-items: stretch;
+  margin-bottom: 12px;
+  padding: 10px;
+}
+
+.contextOverviewMain,
+.contextOverviewGrid > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.contextOverviewMain strong,
+.contextOverviewGrid strong {
+  overflow: hidden;
+  color: #1f2924;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextOverviewMain strong {
+  font-size: 15px;
+}
+
+.contextOverviewGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.contextOverviewGrid > div {
+  border-left: 1px solid #e5ebe7;
+  padding-left: 10px;
+}
+
+.main {
+  grid-template-columns: minmax(0, 1fr) minmax(330px, 380px);
+  gap: 12px;
+}
+
+.flowPanel {
+  grid-column: 1;
+}
+
+.stageActionPanel {
+  grid-column: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+}
+
+.stageActionPanel .stageActionSide {
+  justify-items: stretch;
+}
+
+.agentBridgePanel {
+  justify-content: flex-start;
+}
+
+.agentBridgeActions {
+  justify-content: flex-start;
+}
+
+#openCodexCliBtn,
+#openStageMaterialsBtn {
+  display: inline-flex;
+  align-items: center;
+}
+
+.agentBridgeActions button,
+.stageMoreMenu > summary {
+  min-height: 36px;
+}
+
+.semanticArtifactsPanel {
+  display: grid !important;
+}
+
+.semanticArtifactsPanel.hidden {
+  display: none !important;
+}
+
+.previewPanel {
+  position: sticky;
+  top: 12px;
+  grid-column: 2;
+  grid-row: 1 / span 5;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  max-height: calc(100vh - 104px);
+  overflow: auto;
+  border: 1px solid #dde5e0;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(25, 35, 30, 0.07);
+  padding: 10px;
+}
+
+.previewPanel.hidden {
+  display: none !important;
+}
+
+.previewPanel .sectionHeader {
+  display: flex;
+  padding: 0;
+}
+
+.previewPanel .sectionHeader h2 {
+  display: block;
+  font-size: 15px;
+}
+
+.inspectorCard {
+  display: grid;
+  gap: 9px;
+  padding: 10px;
+}
+
+.inspectorCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.inspectorCardHeader > div {
+  display: grid;
+  gap: 3px;
+}
+
+.inspectorCardHeader strong {
+  font-size: 13px;
+}
+
+.inspectorCard p {
+  color: #59655f;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.knowledgeInspector {
+  border-color: #e2d8b8;
+  background: #fffdf6;
+}
+
+.knowledgeSourceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.knowledgeSourceGrid button {
+  min-height: 32px;
+  background: #ffffff;
+  color: #5d4b22;
+  font-size: 12px;
+  text-align: left;
+}
+
+.workflowStepsPanel,
+.commandBar,
+.checkpointPanel,
+.aiAdjustPanel,
+.previewBox {
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.commandBar {
+  display: grid !important;
+  gap: 8px;
+  border: 1px solid #dde5e0;
+  background: #fbfcfb;
+  padding: 10px;
+}
+
+.commandBar.hidden {
+  display: none !important;
+}
+
+.artifactBar {
+  display: grid;
+}
+
+.advancedRunPanel {
+  text-align: left;
+}
+
+.advancedToolGrid {
+  grid-template-columns: 1fr;
+  justify-content: stretch;
+}
+
+.advancedToolGrid .inlineInput {
+  width: 100%;
+  flex-basis: auto;
+}
+
+.advancedToolGrid button {
+  width: 100%;
+}
+
+.previewBox {
+  background: #fbfcfb;
+  padding: 10px;
+}
+
+#preview {
+  min-height: 210px;
+  max-height: 42vh;
+}
+
+.stageMaterialsModal {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 1180px) {
+  .main {
+    grid-template-columns: 1fr;
+  }
+
+  .previewPanel {
+    position: static;
+    grid-column: 1;
+    grid-row: auto;
+    max-height: none;
+  }
+
+  .contextOverview,
+  .contextOverviewGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .appFrame {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceSidebar {
+    position: static;
+    max-height: none;
+  }
+
+  .topbarActions,
+  .contextOverview,
+  .contextOverviewGrid,
+  .knowledgeSourceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .topbarActions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .contextOverviewGrid > div {
+    border-left: 0;
+    border-top: 1px solid #e5ebe7;
+    padding: 8px 0 0;
+  }
+}
+
+/* Product shell v4: left navigation owns the product structure */
+.appFrame {
+  grid-template-columns: 248px minmax(0, 1fr);
+  align-items: start;
+}
+
+.workspaceSidebar {
+  position: sticky;
+  top: 10px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  max-height: calc(100vh - 20px);
+  overflow: auto;
+  padding: 10px;
+}
+
+.sidebarBrand {
+  min-width: 0;
+  padding: 2px 2px 6px;
+}
+
+.sidebarBrand span {
+  display: block;
+  color: #6d7872;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.sidebarBrand strong {
+  font-size: 22px;
+}
+
+.sidebarBrand button {
+  min-height: 32px;
+}
+
+.harnessNav {
+  display: grid;
+  gap: 7px;
+}
+
+.navItem {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  min-height: 54px;
+  border: 1px solid #e0e6e2;
+  border-radius: 8px;
+  background: #fff;
+  color: #1e2824;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.navItem:hover {
+  border-color: #bfd0c8;
+  background: #fbfcfb;
+}
+
+.navItem.active {
+  border-color: #245e9f;
+  background: #f1f7ff;
+  box-shadow: inset 3px 0 0 #245e9f;
+}
+
+.navItem strong {
+  font-size: 14px;
+}
+
+.navItem span {
+  overflow: hidden;
+  color: #6d7872;
+  font-size: 12px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.navItem.knowledgeLoadBtn {
+  border-color: #e2d8b8;
+  background: #fffdf6;
+  color: #5c4618;
+}
+
+.navItem.configShortcut {
+  justify-content: start;
+  border-color: #c6d8ea;
+  background: #f5f9ff;
+  color: #174f8e;
+}
+
+.navSummary {
+  display: none;
+}
+
+.workspaceContent {
+  min-width: 0;
+}
+
+.main {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "flow"
+    "action"
+    "artifact";
+  gap: 10px;
+}
+
+.flowPanel {
+  grid-area: flow;
+}
+
+.stageActionPanel {
+  grid-area: action;
+  padding: 16px;
+}
+
+.stageActionMain h2 {
+  font-size: 25px;
+}
+
+.harnessLoop {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.loopCard {
+  min-height: 108px;
+}
+
+.slotDock {
+  display: flex;
+}
+
+.stageActionSide {
+  border-top: 1px solid #e8ece9;
+}
+
+.agentBridgeActions {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.agentBridgeActions button,
+.stageMoreMenu > summary {
+  width: auto;
+  min-width: 128px;
+}
+
+.previewPanel {
+  grid-area: artifact;
+  min-height: 560px;
+}
+
+.knowledgeInspector {
+  display: none;
+}
+
+.previewBox {
+  min-height: 480px;
+}
+
+#preview {
+  min-height: 390px;
+}
+
+@media (max-width: 980px) {
+  .appFrame {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceSidebar {
+    position: static;
+    max-height: none;
+  }
+
+  .harnessNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .harnessLoop {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .harnessNav {
+    grid-template-columns: 1fr;
+  }
+
+  .agentBridgeActions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .agentBridgeActions button,
+  .stageMoreMenu > summary {
+    width: 100%;
+  }
+}
+
+/* Product shell v2: simple CLI harness */
+body {
+  background: #f7f8f6;
+}
+
+.shell {
+  padding: 12px;
+}
+
+.topbar {
+  min-height: 52px;
+  border-color: #e0e5e1;
+  border-radius: 8px;
+  box-shadow: none;
+  padding: 8px 12px;
+}
+
+.topbar .eyebrow {
+  color: #66736d;
+  font-size: 10px;
+}
+
+.topbar h1 {
+  font-size: 20px;
+}
+
+.topbarActions {
+  gap: 8px;
+}
+
+.topbarActions .statePill {
+  background: #eef4fb;
+  color: #245e9f;
+}
+
+.appFrame {
+  grid-template-columns: 236px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.workspaceSidebar {
+  gap: 8px;
+  border-color: #e0e5e1;
+  background: #fff;
+  box-shadow: none;
+  padding: 10px;
+}
+
+.sidebarBrand span,
+.contextCard span,
+.contextMini span,
+.knowledgeReserveCard span,
+.contextOverview span,
+.inspectorCardHeader span {
+  font-size: 10px;
+}
+
+.sidebarBrand strong {
+  font-size: 18px;
+}
+
+.contextCard,
+.contextMini,
+.knowledgeReserveCard,
+.globalConfigStatus {
+  border-radius: 7px;
+}
+
+.contextCard {
+  padding: 10px;
+}
+
+.contextCard.active {
+  border-color: #c7d7ea;
+  background: #f8fbff;
+}
+
+.contextCard small {
+  color: #6f7a75;
+  white-space: normal;
+}
+
+.contextStack {
+  gap: 6px;
+}
+
+.contextMini {
+  min-height: 34px;
+  padding: 7px 9px;
+}
+
+.contextMini strong {
+  font-size: 12px;
+}
+
+.globalConfigStatus {
+  gap: 8px;
+  background: #fbfcfb;
+  padding: 9px;
+}
+
+.configStatusHeader strong {
+  font-size: 12px;
+}
+
+.configSlotDots {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 5px;
+}
+
+.configSlotDots span {
+  display: inline-grid;
+  place-items: center;
+  min-height: 28px;
+  border: 1px solid #e0e5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #6f7a75;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.configSlotDots span.done {
+  border-color: #b8d8c4;
+  background: #f1faf4;
+  color: #27734d;
+}
+
+.configSlotDots span.waiting {
+  border-color: #ead8b6;
+  background: #fffaf0;
+  color: #8b6518;
+}
+
+.knowledgeReserveCard {
+  border-color: #e3dbc3;
+  background: #fffdf7;
+}
+
+.knowledgeReserveCard small {
+  display: none;
+}
+
+.workspaceSideItem {
+  padding: 9px;
+}
+
+.workspaceSideItem span {
+  display: none;
+}
+
+.contextOverview {
+  display: none;
+}
+
+.main {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 12px;
+}
+
+.flowPanel {
+  border: 0;
+  background: transparent;
+}
+
+.flow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.unitNode {
+  min-height: 58px;
+  border-color: #dde5e0;
+  background: #fff;
+  padding: 10px;
+}
+
+.unitNode h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.unitMeta {
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.unitMeta .badge {
+  min-height: 20px;
+  padding: 1px 7px;
+  font-size: 11px;
+}
+
+.stageActionPanel {
+  min-height: 430px;
+  border-color: #dde5e0;
+  background: #fff;
+  box-shadow: none;
+  padding: 24px;
+}
+
+.stageActionMain {
+  gap: 14px;
+}
+
+.stageActionMain h2 {
+  max-width: 760px;
+  font-size: 30px;
+  line-height: 1.14;
+}
+
+#nextStepSummary {
+  display: block;
+  max-width: 720px;
+  color: #53605a;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.nextStepMeta {
+  margin-top: -4px;
+}
+
+.nextStepBlockers {
+  max-width: 720px;
+  border-left: 3px solid #d9892c;
+  background: #fffaf1;
+  padding: 9px 12px 9px 26px;
+}
+
+.harnessLoop {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.loopCard {
+  display: grid;
+  gap: 8px;
+  min-height: 138px;
+  border: 1px solid #dde5e0;
+  border-radius: 8px;
+  background: #fbfcfb;
+  color: #1e2824;
+  padding: 16px;
+  text-align: left;
+}
+
+.loopCard span {
+  color: #6d7872;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.loopCard strong {
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.loopCard em {
+  align-self: end;
+  justify-self: start;
+  border-radius: 999px;
+  background: #edf2ee;
+  color: #53605a;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 700;
+  padding: 4px 10px;
+}
+
+.loopCard.current {
+  border-color: #b9cfe8;
+  background: #f4f9ff;
+}
+
+.loopCard.primary {
+  border-color: #245e9f;
+  background: #f1f7ff;
+  color: #1e2824;
+}
+
+.loopCard.primary strong {
+  color: #1e2824;
+}
+
+.loopCard.done {
+  border-color: #b8d8c4;
+  background: #f2fbf5;
+}
+
+.loopCard.disabled {
+  opacity: 0.55;
+}
+
+.slotDock {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.slotDock button {
+  min-height: 34px;
+  border-color: #dde5e0;
+  background: #fff;
+  color: #44504a;
+}
+
+.stageWritebackList {
+  display: block;
+  border: 1px solid #e0e6e2;
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 0;
+}
+
+.stageWritebackList summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 42px;
+  cursor: pointer;
+  list-style: none;
+  padding: 0 12px;
+  font-weight: 700;
+}
+
+.stageWritebackList summary::-webkit-details-marker {
+  display: none;
+}
+
+.stageWritebackList summary span {
+  color: #6f7a75;
+  font-size: 12px;
+}
+
+.stageWritebackList > div {
+  display: grid;
+  gap: 7px;
+  padding: 0 10px 10px;
+}
+
+.stageWritebackList button {
+  min-height: 34px;
+}
+
+.stageActionSide {
+  border-top: 1px solid #e8ece9;
+  padding-top: 14px;
+}
+
+.agentBridgeActions {
+  gap: 8px;
+}
+
+.agentBridgeActions .primary,
+#openStageMaterialsBtn.primary {
+  min-width: 156px;
+}
+
+.previewPanel {
+  gap: 8px;
+  border-color: #e0e5e1;
+  box-shadow: none;
+  padding: 10px;
+}
+
+.previewPanel .sectionHeader {
+  display: none;
+}
+
+.knowledgeInspector {
+  background: #fffdf7;
+}
+
+.inspectorCard p {
+  font-size: 13px;
+}
+
+.knowledgeSourceGrid {
+  grid-template-columns: 1fr 1fr;
+}
+
+.knowledgeSourceGrid button {
+  min-height: 36px;
+  text-align: center;
+}
+
+.workflowStepsPanel,
+.commandBar,
+.previewBox,
+.checkpointPanel,
+.aiAdjustPanel {
+  border-color: #e0e5e1;
+}
+
+.workflowStepsPanel > summary,
+.advancedRunPanel > summary,
+.runHistoryPanel > summary {
+  min-height: 36px;
+  color: #34403a;
+  font-size: 13px;
+}
+
+.workflowStepsPanel > summary small,
+.advancedRunPanel > summary small,
+.runHistoryPanel > summary small {
+  display: none;
+}
+
+.commandBar {
+  background: #fff;
+}
+
+.previewBox {
+  background: #fff;
+}
+
+.previewToolbar {
+  align-items: flex-start;
+}
+
+.previewTitle small {
+  display: none;
+}
+
+#preview {
+  min-height: 160px;
+  max-height: 28vh;
+  font-size: 12px;
+}
+
+.semanticArtifactsPanel {
+  display: none !important;
+}
+
+@media (max-width: 1120px) {
+  .main {
+    grid-template-columns: 1fr;
+  }
+
+  .previewPanel {
+    position: static;
+    grid-column: 1;
+    grid-row: auto;
+    max-height: none;
+  }
+}
+
+@media (max-width: 840px) {
+  .appFrame {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceSidebar {
+    position: static;
+    max-height: none;
+  }
+
+  .flow,
+  .harnessLoop {
+    grid-template-columns: 1fr;
+  }
+
+  .stageActionPanel {
+    min-height: 0;
+    padding: 18px;
+  }
+
+  .stageActionMain h2 {
+    font-size: 24px;
+  }
+}
+
+/* Product shell v3: horizontal context, artifact-first workspace */
+.shell {
+  padding: 10px 14px;
+}
+
+.topbar {
+  margin-bottom: 8px;
+}
+
+.appFrame {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.workspaceSidebar {
+  position: static;
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1.2fr) repeat(3, minmax(120px, 0.55fr)) auto auto auto;
+  align-items: center;
+  gap: 8px;
+  max-height: none;
+  overflow: visible;
+  padding: 8px;
+}
+
+.sidebarBrand {
+  align-items: center;
+  min-width: 146px;
+}
+
+.sidebarBrand span {
+  display: none;
+}
+
+.sidebarBrand strong {
+  font-size: 18px;
+}
+
+.sidebarBrand button {
+  min-height: 32px;
+}
+
+.contextCard,
+.contextMini,
+.knowledgeReserveCard,
+.globalConfigStatus {
+  min-height: 42px;
+  padding: 8px 10px;
+}
+
+.contextCard {
+  gap: 2px;
+}
+
+.contextCard span,
+.contextMini span,
+.knowledgeReserveCard span {
+  display: none;
+}
+
+.contextCard strong,
+.contextMini strong,
+.knowledgeReserveCard strong {
+  font-size: 13px;
+}
+
+.contextCard small {
+  display: block;
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextStack {
+  display: contents;
+}
+
+.contextMini {
+  justify-content: center;
+}
+
+.contextMini::before {
+  color: #6f7a75;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.contextMini:nth-child(1)::before {
+  content: "Profile";
+}
+
+.contextMini:nth-child(2)::before {
+  content: "Agent";
+}
+
+.contextMini:nth-child(3)::before {
+  content: "Repo";
+}
+
+.globalConfigStatus {
+  width: 170px;
+}
+
+.configStatusHeader {
+  margin-bottom: 5px;
+}
+
+.configSlotDots {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.configSlotDots span {
+  min-height: 22px;
+  font-size: 10px;
+}
+
+.knowledgeReserveCard {
+  display: none;
+}
+
+.knowledgeLoadBtn {
+  min-height: 42px;
+  border-color: #e2d8b8;
+  background: #fffdf6;
+  color: #6b5219;
+  font-weight: 700;
+}
+
+.workspaceSidebar > .configShortcut {
+  min-height: 42px;
+}
+
+.sidebarSectionTitle,
+.workspaceSidebarList {
+  display: none;
+}
+
+.workspaceContent {
+  min-width: 0;
+}
+
+.main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  grid-template-areas:
+    "flow flow"
+    "artifact action";
+  align-items: start;
+  gap: 10px;
+}
+
+.flowPanel {
+  grid-area: flow;
+}
+
+.flow {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.unitNode {
+  min-height: 50px;
+  padding: 8px 10px;
+}
+
+.unitNode h3 {
+  font-size: 13px;
+}
+
+.unitMeta .badge:first-child {
+  display: inline-flex;
+}
+
+.unitMeta .badge:nth-child(2) {
+  display: none;
+}
+
+.previewPanel {
+  position: static;
+  grid-area: artifact;
+  display: grid;
+  gap: 10px;
+  min-height: 520px;
+  max-height: none;
+  overflow: visible;
+  padding: 12px;
+}
+
+.previewPanel .sectionHeader {
+  display: flex;
+}
+
+.previewPanel .sectionHeader h2 {
+  display: block;
+  font-size: 20px;
+}
+
+.knowledgeInspector {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+}
+
+.knowledgeInspector .inspectorCardHeader {
+  flex: 1 1 auto;
+}
+
+.knowledgeInspector p {
+  display: none;
+}
+
+.knowledgeSourceGrid {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+}
+
+.knowledgeSourceGrid button {
+  min-height: 32px;
+  min-width: 86px;
+  padding: 0 10px;
+}
+
+.previewBox {
+  display: grid;
+  min-height: 380px;
+  align-content: stretch;
+  border-color: #d8e2dc;
+  padding: 14px;
+}
+
+.previewToolbar {
+  margin-bottom: 10px;
+}
+
+.previewTitle > span {
+  font-size: 18px;
+}
+
+#preview {
+  min-height: 310px;
+  max-height: 58vh;
+  border: 0;
+  background: #f8faf9;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.workflowStepsPanel,
+.commandBar,
+.checkpointPanel,
+.aiAdjustPanel {
+  border-color: #e3e8e5;
+}
+
+.stageActionPanel {
+  grid-area: action;
+  min-height: 0;
+  padding: 14px;
+}
+
+.stageActionMain {
+  gap: 10px;
+}
+
+.stageActionMain h2 {
+  font-size: 21px;
+  line-height: 1.2;
+}
+
+#nextStepSummary {
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.harnessLoop {
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.loopCard {
+  min-height: 86px;
+  padding: 12px;
+}
+
+.loopCard strong {
+  font-size: 17px;
+}
+
+.slotDock {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.slotDock button {
+  min-height: 30px;
+  padding: 0 6px;
+  font-size: 12px;
+}
+
+.stageWritebackList {
+  display: none;
+}
+
+.nextStepBlockers {
+  max-width: none;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-top: 0;
+}
+
+.stageActionSide {
+  padding-top: 10px;
+}
+
+.agentBridgeActions {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.agentBridgeActions button,
+.stageMoreMenu > summary {
+  width: 100%;
+  justify-content: center;
+}
+
+.stageMoreMenu > div {
+  left: 0;
+  right: auto;
+  width: 100%;
+}
+
+@media (max-width: 1180px) {
+  .workspaceSidebar {
+    grid-template-columns: auto minmax(220px, 1fr) repeat(2, minmax(120px, 0.5fr)) auto auto;
+  }
+
+  .contextMini:nth-child(3),
+  .globalConfigStatus {
+    display: none;
+  }
+
+  .main {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "flow"
+      "action"
+      "artifact";
+  }
+
+  .harnessLoop {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .agentBridgeActions {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .workspaceSidebar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .contextCard,
+  .contextMini,
+  .globalConfigStatus,
+  .knowledgeLoadBtn,
+  .workspaceSidebar > .configShortcut {
+    grid-column: 1 / -1;
+  }
+
+  .contextStack {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: 1fr;
+  }
+
+  .flow,
+  .harnessLoop,
+  .agentBridgeActions {
+    grid-template-columns: 1fr;
+  }
+
+  .knowledgeInspector,
+  .knowledgeSourceGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Product shell v5: final left-nav layout override */
+@media (min-width: 981px) {
+  .appFrame {
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+  }
+
+  .workspaceSidebar {
+    grid-column: 1;
+    position: sticky;
+    top: 10px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    width: 248px;
+    max-height: calc(100vh - 20px);
+    overflow: auto;
+  }
+
+  .workspaceContent {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  .harnessNav {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 7px;
+  }
+
+  .navSummary {
+    display: none;
+  }
+
+  .main {
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "flow"
+      "action"
+      "artifact";
+    gap: 10px;
+  }
+
+  .stageActionPanel,
+  .previewPanel,
+  .flowPanel {
+    grid-column: 1;
+  }
+
+  .stageActionPanel {
+    grid-area: action;
+  }
+
+  .previewPanel {
+    grid-area: artifact;
+    width: 100%;
+    min-height: 560px;
+  }
+
+  .flowPanel {
+    grid-area: flow;
+  }
+
+  .harnessLoop {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .agentBridgeActions {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .agentBridgeActions button,
+  .stageMoreMenu > summary {
+    width: auto;
+  }
+
+  .knowledgeInspector {
+    display: none;
+  }
+}
+
+/* Navigation page states */
+.navPagePanel {
+  display: grid;
+  gap: 16px;
+  min-height: 420px;
+  border: 1px solid #dde5e0;
+  border-radius: 8px;
+  background: #fff;
+  padding: 28px;
+}
+
+.navPageHeader {
+  display: grid;
+  gap: 6px;
+}
+
+.navPageHeader span {
+  color: #68736e;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.navPageHeader h2 {
+  margin: 0;
+  font-size: 28px;
+  line-height: 1.15;
+}
+
+.navPagePanel p {
+  max-width: 720px;
+  color: #53605a;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.navPageActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.navPageActions button {
+  min-width: 128px;
+}
+
+.navPageCards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.navPageCard {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 146px;
+  border: 1px solid #e1e7e3;
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 14px;
+  text-align: left;
+}
+
+.navPageCard.ready {
+  border-color: #c9dfd1;
+  background: #f5fbf7;
+}
+
+.navPageCard.waiting {
+  border-color: #eadbb6;
+  background: #fffdf6;
+}
+
+.navPageCard > span {
+  justify-self: start;
+  border-radius: 999px;
+  background: #edf2ee;
+  color: #5d6963;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+}
+
+.navPageCard.ready > span {
+  background: #e8f6ee;
+  color: #27734d;
+}
+
+.navPageCard.waiting > span {
+  background: #fff2d5;
+  color: #8a6116;
+}
+
+.navPageCard strong {
+  font-size: 14px;
+}
+
+.navPageCard small {
+  color: #5d6963;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.navPageCard em {
+  align-self: end;
+  color: #245e9f;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.slotDock {
+  display: none !important;
+}
+
+body[data-nav-page="workbench"] #navPagePanel,
+body[data-nav-page="artifacts"] #navPagePanel {
+  display: none !important;
+}
+
+body[data-nav-page="workbench"] .previewPanel {
+  display: none !important;
+}
+
+body[data-nav-page="workbench"] .stageActionPanel,
+body[data-nav-page="workbench"] .flowPanel {
+  display: block;
+}
+
+body[data-nav-page="artifacts"] .stageActionPanel,
+body[data-nav-page="artifacts"] .flowPanel {
+  display: none !important;
+}
+
+body[data-nav-page="artifacts"] .previewPanel {
+  display: grid;
+}
+
+body[data-nav-page="workspace"] .main,
+body[data-nav-page="knowledge"] .main,
+body[data-nav-page="agents"] .main,
+body[data-nav-page="runs"] .main,
+body[data-nav-page="settings"] .main {
+  display: none !important;
+}
+
+body[data-nav-page="workspace"] #navPagePanel,
+body[data-nav-page="knowledge"] #navPagePanel,
+body[data-nav-page="agents"] #navPagePanel,
+body[data-nav-page="runs"] #navPagePanel,
+body[data-nav-page="settings"] #navPagePanel {
+  display: grid;
+}
+
+body[data-nav-page="knowledge"] #startScreen,
+body[data-nav-page="agents"] #startScreen,
+body[data-nav-page="settings"] #startScreen {
+  display: none !important;
+}
+
+@media (max-width: 980px) {
+  .navPagePanel {
+    min-height: 280px;
+    padding: 20px;
+  }
+
+  .navPageCards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Product shell v6: quiet left-nav console */
+.shell {
+  min-height: 100vh;
+  padding: 10px;
+}
+
+.topbar {
+  min-height: 44px;
+  margin-bottom: 8px;
+  border: 0;
+  background: transparent;
+  padding: 0 2px;
+}
+
+.topbar .eyebrow {
+  display: none;
+}
+
+.topbar h1 {
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.topbarActions {
+  gap: 6px;
+}
+
+.topbarActions button,
+.topbarActions .statePill {
+  min-height: 30px;
+  font-size: 12px;
+}
+
+.message {
+  margin-bottom: 8px;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.appFrame {
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.workspaceSidebar {
+  width: 232px;
+  border-color: #dfe5e1;
+  box-shadow: none;
+  padding: 8px;
+}
+
+.sidebarBrand {
+  min-height: 36px;
+  padding: 0 2px 8px;
+}
+
+.sidebarBrand span {
+  display: none;
+}
+
+.sidebarBrand strong {
+  font-size: 18px;
+}
+
+.sidebarBrand button {
+  min-height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.harnessNav {
+  gap: 6px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  border-radius: 8px;
+  padding: 0 12px;
+}
+
+.navItem span {
+  display: none;
+}
+
+.navItem strong {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.navItem.active {
+  background: #eef5ff;
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.workspaceContent {
+  min-width: 0;
+}
+
+.contextOverview {
+  display: none !important;
+}
+
+.main {
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.flowPanel {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.unitNode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 12px;
+}
+
+.unitNode h3 {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.unitMeta {
+  flex: 0 0 auto;
+}
+
+.unitMeta .badge {
+  min-height: 20px;
+  padding: 0 7px;
+  font-size: 11px;
+}
+
+.unitMeta .badge:nth-child(2) {
+  display: none;
+}
+
+.stageActionPanel {
+  min-height: 0;
+  border-color: #dfe5e1;
+  box-shadow: none;
+  padding: 22px;
+}
+
+.stageActionMain {
+  gap: 14px;
+}
+
+.stageActionMain .eyebrow,
+#nextStepSummary {
+  display: none;
+}
+
+.stageActionMain h2 {
+  max-width: none;
+  font-size: 26px;
+  line-height: 1.15;
+}
+
+.harnessLoop {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 0;
+}
+
+.loopCard {
+  min-height: 82px;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.loopCard span {
+  font-size: 10px;
+}
+
+.loopCard strong {
+  font-size: 18px;
+}
+
+.loopCard em {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+
+.nextStepMeta {
+  margin: 0;
+}
+
+.nextStepBlockers {
+  max-width: none;
+  margin: 0;
+  font-size: 13px;
+}
+
+.stageActionSide {
+  border-top: 1px solid #e7ece8;
+  padding-top: 12px;
+}
+
+.agentBridgePanel {
+  justify-content: flex-start;
+}
+
+.agentBridgeActions {
+  justify-content: flex-start;
+}
+
+.agentBridgeActions button,
+.stageMoreMenu > summary {
+  min-height: 34px;
+  min-width: 118px;
+}
+
+.previewPanel {
+  min-height: calc(100vh - 80px);
+  border-color: #dfe5e1;
+  box-shadow: none;
+  padding: 14px;
+}
+
+.previewPanel .sectionHeader {
+  display: flex;
+}
+
+.previewPanel .sectionHeader h2 {
+  font-size: 20px;
+}
+
+.workflowStepsPanel,
+.commandBar,
+.checkpointPanel,
+.aiAdjustPanel,
+.runHistoryPanel {
+  border-color: #e2e7e4;
+}
+
+.navPagePanel {
+  min-height: calc(100vh - 72px);
+  align-content: start;
+  gap: 14px;
+  border-color: #dfe5e1;
+  box-shadow: none;
+  padding: 30px;
+}
+
+.navPageHeader h2 {
+  font-size: 26px;
+}
+
+.navPagePanel p {
+  max-width: 560px;
+  font-size: 14px;
+}
+
+.navPageActions button {
+  min-height: 36px;
+}
+
+body[data-nav-page="workbench"] .main {
+  grid-template-areas:
+    "flow"
+    "action";
+}
+
+body[data-nav-page="workbench"] .previewPanel {
+  display: none !important;
+}
+
+body[data-nav-page="artifacts"] .main {
+  grid-template-areas: "artifact";
+}
+
+body[data-nav-page="artifacts"] .previewPanel {
+  display: grid;
+}
+
+@media (max-width: 980px) {
+  .appFrame {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceSidebar {
+    position: static;
+    width: auto;
+    max-height: none;
+  }
+
+  .harnessNav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .flow,
+  .harnessLoop {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .topbar {
+    display: grid;
+    gap: 8px;
+  }
+
+  .topbarActions,
+  .harnessNav {
+    grid-template-columns: 1fr;
+  }
+
+  .stageActionPanel,
+  .navPagePanel {
+    padding: 18px;
+  }
+}
+
+/* Product shell v7: CLI themed navigation */
+.workspaceSidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 72px);
+}
+
+.sidebarBrand {
+  align-items: flex-start;
+}
+
+.sidebarBrand span {
+  display: block;
+  color: #6b7470;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.sidebarBrand strong {
+  display: block;
+  margin-top: 2px;
+}
+
+.harnessNav {
+  display: grid;
+  gap: 7px;
+}
+
+.navItem {
+  position: relative;
+  gap: 10px;
+  min-height: 46px;
+  border-color: #dfe6e2;
+  background: #fff;
+  color: #1e2824;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+
+.navItem::before {
+  content: attr(data-nav-code);
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 28px;
+  border: 1px solid #dfe6e2;
+  border-radius: 7px;
+  background: #f7f9f8;
+  color: #59655f;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.navItem:hover {
+  transform: translateX(1px);
+}
+
+.navItem.active {
+  border-color: #9fbfe2;
+  background: #eef6ff;
+  box-shadow: none;
+}
+
+.navItem.active::before {
+  border-color: var(--blue);
+  background: var(--blue);
+  color: #fff;
+}
+
+.navItem.knowledgeLoadBtn {
+  border-color: #ead9ad;
+  background: #fffdf6;
+}
+
+.navItem.knowledgeLoadBtn::before {
+  border-color: #ead9ad;
+  background: #fff8df;
+  color: #745416;
+}
+
+.navItem.configShortcut {
+  border-color: #d9e2eb;
+  background: #f8fbff;
+}
+
+.navItem.configShortcut::before {
+  border-color: #c7d7e9;
+  background: #eef5ff;
+  color: #174f8e;
+}
+
+.sidebarProject {
+  display: grid;
+  gap: 6px;
+  margin-top: auto;
+  border: 1px solid #dfe6e2;
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 10px;
+}
+
+.sidebarProject span {
+  color: #66726c;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.sidebarProject strong {
+  overflow: hidden;
+  color: #1e2824;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebarProject small {
+  overflow: hidden;
+  color: #66726c;
+  font-size: 11px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebarProject em {
+  justify-self: start;
+  border-radius: 999px;
+  background: #edf2ee;
+  color: #58645e;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  padding: 3px 8px;
+}
+
+.sidebarProjectActions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.sidebarProjectActions button {
+  min-height: 32px;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.sidebarProjectActions button:last-child {
+  border-color: #c7d7e9;
+  background: #f3f8ff;
+  color: #174f8e;
+}
+
+@media (max-width: 980px) {
+  .workspaceSidebar {
+    min-height: 0;
+  }
+
+  .sidebarProject {
+    margin-top: 4px;
+  }
+}
+
+/* Product shell v8: balanced proportions */
+.appFrame {
+  grid-template-columns: 264px minmax(0, 1fr);
+  gap: 16px;
+}
+
+.workspaceSidebar {
+  align-items: stretch;
+  width: 264px;
+  min-height: calc(100vh - 74px);
+  padding: 12px;
+}
+
+.sidebarBrand,
+.harnessNav,
+.sidebarProject {
+  width: 100%;
+}
+
+.sidebarBrand {
+  padding: 0 0 10px;
+}
+
+.sidebarBrand button {
+  min-width: 48px;
+}
+
+.navItem {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 12px;
+}
+
+.navItem::before {
+  flex-basis: 32px;
+  width: 32px;
+}
+
+.navItem strong {
+  flex: 1 1 auto;
+}
+
+.sidebarProject {
+  margin-top: auto;
+  padding: 12px;
+}
+
+.sidebarProject small {
+  white-space: normal;
+  word-break: break-all;
+}
+
+.sidebarProject em {
+  max-width: 100%;
+}
+
+.startScreen {
+  place-items: start stretch;
+  padding-top: 8px;
+}
+
+.startCard {
+  width: 100%;
+  max-width: 980px;
+  box-shadow: none;
+}
+
+.startIntro {
+  max-width: 760px;
+}
+
+.startGrid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+@media (min-width: 1440px) {
+  .startCard {
+    max-width: 1040px;
+  }
+}
+
+@media (max-width: 980px) {
+  .appFrame {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceSidebar {
+    width: auto;
+    min-height: 0;
+  }
+}
+
+/* Product shell v9: merged nav and full canvas */
+.shell {
+  padding: 12px 14px;
+}
+
+.appFrame {
+  grid-template-columns: 292px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.workspaceSidebar {
+  width: 292px;
+  min-height: calc(100vh - 78px);
+  padding: 14px;
+}
+
+.sidebarBrand {
+  padding-bottom: 12px;
+}
+
+.sidebarProject {
+  order: 1;
+  margin: 0 0 14px;
+  border-color: #d8e1dc;
+  background: #f8faf9;
+}
+
+.harnessNav {
+  order: 2;
+  gap: 8px;
+}
+
+.navSummary {
+  order: 3;
+}
+
+/* Final override: current project stays as sidebar footer */
+.sidebarProject {
+  order: 4;
+  margin: auto 0 0;
+}
+
+.navItem::before {
+  width: 44px;
+  flex-basis: 44px;
+}
+
+/* Product shell v12: final harness information architecture */
+.harnessNav {
+  order: 1;
+}
+
+.sidebarProject {
+  order: 4;
+  margin: auto 0 0;
+}
+
+.navItem::before {
+  width: 44px;
+  flex-basis: 44px;
+}
+
+/* Config center v2: sectioned startup setup */
+.setupGuidePanel.modalOpen .setupGuideIntro,
+.setupGuidePanel.modalOpen .setupConfigGrid {
+  width: min(1180px, calc(100vw - 48px));
+}
+
+.setupGuidePanel.modalOpen .setupConfigGrid {
+  display: grid;
+  grid-template-columns: 320px minmax(0, 1fr);
+  gap: 14px;
+  max-height: calc(100vh - 118px);
+  padding: 14px;
+}
+
+.toolConfigPanel {
+  border: 1px solid #e0e7e3;
+  border-radius: 8px;
+  background: #fff;
+  padding: 0;
+}
+
+.toolConfigPanel > summary {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  border: 0;
+  border-bottom: 1px solid #e6ece8;
+  border-radius: 8px 8px 0 0;
+  background: #fbfcfb;
+  font-weight: 800;
+}
+
+.toolConfigPanel > summary::after {
+  content: "展开";
+  color: #6b7670;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.toolConfigPanel[open] > summary::after {
+  content: "收起";
+}
+
+.toolConfigPopover {
+  border: 0;
+  border-radius: 0;
+  padding: 14px;
+}
+
+.capabilityPopover {
+  gap: 14px;
+}
+
+.configSummary {
+  border-color: #cfe2d6;
+  background: #f5fbf7;
+}
+
+.configSectionTitle {
+  border-top: 1px solid #e4eae6;
+  padding-top: 14px;
+}
+
+.externalConfigPanel {
+  border-style: solid;
+  background: #fbfcfb;
+}
+
+.externalConfigPanel > summary {
+  font-weight: 800;
+}
+
+.externalConfigPanel .configSectionTitle {
+  border-top: 0;
+  padding-top: 0;
+}
+
+@media (max-width: 900px) {
+  .setupGuidePanel.modalOpen .setupConfigGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Config center v3: domain navigator */
+.setupGuidePanel.modalOpen .setupConfigGrid {
+  grid-template-columns: 280px minmax(0, 1fr);
+  grid-template-areas:
+    "nav content"
+    "footer footer";
+  align-items: stretch;
+}
+
+.configDomainNav {
+  grid-area: nav;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  border-right: 1px solid #e4eae6;
+  padding-right: 14px;
+}
+
+.configDomainNav button {
+  display: grid;
+  gap: 4px;
+  min-height: 66px;
+  border-color: #e0e7e3;
+  background: #fff;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.configDomainNav button.active {
+  border-color: #9fbfe2;
+  background: #eef6ff;
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+
+.configDomainNav strong {
+  font-size: 14px;
+}
+
+.configDomainNav span {
+  color: #65716b;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.configDomainNav em {
+  justify-self: start;
+  border-radius: 999px;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+  padding: 2px 8px;
+}
+
+.configDomainNav em.ready {
+  background: #edf8f1;
+  color: #27734d;
+}
+
+.configDomainNav em.waiting {
+  background: #fff5df;
+  color: #8a6116;
+}
+
+.configDomainContent {
+  grid-area: content;
+  min-width: 0;
+}
+
+.configDomainPanel {
+  display: none;
+  gap: 14px;
+}
+
+.configDomainPanel.active {
+  display: grid;
+}
+
+.configDomainHeader {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #dfe8e3;
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 14px;
+}
+
+.configDomainHeader span {
+  color: #68736e;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.configDomainHeader h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.configDomainHeader p {
+  margin: 0;
+  color: #5d6963;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.configDomainBody {
+  display: grid;
+  gap: 12px;
+}
+
+.configDomainFooter {
+  grid-area: footer;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid #e4eae6;
+  padding-top: 12px;
+}
+
+.configDomainFooter button {
+  min-width: 180px;
+}
+
+.configHintCard {
+  display: grid;
+  gap: 5px;
+  border: 1px dashed #cbd7d0;
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 12px;
+}
+
+.configHintCard strong {
+  font-size: 13px;
+}
+
+.configHintCard span {
+  color: #64706a;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+@media (max-width: 900px) {
+  .setupGuidePanel.modalOpen .setupConfigGrid {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "nav"
+      "content"
+      "footer";
+  }
+
+  .configDomainNav {
+    border-right: 0;
+    border-bottom: 1px solid #e4eae6;
+    padding: 0 0 12px;
+  }
+}
+
+/* Product shell v11: project context belongs to the footer */
+.harnessNav {
+  order: 1;
+}
+
+.sidebarProject {
+  order: 4;
+  margin: auto 0 0;
+}
+
+.navItem::before {
+  width: 44px;
+  flex-basis: 44px;
+}
+
+.navItem {
+  min-height: 50px;
+  border-radius: 9px;
+  padding: 0 14px;
+}
+
+.navItem::before {
+  width: 42px;
+  height: 30px;
+  flex-basis: 42px;
+}
+
+.navItem strong {
+  font-size: 15px;
+}
+
+.workspaceContent {
+  width: 100%;
+}
+
+.layout,
+.startScreen,
+.main,
+.navPagePanel {
+  width: 100%;
+}
+
+.startScreen {
+  display: block;
+  padding-top: 0;
+}
+
+.startCard {
+  width: 100%;
+  max-width: none;
+  min-height: calc(100vh - 136px);
+  padding: 28px;
+}
+
+.startIntro {
+  max-width: 900px;
+}
+
+.startupReadiness {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #dfe8e3;
+  border-radius: 8px;
+  background: #fbfcfb;
+  padding: 14px;
+}
+
+.startupReadinessHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.startupReadinessHeader > div {
+  display: grid;
+  gap: 3px;
+}
+
+.startupReadinessHeader span {
+  color: #68736e;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.startupReadinessHeader strong {
+  font-size: 18px;
+}
+
+.startupReadyGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.startupReadyItem {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-height: 132px;
+  border-color: #e1e7e3;
+  background: #fff;
+  padding: 12px;
+  text-align: left;
+}
+
+.startupReadyItem.ready {
+  border-color: #c9dfd1;
+  background: #f5fbf7;
+}
+
+.startupReadyItem.waiting {
+  border-color: #eadbb6;
+  background: #fffdf6;
+}
+
+.startupReadyItem span {
+  justify-self: start;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 2px 8px;
+}
+
+.startupReadyItem.ready span {
+  background: #e8f6ee;
+  color: #27734d;
+}
+
+.startupReadyItem.waiting span {
+  background: #fff2d5;
+  color: #8a6116;
+}
+
+.startupReadyItem strong {
+  font-size: 15px;
+}
+
+.startupReadyItem small {
+  min-height: 34px;
+  color: #5d6963;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.startupReadyItem em {
+  align-self: end;
+  color: #245e9f;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+@media (max-width: 1280px) {
+  .startupReadyGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.startGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: none;
+}
+
+.startBox {
+  min-height: 260px;
+}
+
+.navPagePanel {
+  min-height: calc(100vh - 86px);
+}
+
+.main {
+  min-height: calc(100vh - 86px);
+}
+
+.stageActionPanel {
+  min-height: 360px;
+}
+
+@media (max-width: 980px) {
+  .appFrame {
+    grid-template-columns: 1fr;
+  }
+
+  .workspaceSidebar {
+    width: auto;
+    min-height: 0;
+  }
+
+  .startCard {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 760px) {
+  .startGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .startupReadinessHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .startupReadyGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Product shell v10: sidebar section order */
+.harnessNav {
+  order: 1;
+}
+
+.sidebarProject {
+  order: 2;
+  margin: 14px 0 0;
+}
+
+.navSummary {
+  order: 3;
+}

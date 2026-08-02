@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Fixed CI branch filters to run on the public `main` branch.
+- Included the API regression script in the npm package and made
+  `prepublishOnly` run the full regression suite.
+- Updated local development and beta publishing instructions.
+
 ## V0.2.0-beta.0
 
 - Added the PRD-first whitepaper loop: function-point routing, whitepaper

@@ -134,7 +134,7 @@ function renderWorkspaceState() {
   const mainPanel = document.querySelector('.main');
   if (!state.status) {
     if (els.workspaceState) {
-      els.workspaceState.textContent = '未选择 workspace';
+      els.workspaceState.textContent = '未选择项目';
       els.workspaceState.className = 'statePill';
     }
     if (els.currentWorkspaceText) {

@@ -59,6 +59,9 @@ const {
   createWhitepaperRuntime,
 } = require('./lib/whitepaper');
 const {
+  createDomainHarnessRuntime,
+} = require('./lib/domain-harness');
+const {
   createQualityEvidenceRuntime,
 } = require('./lib/quality-evidence');
 const {
@@ -240,6 +243,18 @@ const {
   exists,
   normalizeUserPath,
   gitHead,
+});
+const {
+  inspectDomainHarness,
+  attachDomainHarness,
+} = createDomainHarnessRuntime({
+  exists,
+  normalizeUserPath,
+  gitHead,
+  readWorkspaceConfig,
+  writeWorkspaceConfig,
+  writeWorkspaceJsonFile,
+  writeWorkspaceTextFile,
 });
 const {
   refreshQualitySummary,
@@ -1935,6 +1950,19 @@ async function buildPrompt(workspacePathValue, stepId, taskId, configOverride = 
     .filter((item) => item && item.path)
     .map((item) => `- ${item.name || path.basename(item.path)}: ${item.path}${item.description ? `（${item.description}）` : ''}`)
     .join('\n');
+  const domain = config.domainContext && config.domainContext.root
+    ? config.domainContext
+    : (config.domain || {});
+  const domainLines = domain.root ? [
+    `- 领域 Harness: ${domain.name || domain.id || path.basename(domain.root)}`,
+    `- 本地目录: ${domain.root}`,
+    domain.revision ? `- 知识库版本: ${domain.revision}` : '',
+    domain.codeRepositories && domain.codeRepositories.length
+      ? `- 候选代码入口: ${domain.codeRepositories.map((item) => item.name).join('、')}`
+      : '',
+    '- 先读 `context/domain-summary.md`，按其中最小路径读取领域资料与当前代码。',
+    '- 结论优先级：PRD / 人工确认 > 当前代码 > 领域知识库；冲突必须记录并转人工确认。',
+  ].filter(Boolean).join('\n') : '';
   return [
     `请进入 workspace 并执行阶段：${definition.title}`,
     '',
@@ -1955,6 +1983,7 @@ async function buildPrompt(workspacePathValue, stepId, taskId, configOverride = 
     '',
     appPathLines ? `本地应用目录参考：\n${appPathLines}\n` : '',
     knowledgeLines ? `背景知识参考：\n${knowledgeLines}\n` : '',
+    domainLines ? `领域 Harness 上下文：\n${domainLines}\n` : '',
     config.branchPattern ? `分支命名规则：${config.branchPattern}\n` : '',
     '交付配置能力：',
     formatCapabilitiesForPrompt(capabilities),
@@ -2382,8 +2411,23 @@ async function route(req, res) {
 
     if (req.method === 'POST' && url.pathname === '/api/workspaces/init') {
       const body = await readJson(req);
+      const domainRoot = body.domainRoot || body.domain;
+      if (domainRoot) {
+        const domain = await inspectDomainHarness(domainRoot);
+        if (!domain.available) {
+          throw new Error(domain.reason || '领域 Harness 不可用');
+        }
+      }
       const workspacePath = await initWorkspace(body.demandName, body.outputRoot, body.workspacePath);
-      sendJson(res, 200, { workspacePath });
+      const attached = domainRoot
+        ? await attachDomainHarness({ workspacePath, domainRoot })
+        : null;
+      sendJson(res, 200, { workspacePath, domain: attached ? attached.context : null });
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/domain-harness/inspect') {
+      sendJson(res, 200, await inspectDomainHarness(url.searchParams.get('root') || ''));
       return;
     }
 
@@ -2394,6 +2438,11 @@ async function route(req, res) {
 
     if (req.method === 'POST' && url.pathname === '/api/workspace/whitepaper-context') {
       sendJson(res, 200, await resolveWhitepaperWorkspaceContext(await readJson(req)));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/domain-context') {
+      sendJson(res, 200, await attachDomainHarness(await readJson(req)));
       return;
     }
 
@@ -2713,6 +2762,8 @@ module.exports = {
     };
   },
   resolveWhitepaperWorkspaceContext,
+  inspectDomainHarness,
+  attachDomainHarness,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,
   createKnowledgeUpdateProposal,

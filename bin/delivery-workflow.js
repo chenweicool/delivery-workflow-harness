@@ -28,6 +28,8 @@ const {
   completeAgentHandoff,
   matchWhitepaperFunctions,
   resolveWhitepaperWorkspaceContext,
+  inspectDomainHarness,
+  attachDomainHarness,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,
   createKnowledgeUpdateProposal,
@@ -51,11 +53,13 @@ function usage() {
     '  dw status',
     '  dw logs [--lines 80]',
     '  dw open [--workspace <path>] [--step <step-id>] [--port 3040]',
-    '  dw init <demand-name> [--output-root <path>]',
+    '  dw init <demand-name> [--output-root <path>] [--domain <domain-harness-path>]',
     '  dw setup [--team-config-root <path>] [--whitepaper-root <path>] [--repo-root <path>] [--profile default]',
     '  dw config [show|set] [--team-config-root <path>] [--whitepaper-root <path>] [--repo-root <path>] [--profile default]',
     '  dw function match <keyword>',
     '  dw context resolve --workspace <path> --function <function-id>',
+    '  dw domain inspect --root <domain-harness-path>',
+    '  dw domain attach --workspace <path> --root <domain-harness-path>',
     '  dw app fetch --workspace <path> --app <application-id>',
     '  dw archive propose --workspace <path>',
     '  dw status --workspace <path>',
@@ -467,7 +471,19 @@ async function commandInit(args) {
     throw new Error('Missing demand name. Usage: dw init <demand-name>');
   }
   const outputRoot = normalizeCliPath(args['output-root'] || args.outputRoot || path.resolve(process.cwd(), '..', 'ai-workspaces'));
+  const domainRoot = normalizeCliPath(args.domain || args.domainRoot);
+  if (domainRoot) {
+    const inspected = await inspectDomainHarness(domainRoot);
+    if (!inspected.available) {
+      throw new Error(inspected.reason || '领域 Harness 不可用');
+    }
+  }
   const workspacePath = await initWorkspace(demandName, outputRoot);
+  if (domainRoot) {
+    const result = await attachDomainHarness({ workspacePath, domainRoot });
+    console.log(`Domain Harness attached: ${result.context.root}`);
+    console.log(`Domain snapshot: ${path.join(workspacePath, 'context', 'domain-summary.md')}`);
+  }
   console.log(`Workspace created: ${workspacePath}`);
   console.log(`Open: dw open --workspace ${workspacePath}`);
 }
@@ -553,6 +569,34 @@ async function commandContext(args) {
   console.log(`whitepaper: ${result.context.whitepaperRefs.join(', ') || '(none)'}`);
   console.log(`snapshot: ${path.join(workspacePath, 'context', 'whitepaper-context.md')}`);
   console.log(`lock: ${path.join(workspacePath, '.workflow', 'whitepaper.lock.json')}`);
+}
+
+async function commandDomain(args) {
+  const action = args._[1] || 'inspect';
+  const domainRoot = normalizeCliPath(args.root || args.domain || args.domainRoot);
+  if (!domainRoot) {
+    throw new Error('Missing domain harness path. Usage: dw domain inspect --root <domain-harness-path>');
+  }
+  if (action === 'inspect') {
+    const result = await inspectDomainHarness(domainRoot);
+    console.log(JSON.stringify(result, null, 2));
+    if (!result.available) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+  if (action === 'attach') {
+    const workspacePath = resolveWorkspaceArg(args);
+    if (!workspacePath) {
+      throw new Error('Missing workspace. Usage: dw domain attach --workspace <path> --root <domain-harness-path>');
+    }
+    const result = await attachDomainHarness({ workspacePath, domainRoot });
+    console.log(`Domain Harness attached: ${result.context.root}`);
+    console.log(`Domain snapshot: ${path.join(workspacePath, 'context', 'domain-summary.md')}`);
+    console.log(`Domain lock: ${path.join(workspacePath, '.workflow', 'domain.lock.json')}`);
+    return;
+  }
+  throw new Error('Usage: dw domain [inspect|attach] --root <domain-harness-path> [--workspace <path>]');
 }
 
 async function commandApp(args) {
@@ -803,6 +847,10 @@ async function main() {
   }
   if (command === 'context') {
     await commandContext(args);
+    return;
+  }
+  if (command === 'domain') {
+    await commandDomain(args);
     return;
   }
   if (command === 'app') {

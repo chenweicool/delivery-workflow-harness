@@ -42,8 +42,46 @@ async function waitFor(predicate, timeoutMs = 5000) {
   throw new Error('Timed out waiting for the simulated agent process.');
 }
 
+async function createDomainHarnessFixture(root) {
+  await Promise.all([
+    fsp.mkdir(path.join(root, 'docs', 'domain'), { recursive: true }),
+    fsp.mkdir(path.join(root, 'docs', 'memory'), { recursive: true }),
+    fsp.mkdir(path.join(root, 'rules'), { recursive: true }),
+    fsp.mkdir(path.join(root, 'skills', 'settlement-analyst'), { recursive: true }),
+    fsp.mkdir(path.join(root, 'graphify-out'), { recursive: true }),
+    fsp.mkdir(path.join(root, 'codes', 'settlement-service', 'src'), { recursive: true }),
+  ]);
+  await Promise.all([
+    fsp.writeFile(path.join(root, '.module-manifest.yaml'), [
+      'name: settlement-domain',
+      'description: Settlement domain fixture',
+      'status: ready',
+      'entrypoints:',
+      '  whitepaper: docs/domain/settlement.md',
+      'memory_files:',
+      '  - docs/memory/known-risk.md',
+      'skill_paths:',
+      '  - skills/settlement-analyst',
+      'bound_repositories:',
+      '  - name: settlement-service',
+      '    description: Settlement API',
+      '    layer: backend',
+      '    directory: codes/settlement-service',
+      '',
+    ].join('\n'), 'utf8'),
+    fsp.writeFile(path.join(root, 'docs', 'domain', 'settlement.md'), '# Settlement Whitepaper\n', 'utf8'),
+    fsp.writeFile(path.join(root, 'docs', 'memory', 'known-risk.md'), '# Historical Risk\n', 'utf8'),
+    fsp.writeFile(path.join(root, 'rules', 'engineering-rules.md'), '# Rule\n', 'utf8'),
+    fsp.writeFile(path.join(root, 'skills', 'settlement-analyst', 'SKILL.md'), '# Skill\n', 'utf8'),
+    fsp.writeFile(path.join(root, 'graphify-out', 'graph.json'), '{}\n', 'utf8'),
+    fsp.writeFile(path.join(root, 'codes', 'settlement-service', 'src', 'Application.java'), 'class Application {}\n', 'utf8'),
+  ]);
+}
+
 async function main() {
   await fsp.mkdir(tempRoot, { recursive: true });
+  const domainRoot = path.join(tempRoot, 'settlement-domain');
+  await createDomainHarnessFixture(domainRoot);
   const runtime = await startServer({ port: 0 });
 
   try {
@@ -67,11 +105,22 @@ async function main() {
 
     const { response: initResponse, data: initData } = await requestJson(runtime.url, '/api/workspaces/init', {
       method: 'POST',
-      body: JSON.stringify({ demandName: 'api-regression', outputRoot: workspaceRoot }),
+      body: JSON.stringify({ demandName: 'api-regression', outputRoot: workspaceRoot, domainRoot }),
     });
     assert.equal(initResponse.status, 200);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'AGENTS.md')), true);
+    assert.equal(initData.domain.manifest.name, 'settlement-domain');
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'domain.lock.json')), true);
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, 'context', 'domain-summary.md')), true);
     const workspaceQuery = encodeURIComponent(initData.workspacePath);
+
+    const { response: domainInspectResponse, data: domainInspectData } = await requestJson(
+      runtime.url,
+      `/api/domain-harness/inspect?root=${encodeURIComponent(domainRoot)}`,
+    );
+    assert.equal(domainInspectResponse.status, 200);
+    assert.equal(domainInspectData.available, true);
+    assert.equal(domainInspectData.codeRepositories[0].sourceExists, true);
 
     const { response: whitepaperResponse, data: whitepaperData } = await requestJson(runtime.url, '/api/whitepaper/catalog?query=%E9%87%91%E9%A2%9D%E8%B0%83%E6%95%B4');
     assert.equal(whitepaperResponse.status, 200);
@@ -104,6 +153,9 @@ async function main() {
     assert.equal(designPromptResponse.status, 200);
     assert.match(designPromptData.prompt, /白皮书自动启用能力/);
     assert.match(designPromptData.prompt, /api-doc-generation/);
+    assert.match(designPromptData.prompt, /领域 Harness 上下文/);
+    assert.match(designPromptData.prompt, /context\/domain-summary\.md/);
+    assert.match(designPromptData.prompt, /settlement-service/);
 
     const { response: statusResponse, data: statusData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
     assert.equal(statusResponse.status, 200);
@@ -160,12 +212,13 @@ async function main() {
         port: runtime.port,
       }),
     });
-    assert.equal(handoffResponse.status, 200);
+    assert.equal(handoffResponse.status, 200, JSON.stringify(handoffData));
     assert.equal(handoffData.stepId, 'import-prd');
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'handoff', 'current.md')), true);
     const handoffText = await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'handoff', 'current.md'), 'utf8');
     assert.match(handoffText, /白皮书与功能上下文/);
     assert.match(handoffText, /账单调整/);
+    assert.match(handoffText, /领域 Harness 上下文/);
 
     const staticModules = [
       ['/js/app-state.js', /DWAppState/],

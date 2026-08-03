@@ -39,7 +39,10 @@ function createAgentExecutionRuntime(deps) {
     const whitepaperRoot = config.whitepaperContext && config.whitepaperContext.root
       ? normalizeUserPath(config.whitepaperContext.root)
       : '';
-    return Array.from(new Set([...knowledgeDirs, whitepaperRoot].filter(Boolean)));
+    const domainRoot = config.domainContext && config.domainContext.root
+      ? normalizeUserPath(config.domainContext.root)
+      : (config.domain && config.domain.root ? normalizeUserPath(config.domain.root) : '');
+    return Array.from(new Set([...knowledgeDirs, whitepaperRoot, domainRoot].filter(Boolean)));
   }
 
   async function collectCapabilityAccessDirs(workspacePath, capabilities) {

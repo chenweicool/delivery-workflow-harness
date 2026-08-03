@@ -1,3 +1,5 @@
+const path = require('path');
+
 function createAgentPromptRuntime(deps) {
   const {
     normalizeUserPath,
@@ -146,6 +148,23 @@ function createAgentPromptRuntime(deps) {
         : '',
       '- 本次快照: `context/whitepaper-context.md`',
     ].filter(Boolean).join('\n') : '';
+    const domain = promptConfig.domainContext || promptConfig.domain || {};
+    const domainLines = domain.root ? [
+      `- 领域 Harness: ${domain.name || domain.id || path.basename(domain.root)}`,
+      `- 本地目录: ${domain.root}`,
+      domain.revision ? `- 知识库版本: ${domain.revision}` : '',
+      domain.productDocuments && domain.productDocuments.length
+        ? `- 产品白皮书: ${domain.productDocuments.length} 个文档（仅作为领域背景）`
+        : '',
+      domain.memoryDocuments && domain.memoryDocuments.length
+        ? `- 领域记忆: ${domain.memoryDocuments.length} 个文档`
+        : '',
+      domain.codeRepositories && domain.codeRepositories.length
+        ? `- 领域代码入口: ${domain.codeRepositories.map((item) => item.name).join('、')}`
+        : '',
+      '- 本次领域摘要: `context/domain-summary.md`',
+      '- 结论优先级: PRD/人工确认 > 当前代码 > 领域知识库；冲突必须记录并转人工确认。',
+    ].filter(Boolean).join('\n') : '';
     const outputLines = (definition.outputs || [])
       .map((item) => `- ${typeof item === 'string' ? item : item.path}`)
       .join('\n');
@@ -200,10 +219,11 @@ function createAgentPromptRuntime(deps) {
       '',
       '1. 读取 `AGENTS.md`、`CLAUDE.md`。',
       '2. 读取 `.workflow/workspace.json` 和 `.workflow/progress.md`，确认当前进度。',
-      definition.commandFile ? `3. 读取 \`${definition.commandFile}\`，只执行当前步骤。` : '3. 按当前人工步骤要求处理。',
-      '4. 如命令文件要求使用 skill/rule，再读取下方启用项；不要主动展开未启用能力。',
-      '5. 所有产物写回 workspace，输出中文且保持简洁。',
-      '6. 完成或阻塞时，更新 `.workflow/progress.md` 和 `.workflow/progress.json`。',
+      domainLines ? '3. 读取 `context/domain-summary.md`，再按摘要中的最小路径读取领域材料和当前代码。' : '',
+      definition.commandFile ? `${domainLines ? '4' : '3'}. 读取 \`${definition.commandFile}\`，只执行当前步骤。` : `${domainLines ? '4' : '3'}. 按当前人工步骤要求处理。`,
+      `${domainLines ? '5' : '4'}. 如命令文件要求使用 skill/rule，再读取下方启用项；不要主动展开未启用能力。`,
+      `${domainLines ? '6' : '5'}. 所有产物写回 workspace，输出中文且保持简洁。`,
+      `${domainLines ? '7' : '6'}. 完成或阻塞时，更新 \`.workflow/progress.md\` 和 \`.workflow/progress.json\`。`,
       '',
       '## Harness 内置边界',
       '',
@@ -218,6 +238,7 @@ function createAgentPromptRuntime(deps) {
       capabilityLines ? `## 本步骤启用能力\n\n${capabilityLines}\n` : '',
       appLines ? `## 候选应用\n\n${appLines}\n` : '',
       whitepaperLines ? `## 白皮书与功能上下文\n\n${whitepaperLines}\n` : '',
+      domainLines ? `## 领域 Harness 上下文\n\n${domainLines}\n` : '',
       knowledgeLines ? `## 背景知识\n\n${knowledgeLines}\n` : '',
       qualityGateContext,
       '## 回到页面验收',

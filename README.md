@@ -37,8 +37,10 @@ dw function match <keyword>
 dw context resolve --workspace <path> --function <function-id>
 dw app fetch --workspace <path> --app <application-id>
 dw archive propose --workspace <path>
+dw domain inspect --root <domain-harness-path>
+dw domain attach --workspace <path> --root <domain-harness-path>
 dw doctor
-dw init <demand-name>
+dw init <demand-name> --domain <domain-harness-path>
 dw status --workspace <path>
 dw next --workspace <path>
 dw handoff --workspace <path> --step <step-id>
@@ -108,6 +110,24 @@ Developer machine
 ```
 
 The npm package should contain only generic workflow mechanics and examples. Team-specific assets should live in a separate private Git repository.
+
+## Domain Harness Mount
+
+A workspace may mount exactly one local Domain Harness. The mount is read-only:
+the workflow records its manifest revision, exposes the Harness root to the AI
+tool, writes `context/domain-summary.md`, and keeps a lock at
+`.workflow/domain.lock.json`. It never changes `docs/domain/` or pulls source
+repositories.
+
+```bash
+dw init <demand-name> --domain <domain-harness-path>
+# or attach after initialization
+dw domain attach --workspace <workspace-path> --root <domain-harness-path>
+```
+
+The agent must treat PRD and human confirmation as the target behavior, current
+code as the source of current behavior, and Domain Harness material as domain
+background and risk evidence. Conflicts are recorded for human confirmation.
 
 ## AI Handoff Loop
 

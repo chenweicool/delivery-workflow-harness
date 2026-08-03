@@ -102,6 +102,8 @@ function normalizeWorkspaceConfig(config, workspacePath) {
     capabilities: normalizeCapabilityList(config.capabilities),
     functionPoint: config.functionPoint && typeof config.functionPoint === 'object' ? config.functionPoint : {},
     whitepaperContext: config.whitepaperContext && typeof config.whitepaperContext === 'object' ? config.whitepaperContext : {},
+    domain: config.domain && typeof config.domain === 'object' ? config.domain : {},
+    domainContext: config.domainContext && typeof config.domainContext === 'object' ? config.domainContext : {},
     branchPattern: String(config.branchPattern || '').trim(),
     loadAppContextForClarification: Boolean(config.loadAppContextForClarification),
     notes: config.notes || '',

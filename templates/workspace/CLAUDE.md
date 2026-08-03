@@ -19,7 +19,8 @@
 - 禁止自动执行 worktree 设置，除非当前阶段明确要求。
 - 禁止只根据关键词假设应用范围。
 - 禁止把需求过程文件写入共享公共 AI 仓库。
-- 只使用 workflow prompt 明确注入的 skills 和 rules；当前步骤启用时，它们会链接在 `context/skills/linked` 和 `context/rules/linked` 下。
+- 开始工作前读取 `context/domain-summary.md` 与 `context/capabilities.md`；后者是当前需求已挂载 skills / rules 的可审计快照。
+- Skill 为目录时先阅读其中的 `SKILL.md`，Rule 为文件时先阅读规则正文；公共源只读，链接位于 `context/skills/linked` 和 `context/rules/linked` 下。
 
 ## 输出纪律
 

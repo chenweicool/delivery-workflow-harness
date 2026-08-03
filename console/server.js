@@ -153,6 +153,8 @@ const AI_ADJUSTMENTS_FILE = 'tasks/ai-adjustments.md';
 const KNOWN_FACTS_FILE = 'design/known-facts.md';
 const TECHNICAL_REVIEW_FILE = 'design/technical-review.md';
 const TASK_CONFIRMATION_FILE = 'tasks/task-confirmation.md';
+const CAPABILITY_LOCK_FILE = '.workflow/capabilities.lock.json';
+const CAPABILITY_SUMMARY_FILE = 'context/capabilities.md';
 const progressApi = {};
 const {
   getCheckpointState,
@@ -1590,6 +1592,55 @@ async function importLocalPaths(workspacePathValue, sourcePaths, targetSubdir) {
   return imported;
 }
 
+function capabilitiesMarkdown(snapshot) {
+  const items = (entries) => entries.length
+    ? entries.map((entry) => `- ${capabilityDisplayName(entry)}`).join('\n')
+    : '- 无';
+  return [
+    '# 当前需求生效能力',
+    '',
+    '> 这是当前 Workspace 的能力快照。公共源目录只读；请勿把需求过程文件写回 skills、rules 或领域 Harness。',
+    '',
+    `generated_at: ${snapshot.generatedAt}`,
+    '',
+    '## Skills',
+    '',
+    items(snapshot.skills),
+    '',
+    '## Rules',
+    '',
+    items(snapshot.rules),
+    '',
+    '## 使用约束',
+    '',
+    '- 开始工作前先阅读 `AGENTS.md`、`.workflow/progress.md`、`context/domain-summary.md` 和本文件。',
+    '- Skill 为目录时，先阅读其中的 `SKILL.md`；Rule 为文件时，先阅读规则正文。',
+    '- 只在当前需求相关的阶段使用能力；PRD 与人工确认优先于领域背景或通用规则。',
+    snapshot.notes ? `\n## 团队补充约束\n\n${snapshot.notes}` : '',
+    '',
+  ].join('\n');
+}
+
+async function refreshWorkspaceCapabilities(workspacePathValue) {
+  const workspacePath = normalizeUserPath(workspacePathValue);
+  if (!workspacePath || !(await exists(path.join(workspacePath, 'AGENTS.md')))) {
+    throw new Error('请选择有效的 workspace');
+  }
+  const tools = await readToolsConfig();
+  const config = await readWorkspaceConfig(workspacePath);
+  const resolved = await linkConfiguredCapabilities(workspacePath, tools, config);
+  const snapshot = {
+    schemaVersion: 1,
+    generatedAt: nowIso(),
+    skills: resolved.skills || [],
+    rules: resolved.rules || [],
+    notes: resolved.notes || '',
+  };
+  await writeWorkspaceJsonFile(workspacePath, CAPABILITY_LOCK_FILE, snapshot);
+  await writeWorkspaceTextFile(workspacePath, CAPABILITY_SUMMARY_FILE, capabilitiesMarkdown(snapshot));
+  return snapshot;
+}
+
 async function importFeishuPrd(body) {
   const workspacePath = normalizeUserPath(body.workspacePath);
   if (!(await exists(path.join(workspacePath, 'AGENTS.md')))) {
@@ -2434,7 +2485,8 @@ async function route(req, res) {
       }
       const workspacePath = await initWorkspace(body.demandName, body.outputRoot, body.workspacePath);
       const attached = await attachDomainHarness({ workspacePath, domainRoot });
-      sendJson(res, 200, { workspacePath, domain: attached.context });
+      const capabilities = await refreshWorkspaceCapabilities(workspacePath);
+      sendJson(res, 200, { workspacePath, domain: attached.context, capabilities });
       return;
     }
 
@@ -2454,7 +2506,16 @@ async function route(req, res) {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/workspace/domain-context') {
-      sendJson(res, 200, await attachDomainHarness(await readJson(req)));
+      const body = await readJson(req);
+      const attached = await attachDomainHarness(body);
+      const capabilities = await refreshWorkspaceCapabilities(body.workspacePath);
+      sendJson(res, 200, { ...attached, capabilities });
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/capabilities/refresh') {
+      const body = await readJson(req);
+      sendJson(res, 200, await refreshWorkspaceCapabilities(body.workspacePath));
       return;
     }
 
@@ -2800,6 +2861,7 @@ module.exports = {
   resolveWhitepaperWorkspaceContext,
   inspectDomainHarness,
   attachDomainHarness,
+  refreshWorkspaceCapabilities,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,
   evaluateQualityGates,

@@ -12,7 +12,8 @@
 - 本需求相关过程文件必须保存在当前 workspace 内。
 - 必须维护贯穿全流程的进度文件：`.workflow/progress.md` 和 `.workflow/progress.json`。
 - 禁止把需求过程文件写回共享公共 AI 仓库。
-- 只能使用 workflow prompt 注入的当前步骤可用 skills / rules；链接能力位于 `context/skills/linked` 和 `context/rules/linked`。
+- 开始工作前必须阅读 `context/domain-summary.md` 与 `context/capabilities.md`。后者列出当前需求已挂载的 skills / rules；Skill 为目录时先读其中的 `SKILL.md`，Rule 为文件时先读规则正文。
+- 挂载能力的只读链接位于 `context/skills/linked` 和 `context/rules/linked`；不得向这些公共源写入需求过程文件。
 - 所有面向用户的输出和 workspace 文档必须使用中文。
 - 输出保持简洁并聚焦当前阶段；不要添加泛泛免责声明、仪式化总结或对下一步没有帮助的宽泛兜底内容。
 - 证据不足时，只记录具体缺失输入或阻塞问题；不要写模糊兜底段落。

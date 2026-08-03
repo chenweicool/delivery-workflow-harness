@@ -3,149 +3,120 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Delivery Workflow</title>
-    <link rel="stylesheet" href="/control-plane.css?v=20260803-control-plane" />
+    <title>需求交付 Harness</title>
+    <link rel="stylesheet" href="/control-plane.css?v=20260803-capabilities" />
   </head>
   <body>
-    <header class="topbar">
-      <div>
-        <p class="eyebrow">DELIVERY CONTROL PLANE</p>
-        <h1>需求交付 Harness</h1>
-      </div>
-      <div class="topbar-actions">
-        <span id="workspaceBadge" class="badge">未选择需求</span>
-        <button id="newWorkspaceBtn" type="button">新建需求</button>
-      </div>
-    </header>
-
-    <main class="shell">
-      <div id="message" class="message hidden"></div>
-
-      <section id="startScreen" class="card start-card">
-        <div class="card-heading">
-          <div>
-            <p class="eyebrow">START</p>
-            <h2>三步建立需求现场</h2>
-            <p>Harness 只组织证据、门禁和人工确认；请在创建后的目录中使用你自己的 Codex、Claude 或 IDE。</p>
-          </div>
+    <div class="app-layout">
+      <aside class="sidebar">
+        <div class="brand">
+          <p class="eyebrow">DELIVERY CONTROL PLANE</p>
+          <h1>需求交付 Harness</h1>
+          <p>目录原生的需求控制面</p>
         </div>
-        <div class="step-grid">
-          <section class="setup-step">
-            <span class="step-number">1</span>
-            <h3>绑定领域 Harness</h3>
-            <p>白皮书、领域记忆、代码入口和领域规则。一个需求只绑定一个领域。</p>
-            <div class="picker-row">
-              <input id="domainRoot" placeholder="F:\code\harness-project\spm-harness-module-negative" />
-              <button id="chooseDomainBtn" type="button">选择目录</button>
-            </div>
-          </section>
-          <section class="setup-step">
-            <span class="step-number">2</span>
-            <h3>输入需求</h3>
-            <p>PRD 是目标行为的第一事实源。可在创建后继续补充材料。</p>
-            <label>
-              <span>需求名称</span>
-              <input id="demandName" placeholder="例如：negative-bill-export" />
-            </label>
-            <label>
-              <span>工作区父目录</span>
-              <div class="picker-row">
-                <input id="outputRoot" placeholder="F:\code\ai-workspaces" />
-                <button id="chooseOutputRootBtn" type="button">选择目录</button>
+
+        <nav class="side-nav" aria-label="工作台导航">
+          <button class="nav-item active" type="button" data-nav="workbench"><span>▣</span> 当前需求</button>
+          <button class="nav-item" id="projectsBtn" type="button"><span>□</span> 项目目录</button>
+          <button class="nav-item" id="globalConfigBtn" type="button"><span>⚙</span> 全局配置</button>
+        </nav>
+
+        <section class="sidebar-section">
+          <p class="eyebrow">CURRENT WORKSPACE</p>
+          <strong id="sideWorkspaceName">未选择需求</strong>
+          <p id="sideWorkspacePath" class="path">创建或打开一个需求 Workspace</p>
+          <div class="side-actions">
+            <button id="sideOpenFolderBtn" type="button" disabled>打开目录</button>
+          </div>
+        </section>
+
+        <section class="sidebar-section capability-summary">
+          <p class="eyebrow">GLOBAL CAPABILITIES</p>
+          <p>团队公共 skills / rules</p>
+          <div class="summary-counts">
+            <span><b id="sideGlobalSkillCount">0</b> Skills</span>
+            <span><b id="sideGlobalRuleCount">0</b> Rules</span>
+          </div>
+          <button id="sideConfigureCapabilitiesBtn" class="text-button" type="button">管理全局挂载 →</button>
+        </section>
+
+        <p class="sidebar-foot">不配置模型或 IDE；在 Workspace 中直接使用你已有的工具。</p>
+      </aside>
+
+      <main class="main-pane">
+        <header class="topbar">
+          <div>
+            <p id="pageEyebrow" class="eyebrow">WORKBENCH</p>
+            <h2 id="pageTitle">建立一份需求 Workspace</h2>
+          </div>
+          <div class="topbar-actions">
+            <span id="workspaceBadge" class="badge">未选择需求</span>
+            <button id="newWorkspaceBtn" class="primary" type="button">新建需求</button>
+          </div>
+        </header>
+
+        <div class="content">
+          <div id="message" class="message hidden"></div>
+
+          <section id="startScreen" class="card start-card">
+            <div class="card-heading">
+              <div>
+                <p class="eyebrow">START</p>
+                <h2>三步建立需求现场</h2>
+                <p>领域 Harness 提供背景和约束；PRD 是目标行为的第一事实源。创建后，直接在目录中使用 Codex、Claude 或任意 IDE 工作。</p>
               </div>
-            </label>
+            </div>
+            <div class="step-grid">
+              <section class="setup-step">
+                <span class="step-number">1</span>
+                <h3>绑定领域 Harness</h3>
+                <p>只读挂载产品白皮书、领域记忆、代码入口、领域 skills 与 rules。一份需求只绑定一个领域。</p>
+                <div class="picker-row"><input id="domainRoot" placeholder="F:\code\harness-project\spm-harness-module-negative" /><button id="chooseDomainBtn" type="button">选择目录</button></div>
+              </section>
+              <section class="setup-step">
+                <span class="step-number">2</span>
+                <h3>输入需求</h3>
+                <p>需求名用于创建隔离的 Workspace；项目目录来自左侧“全局配置”，也可在此临时调整。</p>
+                <label><span>需求名称</span><input id="demandName" placeholder="例如：negative-bill-export" /></label>
+                <label><span>项目目录</span><div class="picker-row"><input id="outputRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseOutputRootBtn" type="button">选择目录</button></div></label>
+              </section>
+              <section class="setup-step optional">
+                <span class="step-number">3</span>
+                <h3>导入 PRD</h3>
+                <p>可选。先带入本地需求材料；飞书、内部文档等会作为统一连接器接入。</p>
+                <label><span>本地 PRD</span><input id="initialPrdFiles" type="file" multiple /></label>
+              </section>
+            </div>
+            <div class="start-footer"><p>领域和团队级能力会形成当前需求的“生效能力清单”；不会把公共知识库写回或修改。</p><button id="createWorkspaceBtn" class="primary" type="button">创建需求 Workspace</button></div>
           </section>
-          <section class="setup-step optional">
-            <span class="step-number">3</span>
-            <h3>补充材料</h3>
-            <p>可选。先支持本地 PRD；飞书和内部文档会作为统一连接器接入。</p>
-            <label>
-              <span>本地 PRD</span>
-              <input id="initialPrdFiles" type="file" multiple />
-            </label>
-          </section>
-        </div>
-        <div class="start-footer">
-          <p>创建后会生成领域快照、质量策略和 Gate 状态；不需要配置模型路径或 IDEA。</p>
-          <button id="createWorkspaceBtn" class="primary" type="button">创建需求 Workspace</button>
-        </div>
-      </section>
 
-      <section id="workspaceScreen" class="hidden">
-        <section class="workspace-bar card">
-          <div>
-            <p class="eyebrow">WORKSPACE</p>
-            <h2 id="workspaceName">当前需求</h2>
-            <p id="workspacePath" class="path"></p>
-          </div>
-          <div class="workspace-actions">
-            <button id="changeWorkspaceBtn" type="button">切换目录</button>
-            <button id="openFolderBtn" type="button">打开目录</button>
-          </div>
-        </section>
+          <section id="workspaceScreen" class="hidden">
+            <section class="workspace-bar card">
+              <div><p class="eyebrow">WORKSPACE</p><h2 id="workspaceName">当前需求</h2><p id="workspacePath" class="path"></p></div>
+              <div class="workspace-actions"><button id="changeWorkspaceBtn" type="button">切换需求</button><button id="openFolderBtn" type="button">打开目录</button></div>
+            </section>
 
-        <section class="card next-card">
-          <p class="eyebrow">NEXT</p>
-          <h2 id="nextTitle">正在加载需求状态</h2>
-          <p id="nextDescription"></p>
-          <pre id="nextCommand" class="command hidden"></pre>
-        </section>
+            <section class="card next-card"><p class="eyebrow">NEXT ACTION</p><h2 id="nextTitle">正在加载需求状态</h2><p id="nextDescription"></p><pre id="nextCommand" class="command hidden"></pre></section>
 
-        <section class="section-heading">
-          <div>
-            <p class="eyebrow">CONTEXT</p>
-            <h2>需求基础</h2>
-          </div>
-          <p>领域 Harness 是领域知识入口；PRD 是需求输入；补充材料仅补充本次证据。</p>
-        </section>
-        <div class="context-grid">
-          <section id="domainCard" class="card context-card"></section>
-          <section id="prdCard" class="card context-card"></section>
-          <section class="card context-card muted-card">
-            <p class="eyebrow">OPTIONAL</p>
-            <h3>补充材料连接器</h3>
-            <p>本地文件、飞书和内部文档将通过同一快照协议进入本次需求，不单独形成“知识库”。</p>
-            <span class="badge muted">下一阶段接入</span>
+            <section class="section-heading"><div><p class="eyebrow">CONTEXT & CAPABILITIES</p><h2>需求基础与生效能力</h2></div><p>领域能力是需求专属上下文；全局能力由团队统一维护；两者都会在当前需求中明确可见。</p></section>
+            <div class="context-grid context-grid-primary"><section id="domainCard" class="card context-card"></section><section id="capabilitiesCard" class="card context-card capabilities-card"></section></div>
+            <div class="context-grid context-grid-secondary"><section id="prdCard" class="card context-card"></section><section class="card context-card muted-card"><p class="eyebrow">CONNECTORS</p><h3>补充材料</h3><p>本地文件、飞书与内部文档会按统一的“读取—快照—引用”协议进入本次需求，而不是另建一个知识库。</p><span class="badge muted">连接器下一阶段接入</span></section></div>
+
+            <section class="section-heading gate-heading"><div><p class="eyebrow">QUALITY GATES</p><h2>质量门禁与人工确认</h2></div><p>门禁只检查正式证据。证据齐备后，才出现对应角色的人工确认动作。</p></section>
+            <section id="gatesPanel" class="gate-list"></section>
+
+            <section class="section-heading"><div><p class="eyebrow">ARTIFACTS</p><h2>正式产物</h2></div><p>分析、方案、测试与验收结论必须回写到目录，聊天记录不作为交付依据。</p></section>
+            <section id="artifactPanel" class="card artifact-panel"></section>
           </section>
         </div>
+      </main>
+    </div>
 
-        <section class="section-heading gate-heading">
-          <div>
-            <p class="eyebrow">QUALITY GATES</p>
-            <h2>质量门禁与人工确认</h2>
-          </div>
-          <p>只有证据齐备后才能人工放行。拒绝与例外都会写入 Workspace。</p>
-        </section>
-        <section id="gatesPanel" class="gate-list"></section>
+    <dialog id="projectsDialog" class="dialog"><form method="dialog" class="dialog-card"><div class="dialog-heading"><div><p class="eyebrow">PROJECT DIRECTORY</p><h2>项目目录</h2><p>一个目录下可管理多个独立需求 Workspace。</p></div><button value="cancel" type="submit">关闭</button></div><label><span>项目目录</span><div class="picker-row"><input id="projectsRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseProjectsRootBtn" type="button">选择目录</button></div></label><div id="projectsList" class="projects-list"></div><div class="dialog-footer"><button id="saveProjectsRootBtn" type="button">保存为默认目录</button><button id="refreshProjectsBtn" class="primary" type="button">刷新项目列表</button></div></form></dialog>
 
-        <section class="section-heading">
-          <div>
-            <p class="eyebrow">ARTIFACTS</p>
-            <h2>正式产物</h2>
-          </div>
-          <p>AI 与人的结论必须回写到目录；聊天记录不作为交付依据。</p>
-        </section>
-        <section id="artifactPanel" class="card artifact-panel"></section>
-      </section>
-    </main>
+    <dialog id="globalConfigDialog" class="dialog"><form method="dialog" class="dialog-card"><div class="dialog-heading"><div><p class="eyebrow">GLOBAL CONFIGURATION</p><h2>全局配置</h2><p>仅维护团队公共目录和可复用能力，不配置 Codex、Claude 或 IDEA。</p></div><button value="cancel" type="submit">关闭</button></div><label><span>默认项目目录</span><div class="picker-row"><input id="globalWorkspaceRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseGlobalWorkspaceRootBtn" type="button">选择目录</button></div></label><div class="config-note">填写本机已同步的团队公共 Git 目录、公司 skills 仓库目录或规则文件路径。一行一个路径；凭据不写入此处。</div><label><span>全局 Skills</span><textarea id="globalSkills" rows="5" placeholder="F:\code\team-ai-config\skills\common\sqs-spec"></textarea></label><label><span>全局 Rules</span><textarea id="globalRules" rows="5" placeholder="F:\code\team-ai-config\rules\delivery-rules.md"></textarea></label><label><span>团队补充约束（可选）</span><textarea id="globalNotes" rows="3" placeholder="例如：所有涉及数据库的需求须在技术方案中列出表和回滚方案。"></textarea></label><div class="dialog-footer"><button value="cancel" type="submit">取消</button><button id="saveGlobalConfigBtn" class="primary" type="button">保存全局配置</button></div></form></dialog>
 
-    <dialog id="switchWorkspaceDialog" class="dialog">
-      <form method="dialog" class="dialog-card">
-        <div class="dialog-heading">
-          <div><p class="eyebrow">OPEN</p><h2>打开已有 Workspace</h2></div>
-          <button value="cancel" type="submit">关闭</button>
-        </div>
-        <label>
-          <span>Workspace 目录</span>
-          <div class="picker-row">
-            <input id="existingWorkspacePath" placeholder="F:\code\ai-workspaces\negative-bill-export" />
-            <button id="chooseWorkspaceBtn" type="button">选择目录</button>
-          </div>
-        </label>
-        <button id="useWorkspaceBtn" class="primary" value="default" type="button">打开需求</button>
-      </form>
-    </dialog>
-
-    <script src="/control-plane.js?v=20260803-control-plane"></script>
+    <dialog id="switchWorkspaceDialog" class="dialog"><form method="dialog" class="dialog-card"><div class="dialog-heading"><div><p class="eyebrow">OPEN</p><h2>打开已有 Workspace</h2></div><button value="cancel" type="submit">关闭</button></div><label><span>Workspace 目录</span><div class="picker-row"><input id="existingWorkspacePath" placeholder="F:\code\ai-workspaces\negative-bill-export" /><button id="chooseWorkspaceBtn" type="button">选择目录</button></div></label><button id="useWorkspaceBtn" class="primary" value="default" type="button">打开需求</button></form></dialog>
+    <script src="/control-plane.js?v=20260803-capabilities"></script>
   </body>
 </html>

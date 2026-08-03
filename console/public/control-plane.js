@@ -1,120 +1,49 @@
 (function controlPlane() {
-  const state = { workspacePath: '', status: null, gates: null };
+  const state = { workspacePath: '', status: null, gates: null, tools: {}, outputRoot: '' };
   const $ = (selector) => document.querySelector(selector);
   const els = {
-    message: $('#message'), startScreen: $('#startScreen'), workspaceScreen: $('#workspaceScreen'), workspaceBadge: $('#workspaceBadge'),
-    demandName: $('#demandName'), outputRoot: $('#outputRoot'), domainRoot: $('#domainRoot'), initialPrdFiles: $('#initialPrdFiles'),
-    chooseDomainBtn: $('#chooseDomainBtn'), chooseOutputRootBtn: $('#chooseOutputRootBtn'), createWorkspaceBtn: $('#createWorkspaceBtn'), newWorkspaceBtn: $('#newWorkspaceBtn'),
-    workspaceName: $('#workspaceName'), workspacePath: $('#workspacePath'), nextTitle: $('#nextTitle'), nextDescription: $('#nextDescription'), nextCommand: $('#nextCommand'),
-    domainCard: $('#domainCard'), prdCard: $('#prdCard'), gatesPanel: $('#gatesPanel'), artifactPanel: $('#artifactPanel'),
-    changeWorkspaceBtn: $('#changeWorkspaceBtn'), openFolderBtn: $('#openFolderBtn'), switchWorkspaceDialog: $('#switchWorkspaceDialog'), existingWorkspacePath: $('#existingWorkspacePath'), chooseWorkspaceBtn: $('#chooseWorkspaceBtn'), useWorkspaceBtn: $('#useWorkspaceBtn'),
+    message: $('#message'), startScreen: $('#startScreen'), workspaceScreen: $('#workspaceScreen'), workspaceBadge: $('#workspaceBadge'), pageTitle: $('#pageTitle'), pageEyebrow: $('#pageEyebrow'),
+    demandName: $('#demandName'), outputRoot: $('#outputRoot'), domainRoot: $('#domainRoot'), initialPrdFiles: $('#initialPrdFiles'), chooseDomainBtn: $('#chooseDomainBtn'), chooseOutputRootBtn: $('#chooseOutputRootBtn'), createWorkspaceBtn: $('#createWorkspaceBtn'), newWorkspaceBtn: $('#newWorkspaceBtn'),
+    workspaceName: $('#workspaceName'), workspacePath: $('#workspacePath'), nextTitle: $('#nextTitle'), nextDescription: $('#nextDescription'), nextCommand: $('#nextCommand'), domainCard: $('#domainCard'), capabilitiesCard: $('#capabilitiesCard'), prdCard: $('#prdCard'), gatesPanel: $('#gatesPanel'), artifactPanel: $('#artifactPanel'), changeWorkspaceBtn: $('#changeWorkspaceBtn'), openFolderBtn: $('#openFolderBtn'),
+    sideWorkspaceName: $('#sideWorkspaceName'), sideWorkspacePath: $('#sideWorkspacePath'), sideOpenFolderBtn: $('#sideOpenFolderBtn'), sideGlobalSkillCount: $('#sideGlobalSkillCount'), sideGlobalRuleCount: $('#sideGlobalRuleCount'),
+    projectsBtn: $('#projectsBtn'), projectsDialog: $('#projectsDialog'), projectsRoot: $('#projectsRoot'), projectsList: $('#projectsList'), chooseProjectsRootBtn: $('#chooseProjectsRootBtn'), refreshProjectsBtn: $('#refreshProjectsBtn'), saveProjectsRootBtn: $('#saveProjectsRootBtn'),
+    globalConfigBtn: $('#globalConfigBtn'), sideConfigureCapabilitiesBtn: $('#sideConfigureCapabilitiesBtn'), globalConfigDialog: $('#globalConfigDialog'), globalWorkspaceRoot: $('#globalWorkspaceRoot'), globalSkills: $('#globalSkills'), globalRules: $('#globalRules'), globalNotes: $('#globalNotes'), chooseGlobalWorkspaceRootBtn: $('#chooseGlobalWorkspaceRootBtn'), saveGlobalConfigBtn: $('#saveGlobalConfigBtn'),
+    switchWorkspaceDialog: $('#switchWorkspaceDialog'), existingWorkspacePath: $('#existingWorkspacePath'), chooseWorkspaceBtn: $('#chooseWorkspaceBtn'), useWorkspaceBtn: $('#useWorkspaceBtn'),
   };
-
-  async function api(url, options = {}) {
-    const response = await fetch(url, { ...options, headers: { ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...(options.headers || {}) } });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || `请求失败：${response.status}`);
-    return data;
-  }
+  async function api(url, options = {}) { const response = await fetch(url, { ...options, headers: { ...(options.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }), ...(options.headers || {}) } }); const data = await response.json().catch(() => ({})); if (!response.ok) throw new Error(data.error || `请求失败：${response.status}`); return data; }
   const escapeHtml = (value) => String(value || '').replace(/[&<>'"]/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+  const normalizeList = (value) => Array.isArray(value) ? value.map((item) => String(item || '').trim()).filter(Boolean) : String(value || '').split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean);
+  const basename = (value) => { const parts = String(value || '').replace(/\\/g, '/').split('/').filter(Boolean); return parts[parts.length - 1] || value; };
   function message(text, type = '') { els.message.textContent = text; els.message.className = `message ${type}`.trim(); els.message.classList.toggle('hidden', !text); }
   function setLoading(button, loading, text) { if (!button) return; button.disabled = loading; button.textContent = loading ? text : button.dataset.idle || button.textContent; }
-  function basename(value) { const parts = String(value || '').replace(/\\/g, '/').split('/').filter(Boolean); return parts[parts.length - 1] || value; }
   function domainContext() { const config = state.status && state.status.config ? state.status.config : {}; return config.domainContext && config.domainContext.root ? { ...config.domainContext, ...(config.domain || {}) } : (config.domain || {}); }
-
-  async function chooseDirectory(input, title) {
-    const data = await api('/api/system/select-directory', { method: 'POST', body: JSON.stringify({ initialPath: input.value.trim(), title }) });
-    if (data.path) input.value = data.path;
-  }
-  async function uploadPrd(files) {
-    if (!files || !files.length) return;
-    const form = new FormData(); form.append('workspacePath', state.workspacePath); form.append('targetSubdir', '');
-    Array.from(files).forEach((file) => form.append('files', file));
-    await api('/api/workspace/upload-prd', { method: 'POST', body: form });
-  }
-  async function createWorkspace() {
-    const demandName = els.demandName.value.trim(); const outputRoot = els.outputRoot.value.trim(); const domainRoot = els.domainRoot.value.trim();
-    if (!demandName || !outputRoot || !domainRoot) throw new Error('请填写需求名称、工作区父目录和领域 Harness。');
-    const button = els.createWorkspaceBtn; button.dataset.idle = '创建需求 Workspace'; setLoading(button, true, '创建中...');
-    try {
-      const result = await api('/api/workspaces/init', { method: 'POST', body: JSON.stringify({ demandName, outputRoot, domainRoot }) });
-      state.workspacePath = result.workspacePath;
-      await uploadPrd(els.initialPrdFiles.files);
-      await loadWorkspace();
-      message('需求 Workspace 已创建。下一步请补齐 PRD 后，在目录中使用你自己的 AI 工具开展澄清。');
-    } finally { setLoading(button, false); }
-  }
-  async function loadWorkspace() {
-    if (!state.workspacePath) return;
-    state.status = await api(`/api/workspace/status?workspacePath=${encodeURIComponent(state.workspacePath)}`);
-    if (!state.status.isWorkspace) throw new Error(state.status.message || '不是有效 Workspace');
-    state.gates = await api('/api/gates/check', { method: 'POST', body: JSON.stringify({ workspacePath: state.workspacePath }) });
-    render();
-  }
-  async function attachDomain() {
-    const input = $('#attachDomainRoot'); const domainRoot = input ? input.value.trim() : '';
-    if (!domainRoot) throw new Error('请选择领域 Harness 目录');
-    await api('/api/workspace/domain-context', { method: 'POST', body: JSON.stringify({ workspacePath: state.workspacePath, domainRoot }) });
-    await loadWorkspace(); message('领域 Harness 已挂载。');
-  }
-  async function uploadExistingPrd() {
-    const input = $('#prdFiles'); await uploadPrd(input && input.files); await loadWorkspace(); message('PRD 已导入并进入本次需求快照。');
-  }
-  async function gateAction(gateId, action) {
-    const noteInput = document.querySelector(`[data-gate-note="${CSS.escape(gateId)}"]`); const note = noteInput ? noteInput.value.trim() : '';
-    await api(`/api/gates/${action}`, { method: 'POST', body: JSON.stringify({ workspacePath: state.workspacePath, gateId, note }) });
-    await loadWorkspace(); message(`质量门禁已${action === 'approve' ? '通过' : '退回'}：${gateId}`);
-  }
+  function unique(items) { return Array.from(new Set(items.filter(Boolean))); }
+  async function chooseDirectory(input, title) { const data = await api('/api/system/select-directory', { method: 'POST', body: JSON.stringify({ initialPath: input.value.trim(), title }) }); if (data.path) input.value = data.path; }
+  async function loadGlobalConfig() { const data = await api('/api/tools/config'); state.tools = data.tools || {}; updateGlobalSummary(); }
+  function updateGlobalSummary() { const skills = normalizeList(state.tools.globalSkills); const rules = normalizeList(state.tools.globalRules); els.sideGlobalSkillCount.textContent = String(skills.length); els.sideGlobalRuleCount.textContent = String(rules.length); }
+  async function persistDefaultRoot(root) { const outputRoot = root.trim(); if (!outputRoot) throw new Error('请选择项目目录'); const current = await api('/api/state'); await api('/api/state', { method: 'POST', body: JSON.stringify({ ...current, outputRoot }) }); state.outputRoot = outputRoot; els.outputRoot.value = outputRoot; }
+  async function uploadPrd(files) { if (!files || !files.length) return; const form = new FormData(); form.append('workspacePath', state.workspacePath); form.append('targetSubdir', ''); Array.from(files).forEach((file) => form.append('files', file)); await api('/api/workspace/upload-prd', { method: 'POST', body: form }); }
+  async function createWorkspace() { const demandName = els.demandName.value.trim(); const outputRoot = els.outputRoot.value.trim(); const domainRoot = els.domainRoot.value.trim(); if (!demandName || !outputRoot || !domainRoot) throw new Error('请填写需求名称、项目目录和领域 Harness。'); const button = els.createWorkspaceBtn; button.dataset.idle = '创建需求 Workspace'; setLoading(button, true, '创建中…'); try { const result = await api('/api/workspaces/init', { method: 'POST', body: JSON.stringify({ demandName, outputRoot, domainRoot }) }); state.workspacePath = result.workspacePath; await uploadPrd(els.initialPrdFiles.files); await loadWorkspace(); message('需求 Workspace 已创建。领域能力已挂载；补齐 PRD 后即可在目录中发起需求澄清。'); } finally { setLoading(button, false); } }
+  async function loadWorkspace() { if (!state.workspacePath) return; state.status = await api(`/api/workspace/status?workspacePath=${encodeURIComponent(state.workspacePath)}`); if (!state.status.isWorkspace) throw new Error(state.status.message || '不是有效 Workspace'); state.gates = await api('/api/gates/check', { method: 'POST', body: JSON.stringify({ workspacePath: state.workspacePath }) }); render(); }
+  async function uploadExistingPrd() { const input = $('#prdFiles'); await uploadPrd(input && input.files); await loadWorkspace(); message('PRD 已导入并进入本次需求快照。'); }
+  async function gateAction(gateId, action) { const noteInput = document.querySelector(`[data-gate-note="${CSS.escape(gateId)}"]`); const note = noteInput ? noteInput.value.trim() : ''; await api(`/api/gates/${action}`, { method: 'POST', body: JSON.stringify({ workspacePath: state.workspacePath, gateId, note }) }); await loadWorkspace(); message(`质量门禁已${action === 'approve' ? '通过' : '退回'}：${gateId}`); }
   async function openFolder() { await api('/api/workspace/open-folder', { method: 'POST', body: JSON.stringify({ workspacePath: state.workspacePath }) }); }
-
-  function renderNext() {
-    const domain = domainContext(); const prdCount = state.status.materialPrdCount || 0;
-    if (!domain.root) { els.nextTitle.textContent = '先绑定领域 Harness'; els.nextDescription.textContent = '领域 Harness 提供白皮书、代码入口、领域规则和历史记忆。'; els.nextCommand.textContent = `dw domain attach --workspace "${state.workspacePath}" --root <领域Harness路径>`; }
-    else if (!prdCount) { els.nextTitle.textContent = '导入 PRD'; els.nextDescription.textContent = 'PRD 是目标行为的第一事实源。导入后由 AI 在目录中开展需求澄清。'; els.nextCommand.textContent = `dw prd import <PRD文件> --workspace "${state.workspacePath}"`; }
-    else { const nextGate = Object.values(state.gates.gates || {}).find((gate) => gate.status !== 'approved' && gate.status !== 'exception-approved'); els.nextTitle.textContent = nextGate ? `补齐并确认：${nextGate.title}` : '全部质量门禁已通过'; els.nextDescription.textContent = nextGate ? (nextGate.missing.length ? `还缺 ${nextGate.missing.length} 项证据；请在 Workspace 中用 AI 按阶段命令生成。` : '证据已齐备，等待对应责任人进行人工确认。') : '可以进入交付归档与领域知识更新提案。'; els.nextCommand.textContent = `cd "${state.workspacePath}"\n# 使用你自己的 Codex 或 Claude，按 AGENTS.md / CLAUDE.md 与当前阶段命令工作`; }
-    els.nextCommand.classList.remove('hidden');
-  }
-  function renderDomainCard() {
-    const domain = domainContext();
-    if (!domain.root) {
-      els.domainCard.innerHTML = `<p class="eyebrow">REQUIRED</p><h3>未绑定领域 Harness</h3><p>一个需求必须绑定一个领域。跨领域请拆分需求。</p><div class="picker-row"><input id="attachDomainRoot" placeholder="F:\\code\\harness-project\\..." /><button id="chooseAttachDomainBtn" type="button">选择目录</button></div><div class="card-actions"><button id="attachDomainBtn" class="primary" type="button">绑定领域</button></div>`;
-      $('#chooseAttachDomainBtn').addEventListener('click', () => chooseDirectory($('#attachDomainRoot'), '选择领域 Harness 目录').catch((error) => message(error.message, 'error')));
-      $('#attachDomainBtn').addEventListener('click', () => attachDomain().catch((error) => message(error.message, 'error')));
-      return;
-    }
-    const repos = domain.codeRepositories || []; const local = repos.filter((repo) => repo.sourceExists).map((repo) => repo.name);
-    els.domainCard.innerHTML = `<p class="eyebrow">DOMAIN HARNESS</p><h3>${escapeHtml(domain.name || domain.id || basename(domain.root))}</h3><p class="path">${escapeHtml(domain.root)}</p><span class="badge">版本 ${escapeHtml(String(domain.revision || 'unversioned').slice(0, 12))}</span><p>领域文档 ${(domain.productDocuments || []).length} · 领域记忆 ${(domain.memoryDocuments || []).length} · 代码仓 ${repos.length}</p><p>${local.length ? `本地可读：${escapeHtml(local.join('、'))}` : '代码入口已声明，当前本地代码尚未就绪。'}</p>`;
-  }
-  function renderPrdCard() {
-    const files = state.status.prdFiles || []; const count = state.status.materialPrdCount || 0;
-    els.prdCard.innerHTML = `<p class="eyebrow">PRD</p><h3>${count ? `已导入 ${count} 份需求材料` : '尚未导入 PRD'}</h3><p>${count ? escapeHtml(files.filter((file) => file.type === 'file').map((file) => file.path).slice(0, 3).join('、')) : '导入 Markdown、Word 转换结果或其他需求材料。'}</p><label><span>追加本地 PRD</span><input id="prdFiles" type="file" multiple /></label><div class="card-actions"><button id="uploadPrdBtn" class="primary" type="button">导入 PRD</button></div>`;
-    $('#uploadPrdBtn').addEventListener('click', () => uploadExistingPrd().catch((error) => message(error.message, 'error')));
-  }
+  function renderNext() { const domain = domainContext(); const prdCount = state.status.materialPrdCount || 0; if (!domain.root) { els.nextTitle.textContent = '先绑定领域 Harness'; els.nextDescription.textContent = '领域 Harness 提供白皮书、代码入口、领域规则与可复用能力。'; els.nextCommand.textContent = `dw domain attach --workspace "${state.workspacePath}" --root <领域Harness路径>`; } else if (!prdCount) { els.nextTitle.textContent = '导入 PRD'; els.nextDescription.textContent = 'PRD 是目标行为的第一事实源。导入后，让 AI 在目录中按阶段命令展开需求澄清。'; els.nextCommand.textContent = `dw prd import <PRD文件> --workspace "${state.workspacePath}"`; } else { const nextGate = Object.values(state.gates.gates || {}).find((gate) => gate.status !== 'approved' && gate.status !== 'exception-approved'); els.nextTitle.textContent = nextGate ? `补齐并确认：${nextGate.title}` : '全部质量门禁已通过'; els.nextDescription.textContent = nextGate ? (nextGate.missing.length ? `还缺 ${nextGate.missing.length} 项证据。先在 Workspace 内完成阶段产物，再回到这里确认。` : '证据已齐备，等待对应责任人进行人工确认。') : '可以进入交付归档与领域知识更新提案。'; els.nextCommand.textContent = `cd "${state.workspacePath}"\n# 使用你的 Codex 或 Claude，先阅读 AGENTS.md / CLAUDE.md 与当前阶段命令`; } els.nextCommand.classList.remove('hidden'); }
+  function capabilityChips(items, type = '') { return items.length ? `<div class="capability-list">${items.map((item) => `<span class="capability-item ${type}">${escapeHtml(basename(item))}</span>`).join('')}</div>` : '<span class="capability-empty">无</span>'; }
+  function renderDomainCard() { const domain = domainContext(); if (!domain.root) { els.domainCard.innerHTML = '<p class="eyebrow">REQUIRED</p><h3>未绑定领域 Harness</h3><p>一份需求必须绑定一个领域；跨领域请拆分需求。</p>'; return; } const repos = domain.codeRepositories || []; const local = repos.filter((repo) => repo.sourceExists).map((repo) => repo.name); const skills = (domain.skills || []).map((item) => typeof item === 'string' ? item : item.relativePath || item.path); const rules = domain.rules || []; els.domainCard.innerHTML = `<p class="eyebrow">DOMAIN HARNESS · READ ONLY</p><h3>${escapeHtml(domain.name || domain.id || basename(domain.root))}</h3><p class="path">${escapeHtml(domain.root)}</p><span class="badge">版本 ${escapeHtml(String(domain.revision || 'unversioned').slice(0, 12))}</span><div class="capability-group"><strong>领域上下文</strong><p>白皮书 ${(domain.productDocuments || []).length} · 领域记忆 ${(domain.memoryDocuments || []).length} · 代码入口 ${repos.length}${local.length ? ` · 本地代码 ${local.length}` : ''}</p></div><div class="capability-group"><strong>领域挂载</strong><div class="capability-list"><span class="capability-item">${skills.length} Skills</span><span class="capability-item rule">${rules.length} Rules</span></div></div>`; }
+  function renderCapabilitiesCard() { const config = state.status.config || {}; const domain = domainContext(); const globalSkills = normalizeList(state.tools.globalSkills); const globalRules = normalizeList(state.tools.globalRules); const domainSkills = (domain.skills || []).map((item) => typeof item === 'string' ? item : item.relativePath || item.path); const domainRules = domain.rules || []; const localSkills = (config.skills || []).filter((item) => !domainSkills.some((domainItem) => String(item).endsWith(String(domainItem).replace(/\//g, '\\')))); const localRules = (config.rules || []).filter((item) => !domainRules.some((domainItem) => String(item).endsWith(String(domainItem).replace(/\//g, '\\')))); const effectiveSkills = unique([...globalSkills, ...domainSkills, ...localSkills]); const effectiveRules = unique([...globalRules, ...domainRules, ...localRules]); els.capabilitiesCard.innerHTML = `<p class="eyebrow">EFFECTIVE CAPABILITIES</p><h3>当前需求的挂载清单</h3><p>不绑定具体模型。模型进入目录后，按此清单与 Workspace 规则工作。</p><div class="capability-group"><strong>Skills · ${effectiveSkills.length}</strong>${capabilityChips(effectiveSkills)}</div><div class="capability-group"><strong>Rules · ${effectiveRules.length}</strong>${capabilityChips(effectiveRules, 'rule')}</div><div class="capability-actions"><small>全局 ${globalSkills.length + globalRules.length} · 领域 ${domainSkills.length + domainRules.length} · 需求 ${localSkills.length + localRules.length}</small><button id="manageCapabilitiesBtn" type="button">管理全局挂载</button></div>`; $('#manageCapabilitiesBtn').addEventListener('click', openGlobalConfig); }
+  function renderPrdCard() { const files = state.status.prdFiles || []; const count = state.status.materialPrdCount || 0; els.prdCard.innerHTML = `<p class="eyebrow">PRD</p><h3>${count ? `已导入 ${count} 份需求材料` : '尚未导入 PRD'}</h3><p>${count ? escapeHtml(files.filter((file) => file.type === 'file').map((file) => file.path).slice(0, 3).join('、')) : '导入 Markdown、Word 转换结果或其他需求材料。'}</p><label><span>追加本地 PRD</span><input id="prdFiles" type="file" multiple /></label><div class="card-actions"><button id="uploadPrdBtn" class="primary" type="button">导入 PRD</button></div>`; $('#uploadPrdBtn').addEventListener('click', () => uploadExistingPrd().catch((error) => message(error.message, 'error'))); }
   function gateBadge(status) { const labels = { blocked: '证据缺失', 'ready-for-approval': '等待确认', approved: '已通过', rejected: '已退回', 'exception-approved': '例外通过' }; return `<span class="badge status-${escapeHtml(status)}">${escapeHtml(labels[status] || status)}</span>`; }
-  function renderGates() {
-    const gates = Object.values((state.gates && state.gates.gates) || {});
-    els.gatesPanel.innerHTML = gates.map((gate) => `<article class="card gate"><div><p class="eyebrow">${escapeHtml(gate.id)}</p><h3>${escapeHtml(gate.title)}</h3><small>审批角色：${escapeHtml(gate.approval || '未指定')}</small></div><div class="gate-evidence">${gate.evidence.map((item) => `<span class="evidence ${item.exists ? 'ok' : 'missing'}">${escapeHtml(item.path)}</span>`).join('')}</div><div class="gate-actions">${gateBadge(gate.status)}${gate.status === 'ready-for-approval' ? `<input data-gate-note="${escapeHtml(gate.id)}" placeholder="确认说明（可选）" /><button data-gate-action="approve" data-gate-id="${escapeHtml(gate.id)}" class="primary" type="button">人工通过</button><button data-gate-action="reject" data-gate-id="${escapeHtml(gate.id)}" type="button">退回</button>` : ''}</div></article>`).join('') || '<section class="card gate">未读取到质量策略。</section>';
-    els.gatesPanel.querySelectorAll('[data-gate-action]').forEach((button) => button.addEventListener('click', () => gateAction(button.dataset.gateId, button.dataset.gateAction).catch((error) => message(error.message, 'error'))));
-  }
-  function renderArtifacts() {
-    const artifacts = state.status.artifactFiles || [];
-    els.artifactPanel.innerHTML = artifacts.length ? artifacts.map((item) => `<span class="artifact exists">${escapeHtml(item.path)}</span>`).join('') : '<span class="artifact">正式产物将在需求澄清、技术方案、测试与交付阶段回写到此处。</span>';
-  }
-  function render() {
-    const active = Boolean(state.status && state.status.isWorkspace); els.startScreen.classList.toggle('hidden', active); els.workspaceScreen.classList.toggle('hidden', !active); els.workspaceBadge.textContent = active ? '当前需求' : '未选择需求';
-    if (!active) return;
-    els.workspaceName.textContent = state.status.config.demandName || basename(state.workspacePath); els.workspacePath.textContent = state.workspacePath; renderNext(); renderDomainCard(); renderPrdCard(); renderGates(); renderArtifacts();
-  }
+  function renderGates() { const gates = Object.values((state.gates && state.gates.gates) || {}); els.gatesPanel.innerHTML = gates.map((gate) => `<article class="card gate"><div><p class="eyebrow">${escapeHtml(gate.id)}</p><h3>${escapeHtml(gate.title)}</h3><small>审批角色：${escapeHtml(gate.approval || '未指定')}</small></div><div class="gate-evidence">${gate.evidence.map((item) => `<span class="evidence ${item.exists ? 'ok' : 'missing'}">${escapeHtml(item.path)}</span>`).join('')}</div><div class="gate-actions">${gateBadge(gate.status)}${gate.status === 'ready-for-approval' ? `<input data-gate-note="${escapeHtml(gate.id)}" placeholder="确认说明（可选）" /><button data-gate-action="approve" data-gate-id="${escapeHtml(gate.id)}" class="primary" type="button">人工通过</button><button data-gate-action="reject" data-gate-id="${escapeHtml(gate.id)}" type="button">退回</button>` : ''}</div></article>`).join('') || '<section class="card gate">未读取到质量策略。</section>'; els.gatesPanel.querySelectorAll('[data-gate-action]').forEach((button) => button.addEventListener('click', () => gateAction(button.dataset.gateId, button.dataset.gateAction).catch((error) => message(error.message, 'error')))); }
+  function renderArtifacts() { const artifacts = state.status.artifactFiles || []; els.artifactPanel.innerHTML = artifacts.length ? artifacts.map((item) => `<span class="artifact exists">${escapeHtml(item.path)}</span>`).join('') : '<span class="artifact">正式产物将在需求澄清、技术方案、测试与交付阶段回写到此处。</span>'; }
+  function renderSidebar(active) { els.sideWorkspaceName.textContent = active ? (state.status.config.demandName || basename(state.workspacePath)) : '未选择需求'; els.sideWorkspacePath.textContent = active ? state.workspacePath : '创建或打开一个需求 Workspace'; els.sideOpenFolderBtn.disabled = !active; }
+  function render() { const active = Boolean(state.status && state.status.isWorkspace); els.startScreen.classList.toggle('hidden', active); els.workspaceScreen.classList.toggle('hidden', !active); els.workspaceBadge.textContent = active ? '当前需求' : '未选择需求'; els.pageEyebrow.textContent = active ? 'WORKBENCH' : 'START'; els.pageTitle.textContent = active ? (state.status.config.demandName || basename(state.workspacePath)) : '建立一份需求 Workspace'; renderSidebar(active); if (!active) return; els.workspaceName.textContent = state.status.config.demandName || basename(state.workspacePath); els.workspacePath.textContent = state.workspacePath; renderNext(); renderDomainCard(); renderCapabilitiesCard(); renderPrdCard(); renderGates(); renderArtifacts(); }
   async function openWorkspaceFromDialog() { const value = els.existingWorkspacePath.value.trim(); if (!value) throw new Error('请选择 Workspace 目录'); state.workspacePath = value; await loadWorkspace(); els.switchWorkspaceDialog.close(); }
-  async function initialize() { const appState = await api('/api/state'); els.outputRoot.value = appState.outputRoot || ''; if (appState.workspacePath) { state.workspacePath = appState.workspacePath; try { await loadWorkspace(); } catch { state.workspacePath = ''; render(); } } else render(); }
-
-  els.chooseDomainBtn.addEventListener('click', () => chooseDirectory(els.domainRoot, '选择领域 Harness 目录').catch((error) => message(error.message, 'error')));
-  els.chooseOutputRootBtn.addEventListener('click', () => chooseDirectory(els.outputRoot, '选择工作区父目录').catch((error) => message(error.message, 'error')));
-  els.createWorkspaceBtn.addEventListener('click', () => createWorkspace().catch((error) => message(error.message, 'error')));
-  els.newWorkspaceBtn.addEventListener('click', () => { state.workspacePath = ''; state.status = null; state.gates = null; render(); });
-  els.changeWorkspaceBtn.addEventListener('click', () => els.switchWorkspaceDialog.showModal());
-  els.chooseWorkspaceBtn.addEventListener('click', () => chooseDirectory(els.existingWorkspacePath, '选择已有 Workspace').catch((error) => message(error.message, 'error')));
-  els.useWorkspaceBtn.addEventListener('click', () => openWorkspaceFromDialog().catch((error) => message(error.message, 'error')));
-  els.openFolderBtn.addEventListener('click', () => openFolder().catch((error) => message(error.message, 'error')));
-  initialize().catch((error) => message(error.message, 'error'));
+  async function refreshProjects() { const root = els.projectsRoot.value.trim() || state.outputRoot; const data = await api(`/api/workspaces?outputRoot=${encodeURIComponent(root)}`); const workspaces = data.workspaces || []; els.projectsList.innerHTML = workspaces.length ? workspaces.map((workspace) => `<article class="project-row"><div><strong>${escapeHtml(workspace.name)}</strong><p>${escapeHtml(workspace.path)}</p></div><button data-workspace-path="${escapeHtml(workspace.path)}" type="button">打开</button></article>`).join('') : '<div class="empty-list">该目录下暂未发现 Workspace。</div>'; els.projectsList.querySelectorAll('[data-workspace-path]').forEach((button) => button.addEventListener('click', async () => { state.workspacePath = button.dataset.workspacePath; await loadWorkspace(); els.projectsDialog.close(); })); }
+  async function openProjects() { els.projectsRoot.value = state.outputRoot || state.tools.workspaceRoot || ''; await refreshProjects(); els.projectsDialog.showModal(); }
+  async function saveProjectsRoot() { await persistDefaultRoot(els.projectsRoot.value); els.projectsDialog.close(); message('默认项目目录已保存。'); }
+  function openGlobalConfig() { els.globalWorkspaceRoot.value = state.outputRoot || state.tools.workspaceRoot || ''; els.globalSkills.value = normalizeList(state.tools.globalSkills).join('\n'); els.globalRules.value = normalizeList(state.tools.globalRules).join('\n'); els.globalNotes.value = state.tools.globalNotes || ''; els.globalConfigDialog.showModal(); }
+  async function saveGlobalConfig() { const root = els.globalWorkspaceRoot.value.trim(); if (!root) throw new Error('请选择默认项目目录'); const tools = { ...state.tools, workspaceRoot: root, globalSkills: normalizeList(els.globalSkills.value), globalRules: normalizeList(els.globalRules.value), globalNotes: els.globalNotes.value.trim() }; const button = els.saveGlobalConfigBtn; button.dataset.idle = '保存全局配置'; setLoading(button, true, '保存中…'); try { const result = await api('/api/tools/config', { method: 'POST', body: JSON.stringify({ tools }) }); state.tools = result.tools || tools; await persistDefaultRoot(root); await loadGlobalConfig(); if (state.workspacePath) { await api('/api/workspace/capabilities/refresh', { method: 'POST', body: JSON.stringify({ workspacePath: state.workspacePath }) }); await loadWorkspace(); } els.globalConfigDialog.close(); message('全局项目目录与能力挂载已保存，并已更新当前 Workspace 快照。'); } finally { setLoading(button, false); } }
+  async function initialize() { const appState = await api('/api/state'); state.outputRoot = appState.outputRoot || ''; els.outputRoot.value = state.outputRoot; await loadGlobalConfig(); if (appState.workspacePath) { state.workspacePath = appState.workspacePath; try { await loadWorkspace(); } catch { state.workspacePath = ''; render(); } } else render(); }
+  els.chooseDomainBtn.addEventListener('click', () => chooseDirectory(els.domainRoot, '选择领域 Harness 目录').catch((error) => message(error.message, 'error'))); els.chooseOutputRootBtn.addEventListener('click', () => chooseDirectory(els.outputRoot, '选择项目目录').catch((error) => message(error.message, 'error'))); els.createWorkspaceBtn.addEventListener('click', () => createWorkspace().catch((error) => message(error.message, 'error'))); els.newWorkspaceBtn.addEventListener('click', () => { state.workspacePath = ''; state.status = null; state.gates = null; render(); }); els.changeWorkspaceBtn.addEventListener('click', () => els.switchWorkspaceDialog.showModal()); els.chooseWorkspaceBtn.addEventListener('click', () => chooseDirectory(els.existingWorkspacePath, '选择已有 Workspace').catch((error) => message(error.message, 'error'))); els.useWorkspaceBtn.addEventListener('click', () => openWorkspaceFromDialog().catch((error) => message(error.message, 'error'))); els.openFolderBtn.addEventListener('click', () => openFolder().catch((error) => message(error.message, 'error'))); els.sideOpenFolderBtn.addEventListener('click', () => openFolder().catch((error) => message(error.message, 'error'))); els.projectsBtn.addEventListener('click', () => openProjects().catch((error) => message(error.message, 'error'))); els.chooseProjectsRootBtn.addEventListener('click', () => chooseDirectory(els.projectsRoot, '选择项目目录').catch((error) => message(error.message, 'error'))); els.refreshProjectsBtn.addEventListener('click', () => refreshProjects().catch((error) => message(error.message, 'error'))); els.saveProjectsRootBtn.addEventListener('click', () => saveProjectsRoot().catch((error) => message(error.message, 'error'))); els.globalConfigBtn.addEventListener('click', openGlobalConfig); els.sideConfigureCapabilitiesBtn.addEventListener('click', openGlobalConfig); els.chooseGlobalWorkspaceRootBtn.addEventListener('click', () => chooseDirectory(els.globalWorkspaceRoot, '选择默认项目目录').catch((error) => message(error.message, 'error'))); els.saveGlobalConfigBtn.addEventListener('click', () => saveGlobalConfig().catch((error) => message(error.message, 'error'))); initialize().catch((error) => message(error.message, 'error'));
 })();

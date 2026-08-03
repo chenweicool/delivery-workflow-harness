@@ -112,6 +112,9 @@ async function main() {
     assert.equal(initData.domain.manifest.name, 'settlement-domain');
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'domain.lock.json')), true);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'context', 'domain-summary.md')), true);
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'capabilities.lock.json')), true);
+    const capabilitySnapshot = await fsp.readFile(path.join(initData.workspacePath, 'context', 'capabilities.md'), 'utf8');
+    assert.match(capabilitySnapshot, /当前需求生效能力/);
     const workspaceQuery = encodeURIComponent(initData.workspacePath);
 
     const { response: domainInspectResponse, data: domainInspectData } = await requestJson(

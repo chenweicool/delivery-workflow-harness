@@ -144,6 +144,14 @@
                   <button id="chooseOutputRootBtn" type="button">选择目录</button>
                 </div>
               </label>
+              <label>
+                <span>领域 Harness（推荐）</span>
+                <div class="pathPickerRow">
+                  <input id="initDomainRoot" placeholder="F:\code\harness-project\spm-harness-module-negative" />
+                  <button id="chooseInitDomainRootBtn" type="button">选择目录</button>
+                </div>
+              </label>
+              <p class="fieldHelp">可选。创建时只读挂载一个领域 Harness，自动生成领域摘要、代码入口和版本快照。</p>
               <p class="fieldHelp">目录不存在会自动创建。最终路径为：工作区目录\工作区名称。</p>
               <button id="initBtn" class="primary" type="button">创建并进入</button>
             </section>
@@ -699,6 +707,24 @@
               </div>
               <section class="contextSection">
                 <div class="fieldTitle">
+                  <strong>领域 Harness</strong>
+                  <span>一个需求绑定一个领域。挂载只读，不会修改领域仓的 `docs/domain/` 或业务代码。</span>
+                </div>
+                <label>
+                  <span>本地领域目录</span>
+                  <div class="pathPickerRow">
+                    <input id="domainHarnessRoot" placeholder="选择已初始化的领域 Harness 目录" />
+                    <button id="chooseDomainHarnessRootBtn" type="button">选择目录</button>
+                  </div>
+                </label>
+                <div class="inlinePickerActions">
+                  <button id="inspectDomainHarnessBtn" type="button">检测目录</button>
+                  <button id="attachDomainHarnessBtn" class="primary" type="button">挂载到当前需求</button>
+                </div>
+                <div id="domainHarnessPanel" class="appAccessPanel hidden"></div>
+              </section>
+              <section class="contextSection">
+                <div class="fieldTitle">
                   <strong>涉及应用</strong>
                   <span>优先从应用索引选择，找不到时再手动选目录。</span>
                 </div>
@@ -818,12 +844,12 @@
 
     <script src="/js/api.js?v=20260705-architecture-split"></script>
     <script src="/js/format.js?v=20260705-architecture-split"></script>
-    <script src="/js/app-state.js?v=20260713-domain-split"></script>
+    <script src="/js/app-state.js?v=20260803-domain-harness-ui"></script>
     <script src="/js/app-config.js?v=20260713-domain-split"></script>
     <script src="/js/app-runs.js?v=20260713-domain-split"></script>
     <script src="/js/app-checkpoint.js?v=20260713-domain-split"></script>
     <script src="/js/app-artifacts.js?v=20260713-domain-split"></script>
-    <script src="/js/app-workspace.js?v=20260713-domain-split"></script>
-    <script src="/app.js?v=20260705-architecture-split"></script>
+    <script src="/js/app-workspace.js?v=20260803-domain-harness-ui"></script>
+    <script src="/app.js?v=20260803-domain-harness-ui"></script>
   </body>
 </html>

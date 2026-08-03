@@ -193,9 +193,10 @@ async function initWorkspace() {
   try {
     const demandName = els.demandName.value.trim();
     const outputRoot = els.outputRoot.value.trim();
+    const domainRoot = els.initDomainRoot ? els.initDomainRoot.value.trim() : '';
     const data = await api('/api/workspaces/init', {
       method: 'POST',
-      body: JSON.stringify({ demandName, outputRoot }),
+      body: JSON.stringify({ demandName, outputRoot, domainRoot }),
     });
     els.workspacePath.value = data.workspacePath;
     await saveState();

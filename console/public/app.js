@@ -2011,6 +2011,7 @@ function render() {
   renderKnowledgeReservation();
   renderWorkspaceSidebar();
   renderAppAccessPanel();
+  renderDomainHarnessPanel();
   renderAiWorkPanel();
   renderStagePanels();
   renderFlow();
@@ -2310,6 +2311,104 @@ function renderWhitepaperContext(context = {}) {
   els.whitepaperContextPanel.querySelectorAll('[data-fetch-whitepaper-app]').forEach((button) => {
     button.addEventListener('click', () => fetchWhitepaperApplication(button.dataset.fetchWhitepaperApp).catch((error) => setMessage(error.message, 'error')));
   });
+}
+
+function domainHarnessContext() {
+  const config = state.status && state.status.config ? state.status.config : {};
+  return config.domainContext && config.domainContext.root
+    ? { ...config.domainContext, ...(config.domain || {}) }
+    : (config.domain || {});
+}
+
+function renderDomainHarnessPanel() {
+  if (!els.domainHarnessPanel) {
+    return;
+  }
+  const domain = domainHarnessContext();
+  const inspection = state.domainHarnessInspection || null;
+  const inputRoot = els.domainHarnessRoot ? els.domainHarnessRoot.value.trim() : '';
+  const attached = Boolean(domain.root);
+  const inspectedCurrentRoot = inspection && inspection.root
+    && inputRoot
+    && inspection.root.toLowerCase() === inputRoot.toLowerCase();
+  if (els.domainHarnessRoot && attached && document.activeElement !== els.domainHarnessRoot) {
+    els.domainHarnessRoot.value = domain.root;
+  }
+  if (els.attachDomainHarnessBtn) {
+    els.attachDomainHarnessBtn.disabled = !(state.status && state.status.isWorkspace);
+  }
+  if (attached) {
+    const repositories = domain.codeRepositories || [];
+    const availableCode = repositories.filter((item) => item.sourceExists).map((item) => item.name);
+    els.domainHarnessPanel.classList.remove('hidden');
+    els.domainHarnessPanel.innerHTML = [
+      `<strong>已挂载：${escapeHtml(domain.name || domain.id || '领域 Harness')}</strong>`,
+      `<span>目录：${escapeHtml(domain.root)}</span>`,
+      domain.revision ? `<span>版本：${escapeHtml(domain.revision)}</span>` : '',
+      `<span>领域文档 ${escapeHtml(String((domain.productDocuments || []).length))} · 领域记忆 ${escapeHtml(String((domain.memoryDocuments || []).length))} · Rules ${escapeHtml(String((domain.rules || []).length))} · Skills ${escapeHtml(String((domain.skills || []).length))}</span>`,
+      repositories.length ? `<span>候选代码仓：${escapeHtml(repositories.map((item) => item.name).join('、'))}</span>` : '',
+      availableCode.length ? `<span>本地可读代码：${escapeHtml(availableCode.join('、'))}</span>` : '<span>候选代码仓尚未就绪；方案阶段会保留为待确认入口。</span>',
+      '<span>已生成 `context/domain-summary.md`，Agent 会按摘要读取。</span>',
+    ].filter(Boolean).join('');
+    return;
+  }
+  if (inspectedCurrentRoot) {
+    els.domainHarnessPanel.classList.remove('hidden');
+    if (!inspection.available) {
+      els.domainHarnessPanel.innerHTML = `<strong>不能挂载</strong><span>${escapeHtml(inspection.reason || '目录不是有效领域 Harness')}</span>`;
+      return;
+    }
+    els.domainHarnessPanel.innerHTML = [
+      `<strong>可挂载：${escapeHtml((inspection.manifest && inspection.manifest.name) || '领域 Harness')}</strong>`,
+      `<span>领域文档 ${escapeHtml(String((inspection.productDocuments || []).length))} · 领域记忆 ${escapeHtml(String((inspection.memoryDocuments || []).length))} · 代码仓 ${escapeHtml(String((inspection.codeRepositories || []).length))}</span>`,
+      inspection.graph && inspection.graph.exists ? '<span>已发现 Graphify 图谱。</span>' : '<span>未发现 Graphify 图谱，不影响挂载。</span>',
+      inspection.missing && inspection.missing.length ? `<span>缺口：${escapeHtml(inspection.missing.join('；'))}</span>` : '',
+    ].filter(Boolean).join('');
+    return;
+  }
+  els.domainHarnessPanel.classList.add('hidden');
+  els.domainHarnessPanel.innerHTML = '';
+}
+
+async function inspectDomainHarness() {
+  const root = els.domainHarnessRoot ? els.domainHarnessRoot.value.trim() : '';
+  if (!root) {
+    throw new Error('请先选择领域 Harness 目录');
+  }
+  setLoading(els.inspectDomainHarnessBtn, true, '检测中...');
+  try {
+    state.domainHarnessInspection = await api(`/api/domain-harness/inspect?root=${encodeURIComponent(root)}`);
+    renderDomainHarnessPanel();
+    if (!state.domainHarnessInspection.available) {
+      throw new Error(state.domainHarnessInspection.reason || '当前目录不是可挂载的领域 Harness');
+    }
+    setMessage(`领域 Harness 可挂载：${state.domainHarnessInspection.manifest.name}`);
+  } finally {
+    setLoading(els.inspectDomainHarnessBtn, false);
+  }
+}
+
+async function attachDomainHarness() {
+  const workspacePath = els.workspacePath.value.trim();
+  const domainRoot = els.domainHarnessRoot ? els.domainHarnessRoot.value.trim() : '';
+  if (!workspacePath) {
+    throw new Error('请先选择 workspace');
+  }
+  if (!domainRoot) {
+    throw new Error('请先选择领域 Harness 目录');
+  }
+  setLoading(els.attachDomainHarnessBtn, true, '挂载中...');
+  try {
+    const data = await api('/api/workspace/domain-context', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath, domainRoot }),
+    });
+    state.domainHarnessInspection = data.context || null;
+    await loadStatus();
+    setMessage(`已挂载领域 Harness：${data.context && data.context.manifest ? data.context.manifest.name : domainRoot}`);
+  } finally {
+    setLoading(els.attachDomainHarnessBtn, false);
+  }
 }
 
 function renderWhitepaperCandidates(data = {}) {
@@ -3175,6 +3274,12 @@ if (els.chooseOutputRootBtn) {
     title: '选择工作区父目录',
   }).catch((error) => setMessage(error.message, 'error')));
 }
+if (els.chooseInitDomainRootBtn) {
+  els.chooseInitDomainRootBtn.addEventListener('click', () => chooseLocalDirectory(els.initDomainRoot, {
+    button: els.chooseInitDomainRootBtn,
+    title: '选择领域 Harness 目录',
+  }).catch((error) => setMessage(error.message, 'error')));
+}
 if (els.chooseWorkspacePathBtn) {
   els.chooseWorkspacePathBtn.addEventListener('click', () => chooseLocalDirectory(els.workspacePath, {
     button: els.chooseWorkspacePathBtn,
@@ -3222,6 +3327,18 @@ els.openConfigBtn.addEventListener('click', () => openDeliveryConfig().catch((er
 const startupOpenConfigBtn = document.querySelector('#startupOpenConfigBtn');
 if (startupOpenConfigBtn) {
   startupOpenConfigBtn.addEventListener('click', () => openDeliveryConfig().catch((error) => setMessage(error.message, 'error')));
+}
+if (els.chooseDomainHarnessRootBtn) {
+  els.chooseDomainHarnessRootBtn.addEventListener('click', () => chooseLocalDirectory(els.domainHarnessRoot, {
+    button: els.chooseDomainHarnessRootBtn,
+    title: '选择领域 Harness 目录',
+  }).catch((error) => setMessage(error.message, 'error')));
+}
+if (els.inspectDomainHarnessBtn) {
+  els.inspectDomainHarnessBtn.addEventListener('click', () => inspectDomainHarness().catch((error) => setMessage(error.message, 'error')));
+}
+if (els.attachDomainHarnessBtn) {
+  els.attachDomainHarnessBtn.addEventListener('click', () => attachDomainHarness().catch((error) => setMessage(error.message, 'error')));
 }
 document.querySelectorAll('[data-knowledge-source]').forEach((button) => {
   button.addEventListener('click', () => {

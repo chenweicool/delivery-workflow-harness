@@ -4,7 +4,7 @@
 
 在需求口径人工确认后，结合 PRD、上下文资料和真实代码，直接生成可用于拆分任务的技术方案。
 
-本阶段不修改代码、不拆分任务。核心目标是按团队技术方案模板，把产品口径、应用范围、代码入口、接口边界、数据模型、字段映射、校验规则、实现步骤、风险、重要组件、数据库、接口定义、回滚预案和研发协作方案收敛到 `design/technical-design.md` 中，并把仍需人工拍板的问题沉淀到 `design/technical-confirmation.md`。
+本阶段不修改代码、不拆分任务。核心目标是按团队技术方案模板，把产品口径、应用范围、代码入口、接口边界、数据模型、字段映射、校验规则、实现步骤、风险、重要组件、数据库、接口定义、回滚预案和研发协作方案收敛到 `design/technical-design.md` 中，并把仍需人工拍板的问题沉淀到 `design/technical-confirmation.md`。同时必须设计并冻结本次需求的单测与冒烟用例；它们是后续代码反验的基线，不是开发结束后的临时补充。
 
 ## 前置边界
 
@@ -74,6 +74,9 @@
 16. 接口定义章节必须列出新增或变更接口；如果涉及接口文档生成，必须在待人工确认项或研发协作方案中标记推荐使用 `api-doc-generation` skill。
 17. 如果存在 `design/technical-review.md`，必须逐条读取本轮及历史评审意见，并在 `design/technical-design.changelog.md` 中记录处理结果。
 18. 对每条评审意见必须给出处理状态：已采纳、部分采纳、未采纳、转人工确认。未采纳或转人工确认必须说明原因。
+19. 必须写入 `review/unit-test-plan.md`：按任务、接口或核心分支列出前置单测用例、边界、异常路径、预期结果和证据来源。
+20. 必须写入 `review/smoke-test-plan.md`：列出后续可通过接口、页面或连接器执行的冒烟场景、前置条件、步骤、预期结果和执行状态（初始为 `planned`）。
+21. 两份测试计划在技术方案 Gate 通过后视为冻结；后续若变更，必须记录原因和影响，不能静默覆盖。
 
 ## 输出
 
@@ -82,6 +85,8 @@
 - `design/technical-design.md`
 - `design/technical-confirmation.md`
 - `design/technical-design.changelog.md`
+- `review/unit-test-plan.md`
+- `review/smoke-test-plan.md`
 
 ## `technical-design.md` 输出结构
 

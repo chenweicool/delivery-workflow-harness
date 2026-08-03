@@ -1,8 +1,8 @@
 # Delivery Workflow
 
-Delivery Workflow is a local delivery harness for AI-assisted software delivery.
+Delivery Workflow is a directory-native, model-agnostic delivery control plane for AI-assisted software delivery.
 
-It is not an AI IDE. It provides a workflow skeleton, local console, CLI commands, checkpoints, artifact review, and handoff contracts for tools such as Codex, Claude Code, Windsurf, or Cursor.
+It is not an AI IDE or an AI chat manager. It organizes a demand Workspace around PRD, Domain Harness context, evidence, quality gates and human approval. Developers enter that directory with their own Codex, Claude Code, IDE or another AI tool.
 
 ## Install And Run
 
@@ -31,21 +31,15 @@ dw stop
 dw restart
 dw status
 dw logs
-dw setup
-dw config
-dw function match <keyword>
-dw context resolve --workspace <path> --function <function-id>
-dw app fetch --workspace <path> --app <application-id>
-dw archive propose --workspace <path>
 dw domain inspect --root <domain-harness-path>
 dw domain attach --workspace <path> --root <domain-harness-path>
-dw doctor
 dw init <demand-name> --domain <domain-harness-path>
+dw prd import <file-or-directory> --workspace <path>
 dw status --workspace <path>
 dw next --workspace <path>
-dw handoff --workspace <path> --step <step-id>
-dw done --workspace <path> --step <step-id> --summary "ready for review"
-dw open --workspace <path> --step <step-id>
+dw gate check --workspace <path>
+dw gate approve <gate-id> --workspace <path> --note "..."
+dw gate reject <gate-id> --workspace <path> --note "..."
 ```
 
 `delivery-workflow` remains available as the full command name. `dw` is the short daily alias.
@@ -82,31 +76,11 @@ templates/
 ## Product Model
 
 ```text
-Delivery Workflow package
-  CLI
-  local console
-  workflow runtime
-  generic workspace templates
-  example team-config
-
-Team config repository
-  real app-index
-  real skills
-  real rules
-  real templates
-  real knowledge
-
-Whitepaper Git repository
-  domains/<domain>/whitepaper.md
-  domains/<domain>/function-index.json
-  domains/<domain>/application-index.json
-  domains/<domain>/cases/
-
-Developer machine
-  local config
-  local workspaces
-  local code repositories
-  AI coding tools
+Domain Harness + team policy
+  -> demand Workspace
+  -> developer uses Codex / Claude / IDE in that directory
+  -> evidence files + human quality gates
+  -> delivery and knowledge-update proposal
 ```
 
 The npm package should contain only generic workflow mechanics and examples. Team-specific assets should live in a separate private Git repository.
@@ -129,46 +103,19 @@ The agent must treat PRD and human confirmation as the target behavior, current
 code as the source of current behavior, and Domain Harness material as domain
 background and risk evidence. Conflicts are recorded for human confirmation.
 
-## AI Handoff Loop
+## Quality Gates
 
-```text
-Console creates handoff
-  -> AI tool performs multi-turn work
-  -> AI writes artifacts
-  -> AI runs dw done
-  -> dw open returns to the console
-  -> human reviews and confirms
-```
+Each Workspace contains `.workflow/quality-policy.yaml`. It defines required
+evidence for demand confirmation, technical-design readiness, and delivery
+verification. `dw gate check` writes the auditable state to
+`.workflow/gates.json`; only an evidence-ready gate can be approved.
 
-## Whitepaper Workflow
+Technical design must freeze `review/unit-test-plan.md` and
+`review/smoke-test-plan.md`. Later implementation is verified against those
+plans rather than adding tests only at the end.
 
-For a real demand, configure a local checkout of the whitepaper Git repository
-once, then use this order:
-
-```bash
-dw config set --whitepaper-root <whitepaper-git-directory>
-dw function match <function-keyword>
-dw context resolve --workspace <workspace-path> --function <function-id>
-dw app fetch --workspace <workspace-path> --app <application-id>
-```
-
-PRD material must be imported before a function point can be confirmed. The
-runtime records the resolved whitepaper revision, risks, applications, and
-recommended capabilities in the workspace. It never auto-clones, pulls,
-overwrites, or switches a source repository. Remote source retrieval is an
-explicit `dw app fetch` action only.
-
-After test and review evidence is ready, archive produces a review-only
-knowledge proposal:
-
-```bash
-dw archive propose --workspace <workspace-path>
-```
-
-This writes `archive/knowledge-update-proposal.json` and
-`archive/knowledge-patch.md`. A Knowledge Owner reviews the proposal and uses
-the normal Git/GitLab flow to update the whitepaper repository. Delivery
-Workflow never commits, pushes, or merges whitepaper changes automatically.
+The detailed architecture and connector model are in
+[docs/control-plane-refactor-plan.md](docs/control-plane-refactor-plan.md).
 
 ## Public npm Publishing
 

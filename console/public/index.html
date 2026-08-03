@@ -3,853 +3,149 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Delivery Workflow Console</title>
-    <link rel="stylesheet" href="/styles.css?v=20260721-functional-panels" />
+    <title>Delivery Workflow</title>
+    <link rel="stylesheet" href="/control-plane.css?v=20260803-control-plane" />
   </head>
   <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">DELIVERY CONTROL PLANE</p>
+        <h1>需求交付 Harness</h1>
+      </div>
+      <div class="topbar-actions">
+        <span id="workspaceBadge" class="badge">未选择需求</span>
+        <button id="newWorkspaceBtn" type="button">新建需求</button>
+      </div>
+    </header>
+
     <main class="shell">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Delivery Workflow</p>
-          <h1>CLI Delivery Harness</h1>
-        </div>
-        <div class="topbarActions">
-          <span id="workspaceState" class="statePill">未选择 workspace</span>
-          <button id="changeWorkspaceBtn" type="button">切换工作区</button>
-          <button id="openConfigBtn" class="configShortcut" type="button">设置</button>
-        </div>
-      </header>
+      <div id="message" class="message hidden"></div>
 
-      <section id="message" class="message hidden"></section>
-
-      <section id="syncResultDialog" class="syncResultDialog hidden" aria-live="polite" aria-modal="true" role="dialog">
-        <div id="syncResultCard" class="syncResultCard" role="document">
-          <div class="syncResultHeader">
-            <strong id="syncResultTitle">已同步到本地</strong>
-            <button id="closeSyncResultBtn" type="button" aria-label="关闭">关闭</button>
+      <section id="startScreen" class="card start-card">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">START</p>
+            <h2>三步建立需求现场</h2>
+            <p>Harness 只组织证据、门禁和人工确认；请在创建后的目录中使用你自己的 Codex、Claude 或 IDE。</p>
           </div>
-          <p id="syncResultBody"></p>
-          <div id="syncResultMeta" class="syncResultMeta"></div>
         </div>
-      </section>
-
-      <div class="appFrame">
-        <aside class="workspaceSidebar">
-          <div class="sidebarBrand">
-            <div>
-              <span>CLI Delivery</span>
-              <strong>CLI Harness</strong>
-            </div>
-            <button id="newSidebarWorkspaceBtn" type="button">新建</button>
-          </div>
-
-          <section class="sidebarProject" aria-label="当前项目目录">
-            <span>项目目录</span>
-            <strong id="sideProjectName">未选择项目</strong>
-            <small id="sideProjectPath">选择目录后开始交付</small>
-            <em id="sideProjectRepo">Repo 未配置</em>
-            <div class="sidebarProjectActions">
-              <button id="sideSwitchWorkspaceBtn" type="button">切换</button>
-              <button id="sideOpenWorkspaceBtn" type="button">打开</button>
+        <div class="step-grid">
+          <section class="setup-step">
+            <span class="step-number">1</span>
+            <h3>绑定领域 Harness</h3>
+            <p>白皮书、领域记忆、代码入口和领域规则。一个需求只绑定一个领域。</p>
+            <div class="picker-row">
+              <input id="domainRoot" placeholder="F:\code\harness-project\spm-harness-module-negative" />
+              <button id="chooseDomainBtn" type="button">选择目录</button>
             </div>
           </section>
-
-          <nav class="harnessNav" aria-label="Harness 功能导航">
-            <button class="navItem active" type="button" data-nav-target="workspace" data-nav-code="BOOT">
-              <strong>启动配置</strong>
-              <span>项目目录、全局接入</span>
-            </button>
-            <button id="loadKnowledgeBtn" class="navItem knowledgeLoadBtn" type="button" data-nav-target="knowledge" data-nav-code="CTX">
-              <strong>上下文装配</strong>
-              <span>PRD、知识源、材料</span>
-            </button>
-            <button class="navItem" type="button" data-nav-target="agents" data-nav-code="CLI">
-              <strong>执行器管理</strong>
-              <span>Codex、Claude、IDE</span>
-            </button>
-            <button class="navItem" type="button" data-nav-target="workbench" data-nav-code="FLOW">
-              <strong>交付编排</strong>
-              <span>阶段推进、CLI 交接</span>
-            </button>
-            <button class="navItem" type="button" data-nav-target="artifacts" data-nav-code="OUT">
-              <strong>产物验收</strong>
-              <span>预览、验收、日志</span>
-            </button>
-          </nav>
-
-          <section class="navSummary">
-            <div class="contextCard active">
-              <span>当前工作区</span>
-              <strong id="contextWorkspaceName">未选择</strong>
-              <small id="contextWorkspacePath">选择 workspace 后组织 CLI 交付。</small>
-            </div>
-            <div class="contextStack">
-              <div class="contextMini">
-                <span>Profile</span>
-                <strong id="contextProfileName">default</strong>
+          <section class="setup-step">
+            <span class="step-number">2</span>
+            <h3>输入需求</h3>
+            <p>PRD 是目标行为的第一事实源。可在创建后继续补充材料。</p>
+            <label>
+              <span>需求名称</span>
+              <input id="demandName" placeholder="例如：negative-bill-export" />
+            </label>
+            <label>
+              <span>工作区父目录</span>
+              <div class="picker-row">
+                <input id="outputRoot" placeholder="F:\code\ai-workspaces" />
+                <button id="chooseOutputRootBtn" type="button">选择目录</button>
               </div>
-              <div class="contextMini">
-                <span>Agent</span>
-                <strong id="contextAgentName">Codex</strong>
-              </div>
-              <div class="contextMini">
-                <span>Repo</span>
-                <strong id="contextRepoState">未配置</strong>
-              </div>
-            </div>
-            <div id="globalConfigStatus" class="globalConfigStatus"></div>
-            <section class="knowledgeReserveCard">
-              <div>
-                <span>Knowledge Base</span>
-                <strong id="contextKnowledgeState">预留加载位</strong>
-              </div>
-              <small id="contextKnowledgeMeta">团队知识、白皮书、应用索引和本次补充。</small>
-            </section>
-            <div class="sidebarSectionTitle">最近工作区</div>
-            <div id="workspaceSidebarList" class="workspaceSidebarList"></div>
+            </label>
           </section>
-        </aside>
-
-        <div class="workspaceContent">
-      <section id="startScreen" class="startScreen">
-        <div class="startCard">
-          <div class="startIntro">
-            <p class="eyebrow">Step 1</p>
-            <h2>先选择一个项目</h2>
-            <p>项目目录用于保存 PRD、上下文快照、阶段产物和执行记录。创建或打开项目后，再进入流程。</p>
-          </div>
-
-          <section class="startupReadiness">
-            <div class="startupReadinessHeader">
-              <div>
-                <span>Harness Readiness</span>
-                <strong id="startupReadySummary">检查启动条件</strong>
-              </div>
-              <button id="startupOpenConfigBtn" type="button">打开启动配置</button>
-            </div>
-            <div id="startupReadyGrid" class="startupReadyGrid"></div>
+          <section class="setup-step optional">
+            <span class="step-number">3</span>
+            <h3>补充材料</h3>
+            <p>可选。先支持本地 PRD；飞书和内部文档会作为统一连接器接入。</p>
+            <label>
+              <span>本地 PRD</span>
+              <input id="initialPrdFiles" type="file" multiple />
+            </label>
           </section>
-
-          <div class="startGrid">
-            <section class="startBox">
-              <h3>创建项目目录</h3>
-              <label>
-                <span>工作区名称</span>
-                <input id="demandName" placeholder="reverse-clear-fee-import" />
-              </label>
-              <label>
-                <span>工作区目录</span>
-                <div class="pathPickerRow">
-                  <input id="outputRoot" placeholder="C:\code\ai-workspaces" />
-                  <button id="chooseOutputRootBtn" type="button">选择目录</button>
-                </div>
-              </label>
-              <label>
-                <span>领域 Harness（推荐）</span>
-                <div class="pathPickerRow">
-                  <input id="initDomainRoot" placeholder="F:\code\harness-project\spm-harness-module-negative" />
-                  <button id="chooseInitDomainRootBtn" type="button">选择目录</button>
-                </div>
-              </label>
-              <p class="fieldHelp">可选。创建时只读挂载一个领域 Harness，自动生成领域摘要、代码入口和版本快照。</p>
-              <p class="fieldHelp">目录不存在会自动创建。最终路径为：工作区目录\工作区名称。</p>
-              <button id="initBtn" class="primary" type="button">创建并进入</button>
-            </section>
-
-            <section class="startBox">
-              <h3>打开已有项目</h3>
-              <label>
-                <span>已有工作区目录</span>
-                <div class="pathPickerRow">
-                  <input id="workspacePath" placeholder="C:\code\ai-workspaces\reverse-clear-fee-import" />
-                  <button id="chooseWorkspacePathBtn" type="button">选择目录</button>
-                </div>
-              </label>
-              <div class="row">
-                <select id="workspaceList" class="grow"></select>
-                <button id="useWorkspaceBtn" type="button">使用</button>
-              </div>
-              <p class="fieldHelp">可以粘贴完整目录，或从已发现的 workspace 列表选择。</p>
-            </section>
-          </div>
+        </div>
+        <div class="start-footer">
+          <p>创建后会生成领域快照、质量策略和 Gate 状态；不需要配置模型路径或 IDEA。</p>
+          <button id="createWorkspaceBtn" class="primary" type="button">创建需求 Workspace</button>
         </div>
       </section>
 
-      <div id="consoleScreen" class="layout hidden">
-        <div class="workspaceBar hidden">
-          <div class="workspaceIdentity">
-            <span>当前工作区</span>
-            <strong id="currentWorkspaceText">未选择</strong>
+      <section id="workspaceScreen" class="hidden">
+        <section class="workspace-bar card">
+          <div>
+            <p class="eyebrow">WORKSPACE</p>
+            <h2 id="workspaceName">当前需求</h2>
+            <p id="workspacePath" class="path"></p>
           </div>
-          <div class="workspaceActions">
+          <div class="workspace-actions">
+            <button id="changeWorkspaceBtn" type="button">切换目录</button>
+            <button id="openFolderBtn" type="button">打开目录</button>
           </div>
+        </section>
+
+        <section class="card next-card">
+          <p class="eyebrow">NEXT</p>
+          <h2 id="nextTitle">正在加载需求状态</h2>
+          <p id="nextDescription"></p>
+          <pre id="nextCommand" class="command hidden"></pre>
+        </section>
+
+        <section class="section-heading">
+          <div>
+            <p class="eyebrow">CONTEXT</p>
+            <h2>需求基础</h2>
+          </div>
+          <p>领域 Harness 是领域知识入口；PRD 是需求输入；补充材料仅补充本次证据。</p>
+        </section>
+        <div class="context-grid">
+          <section id="domainCard" class="card context-card"></section>
+          <section id="prdCard" class="card context-card"></section>
+          <section class="card context-card muted-card">
+            <p class="eyebrow">OPTIONAL</p>
+            <h3>补充材料连接器</h3>
+            <p>本地文件、飞书和内部文档将通过同一快照协议进入本次需求，不单独形成“知识库”。</p>
+            <span class="badge muted">下一阶段接入</span>
+          </section>
         </div>
 
-        <section class="contextOverview">
-          <div class="contextOverviewMain">
-            <span>当前运行上下文</span>
-            <strong id="overviewWorkspace">未选择 workspace</strong>
+        <section class="section-heading gate-heading">
+          <div>
+            <p class="eyebrow">QUALITY GATES</p>
+            <h2>质量门禁与人工确认</h2>
           </div>
-          <div class="contextOverviewGrid">
-            <div>
-              <span>Profile</span>
-              <strong id="overviewProfile">default</strong>
-            </div>
-            <div>
-              <span>业务仓库</span>
-              <strong id="overviewRepo">未配置</strong>
-            </div>
-            <div>
-              <span>当前 Agent</span>
-              <strong id="overviewAgent">Codex</strong>
-            </div>
-            <div>
-              <span>知识库</span>
-              <strong id="overviewKnowledge">待加载</strong>
-            </div>
-          </div>
+          <p>只有证据齐备后才能人工放行。拒绝与例外都会写入 Workspace。</p>
         </section>
+        <section id="gatesPanel" class="gate-list"></section>
 
-        <details class="setupGuidePanel">
-          <summary class="setupGuideIntro">
-            <div>
-              <strong>启动配置中心</strong>
-              <span>维护 Harness 运行前置：本机工具、知识库、业务上下文和外部文档接入。</span>
-            </div>
-            <button id="closeGlobalConfigBtn" type="button">关闭</button>
-            <span class="statePill active">可选配置</span>
-          </summary>
-          <div class="setupConfigGrid">
-            <details class="toolConfigPanel" open>
-              <summary>基础工具</summary>
-              <div class="toolConfigPopover">
-                <label>
-                  <span>Codex CLI</span>
-                  <div class="pathPickerRow">
-                    <input id="codexPath" placeholder="codex.cmd 或 C:\path\codex.cmd" />
-                    <button id="chooseCodexPathBtn" type="button">选择文件</button>
-                  </div>
-                </label>
-                <label>
-                  <span>Codex 桌面端</span>
-                  <div class="pathPickerRow">
-                    <input id="codexDesktopPath" placeholder="C:\Users\...\AppData\Local\OpenAI\Codex\bin\codex.exe" />
-                    <button id="chooseCodexDesktopPathBtn" type="button">选择文件</button>
-                  </div>
-                </label>
-                <label>
-                  <span>Claude Code</span>
-                  <div class="pathPickerRow">
-                    <input id="claudePath" placeholder="claude.cmd 或 C:\path\claude.cmd" />
-                    <button id="chooseClaudePathBtn" type="button">选择文件</button>
-                  </div>
-                </label>
-                <label>
-                  <span>IntelliJ IDEA</span>
-                  <div class="pathPickerRow">
-                    <input id="ideaPath" placeholder="C:\Program Files\JetBrains\...\idea64.exe" />
-                    <button id="chooseIdeaPathBtn" type="button">选择文件</button>
-                  </div>
-                </label>
-                <label>
-                  <span>工作区默认目录</span>
-                  <div class="pathPickerRow">
-                    <input id="workspaceRoot" placeholder="D:\ai-workspaces" />
-                    <button id="chooseWorkspaceRootBtn" type="button">选择目录</button>
-                  </div>
-                </label>
-                <button id="saveToolsConfigBtn" class="primary" type="button">保存全局配置</button>
-              </div>
-            </details>
-            <details class="toolConfigPanel capabilityPanel" open>
-              <summary>知识库与业务上下文</summary>
-              <div class="toolConfigPopover capabilityPopover">
-                <div class="configSummary">
-                  <strong>知识库加载预留</strong>
-                  <span>团队能力库、领域白皮书、应用索引和本次补充，后续会统一进入上下文装配。</span>
-                </div>
-                <div class="configSectionTitle">
-                  <strong>知识库</strong>
-                  <span>rules、skills、templates、领域材料和后续可检索知识源。</span>
-                </div>
-                <label>
-                  <span>团队能力库目录</span>
-                  <div class="pathPickerRow">
-                    <input id="teamConfigRoot" placeholder="D:\code\team-ai-config" />
-                    <button id="chooseTeamConfigRootBtn" type="button">选择目录</button>
-                  </div>
-                </label>
-                <label>
-                  <span>领域白皮书 Git 目录</span>
-                  <div class="pathPickerRow">
-                    <input id="whitepaperRoot" placeholder="D:\code\finance-harness-knowledge" />
-                    <button id="chooseWhitepaperRootBtn" type="button">选择目录</button>
-                  </div>
-                </label>
-                <div id="teamProfileStatus" class="profileStatus" hidden></div>
-                <div class="legacyCapabilityConfig" hidden>
-                  <input id="teamName" />
-                  <input id="teamProfile" />
-                  <textarea id="globalSkills"></textarea>
-                  <textarea id="globalRules"></textarea>
-                  <textarea id="teamTemplates"></textarea>
-                  <textarea id="globalNotes"></textarea>
-                  <button id="appendGlobalSkillDirBtn" type="button"></button>
-                  <button id="appendGlobalSkillFileBtn" type="button"></button>
-                  <button id="appendGlobalRuleDirBtn" type="button"></button>
-                  <button id="appendGlobalRuleFileBtn" type="button"></button>
-                </div>
-                <div class="configSectionTitle">
-                  <strong>业务上下文</strong>
-                  <span>业务代码根目录、应用索引和备用 skills，用来辅助 CLI 定位实现范围。</span>
-                </div>
-                <label>
-                  <span>业务代码根目录</span>
-                  <div class="pathPickerRow">
-                    <input id="repoRoot" placeholder="D:\code\work-project" />
-                    <button id="chooseRepoRootBtn" type="button">选择目录</button>
-                  </div>
-                </label>
-                <label>
-                  <span>备用 skills 目录</span>
-                  <div class="pathPickerRow">
-                    <input id="defaultSkillsRoot" placeholder="C:\code\team-ai-config\skills\common" />
-                    <button id="chooseDefaultSkillsRootBtn" type="button">选择目录</button>
-                  </div>
-                </label>
-                <details class="advancedConfigBox externalConfigPanel">
-                  <summary>外部文档接入：飞书 / Lark</summary>
-                  <div class="configSectionTitle">
-                    <strong>飞书 / Lark</strong>
-                    <span>把外部文档链接读取并转换为项目内的 prd/document.md。</span>
-                  </div>
-                  <div class="feishuConfigGrid">
-                  <label>
-                    <span>服务区域</span>
-                    <select id="feishuBase">
-                      <option value="https://open.feishu.cn">飞书（中国区）</option>
-                      <option value="https://open.larksuite.com">Lark（国际区）</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span>授权方式</span>
-                    <select id="feishuMode">
-                      <option value="disabled">未配置</option>
-                      <option value="cli">飞书 Lark CLI / MCP 登录（推荐）</option>
-                      <option value="proxy">公司统一连接器</option>
-                      <option value="tokenRef">环境 Token（高级）</option>
-                      <option value="mock">开发测试 mock</option>
-                    </select>
-                  </label>
-                  <div class="wideField feishuSimpleSetup">
-                    <label>
-                      <span>自有飞书应用 App ID</span>
-                      <input id="feishuAppId" placeholder="从飞书开放平台复制，例如 cli_xxx" />
-                      <small class="fieldHint">只填 App ID。App Secret 不要填到页面里，终端提示时手工粘贴。</small>
-                    </label>
-                    <div class="feishuPresetRow">
-                      <button id="useFeishuAppInitPresetBtn" type="button">1. 生成初始化命令</button>
-                      <button id="useOfficialFeishuCliPresetBtn" type="button">2. 生成登录命令</button>
-                      <span>普通流程：填 App ID -> 初始化 -> 登录授权 -> 保存配置 -> 导入飞书链接。</span>
-                    </div>
-                  </div>
-                  <details class="wideField advancedConfigBox">
-                    <summary>高级：CLI 命令预览（一般不用改）</summary>
-                    <label>
-                      <span>CLI 可执行命令</span>
-                      <input id="feishuCliCommand" placeholder="免安装填 npm；全局安装后可填 lark-cli；也可填公司封装命令" />
-                    </label>
-                    <label>
-                      <span>CLI 初始化 / 登录参数</span>
-                      <input id="feishuCliAuthArgs" placeholder="exec --yes --package=@larksuite/cli -- lark-cli auth login --domain docs,drive --recommend" />
-                    </label>
-                    <label>
-                      <span>CLI 导入参数模板</span>
-                      <input id="feishuCliArgs" placeholder="exec --yes --package=@larksuite/cli -- lark-cli docs +fetch --doc {url} --doc-format markdown --jq .data.document.content" />
-                    </label>
-                  </details>
-                  </div>
-                  <div class="feishuAuthCard">
-                  <div>
-                    <strong>飞书登录授权</strong>
-                    <span id="feishuAuthStatus">CLI/MCP 通常会自己拉起飞书扫码登录；如果公司提供统一授权入口，也可以在高级配置里填写后从这里打开。</span>
-                  </div>
-                  <button id="authorizeFeishuBtn" class="primary" type="button">打开扫码授权</button>
-                  </div>
-                  <div class="feishuScopeBox">
-                  <strong>权限范围</strong>
-                  <label class="checkboxLine">
-                    <input id="feishuScopeRead" type="checkbox" />
-                    <span>读取文档正文</span>
-                  </label>
-                  <label class="checkboxLine">
-                    <input id="feishuScopeExport" type="checkbox" />
-                    <span>导出 / 转 Markdown</span>
-                  </label>
-                  <label class="checkboxLine">
-                    <input id="feishuScopeAssets" type="checkbox" />
-                    <span>读取图片和附件</span>
-                  </label>
-                  <label class="checkboxLine">
-                    <input id="feishuScopeNotify" type="checkbox" />
-                    <span>发送飞书通知（预留）</span>
-                  </label>
-                  </div>
-                </details>
-                <details class="advancedConfigBox">
-                  <summary>高级：运维适配器</summary>
-                  <label>
-                    <span>授权入口 URL</span>
-                    <input id="feishuAuthUrl" placeholder="推荐。公司平台提供的统一授权入口，点击后直接进入飞书扫码授权。" />
-                    <small class="fieldHint">普通用户优先向平台同学要这个；有它就不需要手填 App ID 和回调地址。</small>
-                  </label>
-                  <label>
-                    <span>授权 Token 引用</span>
-                    <input id="feishuTokenRef" placeholder="env:FEISHU_USER_ACCESS_TOKEN" />
-                  </label>
-                  <label>
-                    <span>Proxy 地址</span>
-                    <input id="feishuProxyBaseUrl" placeholder="https://feishu-proxy.example.com" />
-                  </label>
-                  <label class="wideField">
-                    <span>授权回调地址</span>
-                    <input id="feishuRedirectUri" placeholder="由同一应用管理员提供或登记的 OAuth callback 地址" />
-                    <small class="fieldHint">必须已在该应用里登记；通常是公司连接器后端地址，不是随便填本机地址。</small>
-                  </label>
-                  <label>
-                    <span>Mock Markdown（仅开发测试）</span>
-                    <textarea id="feishuMockMarkdown" rows="3" placeholder="# Mock PRD&#10;&#10;本地测试飞书导入链路时使用。"></textarea>
-                  </label>
-                </details>
-                <details class="advancedConfigBox">
-                  <summary>高级：应用索引与扩展接入</summary>
-                  <label>
-                    <span>应用索引 JSON</span>
-                    <div class="pathPickerRow">
-                      <input id="appIndexPath" placeholder="团队统一维护后选择 app-index.json" />
-                      <button id="chooseAppIndexPathBtn" type="button">选择文件</button>
-                    </div>
-                  </label>
-                  <label>
-                    <span>扩展接入配置</span>
-                    <textarea id="integrationConfig" rows="3" placeholder="后续用于运维平台、个人平台 token、数据库和发布平台等配置；本期可留空。"></textarea>
-                  </label>
-                </details>
-              </div>
-            </details>
+        <section class="section-heading">
+          <div>
+            <p class="eyebrow">ARTIFACTS</p>
+            <h2>正式产物</h2>
           </div>
-        </details>
-
-        <section id="navPagePanel" class="navPagePanel hidden" aria-live="polite">
-          <div class="navPageHeader">
-            <span id="navPageEyebrow">Harness</span>
-            <h2 id="navPageTitle">功能页</h2>
-          </div>
-          <p id="navPageBody"></p>
-          <div id="navPageActions" class="navPageActions"></div>
+          <p>AI 与人的结论必须回写到目录；聊天记录不作为交付依据。</p>
         </section>
-
-        <section class="main">
-          <section class="flowPanel flowTopPanel">
-            <div id="flow" class="flow"></div>
-          </section>
-
-          <section id="nextStepPanel" class="stageActionPanel hidden">
-            <div class="stageActionMain">
-              <p class="eyebrow">当前阶段</p>
-              <h2 id="nextStepTitle">选择一个交付阶段</h2>
-              <span id="nextStepSummary">选择 workspace 后显示。</span>
-              <div id="stageActionPlan" class="stageActionPlan"></div>
-              <div id="nextStepMeta" class="nextStepMeta"></div>
-              <ul id="nextStepBlockers" class="nextStepBlockers"></ul>
-            </div>
-            <div class="stageActionSide">
-              <div class="agentBridgePanel">
-                <div>
-                  <strong id="bridgeTitle">角色 Agent</strong>
-                  <span id="bridgeDesc">按当前角色生成 handoff，并打开或恢复 Codex / Claude 会话。</span>
-                  <small id="handoffStatus">尚未建立 AI 会话</small>
-                </div>
-                <div class="agentBridgeActions">
-                  <button id="openCodexCliBtn" class="primary" type="button">交给 Agent</button>
-                  <button id="openStageMaterialsBtn" type="button">补充材料</button>
-                  <details class="stageMoreMenu">
-                    <summary>更多</summary>
-                    <div>
-                      <button id="openClaudeCliBtn" type="button">交给 Claude</button>
-                      <button id="nextStepOpenArtifactBtn" type="button">查看产物</button>
-                      <button id="openWorkspaceFolderBtn" type="button">打开 workspace</button>
-                      <button id="openCurrentIdeaBtn" type="button">打开 IDEA</button>
-                    </div>
-                  </details>
-                </div>
-              </div>
-              <button id="goNextStepBtn" class="hidden" type="button">处理确认</button>
-            </div>
-            <div id="semanticArtifactsPanel" class="semanticArtifactsPanel hidden"></div>
-          </section>
-
-          <section class="previewPanel">
-            <div class="sectionHeader">
-              <div>
-                <h2 id="workbenchTitle">Slots</h2>
-              </div>
-            </div>
-            <section class="inspectorCard knowledgeInspector">
-              <div class="inspectorCardHeader">
-                <div>
-                  <span>Knowledge Base</span>
-                  <strong id="knowledgeInspectorTitle">知识上下文</strong>
-                </div>
-                <span id="knowledgeInspectorBadge" class="statePill waiting">待接入</span>
-              </div>
-              <p id="knowledgeInspectorBody">按需加载知识源，随 handoff 交给 CLI。</p>
-              <div class="knowledgeSourceGrid">
-                <button type="button" data-knowledge-source="team">团队能力库</button>
-                <button type="button" data-knowledge-source="whitepaper">领域白皮书</button>
-                <button type="button" data-knowledge-source="apps">应用索引</button>
-                <button type="button" data-knowledge-source="local">本次补充</button>
-              </div>
-            </section>
-            <details class="workflowStepsPanel advancedStageSteps">
-              <summary>
-                <span>高级：步骤明细</span>
-                <small>查看或重跑单个内部步骤。</small>
-              </summary>
-              <div id="steps" class="steps"></div>
-            </details>
-            <div id="aiWorkPanel" class="aiWorkPanel hidden">
-              <div>
-                <strong id="aiWorkTitle">AI 工作中</strong>
-                <span id="aiWorkSummary">已交给 AI CLI，多轮处理完成后回到页面验收。</span>
-                <small id="aiWorkMeta">等待 delivery-workflow done 或产物更新。</small>
-              </div>
-              <div class="aiWorkActions">
-                <button id="refreshHandoffBtn" type="button">刷新验收</button>
-                <button id="goReviewStepBtn" class="primary" type="button">进入验收</button>
-              </div>
-            </div>
-            <div id="localStepPanel" class="localStepPanel hidden">
-              <div class="localStepHeader">
-                <strong>初始化产物</strong>
-                <span>第一步只负责建立 workspace 骨架，后续 Codex / Claude 会按这些文件读取规则、进度和上下文。</span>
-              </div>
-              <div id="localStepFiles" class="localStepFiles"></div>
-            </div>
-            <div id="commandBar" class="commandBar">
-              <div class="artifactBar">
-                <select id="artifactList"></select>
-              </div>
-              <details class="advancedRunPanel">
-                <summary>更多工具</summary>
-                <div class="advancedToolGrid">
-                  <label class="inlineInput">
-                    <span>执行器</span>
-                    <select id="executor">
-                      <option value="codex">Codex CLI</option>
-                      <option value="claude">Claude Code</option>
-                    </select>
-                  </label>
-                  <label class="inlineInput">
-                    <span>任务编号</span>
-                    <select id="taskId"></select>
-                  </label>
-                  <button id="showPromptBtn" type="button">查看 AI 提示词</button>
-                  <button id="editTemplateBtn" type="button">编辑步骤模板</button>
-                  <button id="resetTemplateBtn" type="button">恢复默认模板</button>
-                  <button id="runStepBtn" class="primary" type="button">页面内运行一次</button>
-                </div>
-              </details>
-              <div id="taskSummary" class="taskSummary hidden"></div>
-              <div id="stepCapabilityPanel" class="stepCapabilityPanel hidden"></div>
-            </div>
-            <div id="checkpointPanel" class="checkpointPanel hidden">
-              <div class="checkpointHeader">
-                <div>
-                  <strong>人工确认</strong>
-                  <p id="checkpointStatusText">等待确认上一步产物。</p>
-                </div>
-                <span id="checkpointStatusBadge" class="statePill waiting">等待确认</span>
-              </div>
-              <div class="checklistBox">
-                <div class="checklistTitle">
-                  <strong>确认清单</strong>
-                  <span id="checklistProgress" class="badge waiting">0/0</span>
-                </div>
-                <div id="checkpointChecklist" class="checkpointChecklist"></div>
-              </div>
-              <label>
-                <span>确认 / 评审意见</span>
-                <textarea id="checkpointNote" rows="3" placeholder="简短备注。复杂评审意见建议点击下方“编辑评审意见 Markdown”。"></textarea>
-              </label>
-              <div id="technicalReviewActions" class="technicalReviewActions hidden">
-                <button id="openTechnicalReviewBtn" type="button">编辑评审意见 Markdown</button>
-                <button id="saveTechnicalReviewBtn" class="primary hidden" type="button">保存评审意见</button>
-                <span class="fieldHelp">退回修改前，建议先把结构化意见保存到 design/technical-review.md。</span>
-              </div>
-              <div id="taskConfirmationActions" class="technicalReviewActions hidden">
-                <button id="openTaskConfirmationBtn" type="button">编辑任务确认 Markdown</button>
-                <button id="saveTaskConfirmationBtn" class="primary hidden" type="button">保存任务确认</button>
-                <span class="fieldHelp">任务清单保留 AI 拆分细节；这里写人工准入结论。后续单任务实现会先看确认结果，再回到任务清单取完整细节。</span>
-              </div>
-              <div class="checkpointActions">
-                <button id="approveCheckpointBtn" class="primary" type="button">确认终版</button>
-                <button id="rejectCheckpointBtn" type="button">退回修改</button>
-              </div>
-            </div>
-            <details id="aiAdjustPanel" class="aiAdjustPanel hidden">
-              <summary>
-                <span>AI 调整</span>
-                <small>代码生成后继续对话式修改</small>
-              </summary>
-              <div class="aiAdjustGrid">
-                <label class="inlineInput">
-                  <span>任务编号</span>
-                  <select id="adjustTaskId"></select>
-                </label>
-                <label class="inlineInput">
-                  <span>目标应用</span>
-                  <select id="adjustApp"></select>
-                </label>
-                <button id="refreshDiffBtn" type="button">查看当前 diff</button>
-                <button id="openIdeaBtn" type="button">打开 IDEA</button>
-              </div>
-              <label class="aiAdjustInput">
-                <span>本轮希望 AI 怎么调整</span>
-                <textarea id="adjustInstruction" rows="4" placeholder="例如：这个实现太重了，改成复用已有 service；修复 AI Review 第 2、3 条；接口名改成 queryFeeQuote。"></textarea>
-              </label>
-              <div class="aiAdjustActions">
-                <span id="adjustHint" class="fieldHelp">会带上任务、技术方案、确认结果、最近运行和当前 diff，再调用所选执行器。</span>
-                <button id="runAdjustBtn" class="primary" type="button">发送调整给 AI</button>
-              </div>
-            </details>
-            <div id="previewBox" class="previewBox">
-              <div class="previewToolbar">
-                <div class="previewTitle">
-                  <span>预览 / 编辑区</span>
-                  <small id="previewMeta"></small>
-                </div>
-                <div class="previewActions">
-                  <button id="editPreviewBtn" type="button">编辑</button>
-                  <button id="savePreviewBtn" class="primary hidden" type="button">保存</button>
-                  <button id="copyPreviewBtn" type="button">复制内容</button>
-                </div>
-              </div>
-              <textarea id="preview" spellcheck="false" placeholder="这里显示 Markdown 产物、AI 提示词或运行日志"></textarea>
-              <details class="runHistoryPanel">
-                <summary>
-                  <span>运行记录</span>
-                  <small id="runStatus">暂无运行记录</small>
-                </summary>
-                <div class="runBar">
-                  <span id="previewSourceLabel" class="statePill">产物</span>
-                  <select id="runList"></select>
-                  <button id="openRunLogBtn" type="button">打开运行日志</button>
-                </div>
-              </details>
-            </div>
-          </section>
-
-          <details class="detailPanel focusPanel stageMaterialsModal">
-            <summary>
-              <span>本次需求材料</span>
-              <small>PRD、涉及应用、背景说明和可选技术线索</small>
-            </summary>
-            <div id="workspaceMaterialPanel" class="stageInputPanel hidden">
-              <div class="stageInputHeader">
-                <div>
-                  <h3>PRD 和需求来源</h3>
-                  <p>本地文件和飞书链接可以同时提供；当前版本会导入文件并登记链接。</p>
-                </div>
-              </div>
-              <div class="materialGrid demandSourceGrid">
-                <section class="materialSourceBlock">
-                  <div class="fieldTitle">
-                    <strong>本地文件</strong>
-                    <span>Word、Markdown、PDF、Excel、截图附件等。</span>
-                  </div>
-                  <label class="filePicker compactFilePicker">
-                    <input id="prdFiles" type="file" multiple />
-                  </label>
-                  <p class="fieldHelp">保存后复制到当前 workspace 的 `prd/` 目录。</p>
-                </section>
-                <section class="materialSourceBlock">
-                  <div class="fieldTitle">
-                    <strong>飞书 / 外部文档链接</strong>
-                    <span>每行一个链接，可与本地文件同时使用。</span>
-                  </div>
-                  <textarea id="feishuDocs" rows="3" placeholder="https://..."></textarea>
-                  <div class="inlineActionRow">
-                    <p id="feishuImportStatus" class="fieldHelp">填入链接后可先读取到本地，成功后生成 `prd/document.md`。</p>
-                    <button id="importFeishuPrdBtn" type="button">读取到本地</button>
-                  </div>
-                </section>
-              </div>
-              <section class="contextSection whitepaperFunctionSection">
-                <div class="fieldTitle">
-                  <strong>功能点定位</strong>
-                  <span>先导入 PRD，再从白皮书功能索引确认本次功能点；系统会加载关联应用、风险和推荐能力。</span>
-                </div>
-                <div class="appSelectRow">
-                  <input id="functionQuery" placeholder="例如：账单调整、结算对账" />
-                  <button id="matchFunctionBtn" type="button">匹配白皮书</button>
-                </div>
-                <div id="functionCandidates" class="selectedAppTags"></div>
-                <div id="whitepaperContextPanel" class="appAccessPanel hidden"></div>
-              </section>
-            </div>
-            <div class="workspaceScopedConfig stageConfigOnly">
-              <div class="stageInputHeader">
-                <div>
-                  <h3>需求上下文</h3>
-                  <p>只填本次需求特有的信息；通用工具、能力库和应用索引由全局配置维护。</p>
-                </div>
-              </div>
-              <section class="contextSection">
-                <div class="fieldTitle">
-                  <strong>领域 Harness</strong>
-                  <span>一个需求绑定一个领域。挂载只读，不会修改领域仓的 `docs/domain/` 或业务代码。</span>
-                </div>
-                <label>
-                  <span>本地领域目录</span>
-                  <div class="pathPickerRow">
-                    <input id="domainHarnessRoot" placeholder="选择已初始化的领域 Harness 目录" />
-                    <button id="chooseDomainHarnessRootBtn" type="button">选择目录</button>
-                  </div>
-                </label>
-                <div class="inlinePickerActions">
-                  <button id="inspectDomainHarnessBtn" type="button">检测目录</button>
-                  <button id="attachDomainHarnessBtn" class="primary" type="button">挂载到当前需求</button>
-                </div>
-                <div id="domainHarnessPanel" class="appAccessPanel hidden"></div>
-              </section>
-              <section class="contextSection">
-                <div class="fieldTitle">
-                  <strong>涉及应用</strong>
-                  <span>优先从应用索引选择，找不到时再手动选目录。</span>
-                </div>
-              <div class="appPickerBox">
-                <label>
-                  <span>候选应用</span>
-                  <div class="appSelectRow">
-                    <select id="availableApps"></select>
-                    <button id="appendAppPathBtn" type="button">手动选择目录</button>
-                  </div>
-                </label>
-                <div id="selectedAppTags" class="selectedAppTags"></div>
-                <textarea id="appPaths" class="hidden" rows="2" aria-label="候选应用原始配置"></textarea>
-              </div>
-              <div id="appAccessPanel" class="appAccessPanel hidden"></div>
-              </section>
-              <section class="contextSection">
-                <label>
-                  <span>本次交付说明</span>
-                  <textarea id="notes" rows="3" placeholder="例如：范围边界、风险点、特殊口径、验收关注点、暂时不做的内容"></textarea>
-                </label>
-              <label>
-                <span>背景知识文件</span>
-                <textarea id="knowledgePaths" rows="2" placeholder="可选。每行一个本地文件或目录，也可以写：名称=C:\code\docs\xxx"></textarea>
-                <div class="inlinePickerActions">
-                  <button id="appendKnowledgeDirBtn" type="button">追加目录</button>
-                  <button id="appendKnowledgeFileBtn" type="button">追加文件</button>
-                </div>
-              </label>
-              </section>
-              <details class="contextAdvancedPanel">
-                <summary>
-                  <span>高级覆盖</span>
-                  <small>本次额外 skills / rules / 分支规则，新用户通常不用填。</small>
-                </summary>
-                <div class="advancedHint">
-                  <strong>什么时候需要填？</strong>
-                  <span>只有当这次需求临时需要一个不在团队能力库里的 Agent 技能或规则时才填写。可以选一个目录，也可以选一个 Markdown 文件；每行一个路径。</span>
-                </div>
-                <div class="configGrid">
-                  <label>
-                    <span>本次追加 skills</span>
-                    <textarea id="workspaceSkills" rows="3" placeholder="例如：C:\code\team-ai-config\skills\prd-word-to-md&#10;例如：C:\code\team-ai-config\skills\db-change-review\SKILL.md"></textarea>
-                    <div class="inlinePickerActions">
-                      <button id="appendWorkspaceSkillDirBtn" type="button">追加目录</button>
-                      <button id="appendWorkspaceSkillFileBtn" type="button">追加文件</button>
-                    </div>
-                  </label>
-                  <label>
-                    <span>本次追加 rules</span>
-                    <textarea id="workspaceRules" rows="3" placeholder="例如：C:\code\team-ai-config\rules\asset-risk.md&#10;例如：C:\code\team-ai-config\rules\database-change.md"></textarea>
-                    <div class="inlinePickerActions">
-                      <button id="appendWorkspaceRuleDirBtn" type="button">追加目录</button>
-                      <button id="appendWorkspaceRuleFileBtn" type="button">追加文件</button>
-                    </div>
-                  </label>
-                </div>
-                <label>
-                  <span>分支命名规则</span>
-                  <input id="branchPattern" placeholder="例如：ewan/feature-{demand}-{date}" />
-                </label>
-                <label class="checkboxLine">
-                  <input id="loadAppContextForClarification" type="checkbox" />
-                  <span>需求澄清阶段就加载应用代码上下文</span>
-                </label>
-                <p class="fieldHelp">默认建议关闭。只有 PRD 已经明确涉及具体应用，并且希望需求分析 Agent 提前读代码时再打开。</p>
-              </details>
-            </div>
-            <details id="knownFactsPanel" class="knownFactsPanel hidden stageConfigOnly">
-              <summary>
-                <span>技术线索（可选）</span>
-                <small>有线索就补几句话；没有可以直接交给 Agent。</small>
-              </summary>
-              <div class="knownFactsHeader">
-                <div>
-                  <h3>自然语言补充</h3>
-                  <p>不用填技术表格。写入口类、接口名、表名、历史坑、不能改的范围即可，Agent 会整理成方案产物。</p>
-                </div>
-                <div class="knownFactsTools">
-                  <button id="knownFactsEditTab" class="active" type="button">编辑</button>
-                  <button id="knownFactsPreviewTab" type="button">预览</button>
-                  <span id="knownFactsState" class="badge">未加载</span>
-                  <button id="previewKnownFactsBtn" type="button">同步到预览区</button>
-                  <button id="saveKnownFactsBtn" class="primary" type="button">保存</button>
-                </div>
-              </div>
-              <div class="knownFactsEditor">
-                <textarea id="knownFacts" rows="5" placeholder="例如：这次大概率只涉及报价查询和导出；先看 QuoteController 和 FeeExportService；接口名希望沿用 queryFeeQuote；历史数据是否需要索引表待评估。"></textarea>
-                <div id="knownFactsPreview" class="markdownPreview hidden"></div>
-              </div>
-            </details>
-
-            <details class="detailGrid stageConfigOnly contextContractPanel">
-              <summary>
-                <span>Agent 将收到的输入和需要回写的产物</span>
-                <small>交付边界确认，一般不用编辑。</small>
-              </summary>
-              <section>
-                <h3>输入</h3>
-                <ul id="unitInputs" class="plainList"></ul>
-              </section>
-              <section>
-                <h3>回写产物</h3>
-                <ul id="unitOutputs" class="plainList"></ul>
-              </section>
-            </details>
-            <div class="stageMaterialsFooter">
-              <button id="closeStageMaterialsBtn" type="button">取消</button>
-              <button id="saveInputsBtn" class="primary" type="button">保存</button>
-            </div>
-          </details>
-        </section>
-      </div>
-        </div>
-      </div>
+        <section id="artifactPanel" class="card artifact-panel"></section>
+      </section>
     </main>
 
-    <script src="/js/api.js?v=20260705-architecture-split"></script>
-    <script src="/js/format.js?v=20260705-architecture-split"></script>
-    <script src="/js/app-state.js?v=20260803-domain-harness-ui"></script>
-    <script src="/js/app-config.js?v=20260713-domain-split"></script>
-    <script src="/js/app-runs.js?v=20260713-domain-split"></script>
-    <script src="/js/app-checkpoint.js?v=20260713-domain-split"></script>
-    <script src="/js/app-artifacts.js?v=20260713-domain-split"></script>
-    <script src="/js/app-workspace.js?v=20260803-domain-harness-ui"></script>
-    <script src="/app.js?v=20260803-domain-harness-ui"></script>
+    <dialog id="switchWorkspaceDialog" class="dialog">
+      <form method="dialog" class="dialog-card">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">OPEN</p><h2>打开已有 Workspace</h2></div>
+          <button value="cancel" type="submit">关闭</button>
+        </div>
+        <label>
+          <span>Workspace 目录</span>
+          <div class="picker-row">
+            <input id="existingWorkspacePath" placeholder="F:\code\ai-workspaces\negative-bill-export" />
+            <button id="chooseWorkspaceBtn" type="button">选择目录</button>
+          </div>
+        </label>
+        <button id="useWorkspaceBtn" class="primary" value="default" type="button">打开需求</button>
+      </form>
+    </dialog>
+
+    <script src="/control-plane.js?v=20260803-control-plane"></script>
   </body>
 </html>

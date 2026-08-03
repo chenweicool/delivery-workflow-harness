@@ -127,6 +127,14 @@ async function main() {
     assert.equal(whitepaperData.functions[0].id, 'settlement.bill-adjustment');
 
     await fsp.writeFile(path.join(initData.workspacePath, 'prd', 'document.md'), '# API regression PRD\n', 'utf8');
+    const { response: initialGateResponse, data: initialGateData } = await requestJson(runtime.url, '/api/gates/check', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(initialGateResponse.status, 200);
+    assert.equal(initialGateData.gates['requirement-confirmed'].status, 'blocked');
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'quality-policy.lock.json')), true);
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'gates.json')), true);
     const { response: whitepaperContextResponse, data: whitepaperContextData } = await requestJson(runtime.url, '/api/workspace/whitepaper-context', {
       method: 'POST',
       body: JSON.stringify({
@@ -178,6 +186,20 @@ async function main() {
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'risk-list.md'), '# Risk List\nP2: follow up\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'unit-test-plan.md'), '# Unit Test Plan\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'unit-test-result.md'), '# Unit Test Result\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'technical-design.md'), '# Technical Design\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'smoke-test-plan.md'), '# Smoke Test Plan\n', 'utf8');
+    const { response: designGateResponse, data: designGateData } = await requestJson(runtime.url, '/api/gates/check', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(designGateResponse.status, 200);
+    assert.equal(designGateData.gates['design-ready'].status, 'ready-for-approval');
+    const { response: approveGateResponse, data: approveGateData } = await requestJson(runtime.url, '/api/gates/approve', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath, gateId: 'design-ready', operator: 'regression-user', note: 'design reviewed' }),
+    });
+    assert.equal(approveGateResponse.status, 200);
+    assert.equal(approveGateData.gates['design-ready'].status, 'approved');
     const { response: qualityResponse, data: qualityData } = await requestJson(runtime.url, '/api/workspace/quality-summary/refresh', {
       method: 'POST',
       body: JSON.stringify({ workspacePath: initData.workspacePath }),

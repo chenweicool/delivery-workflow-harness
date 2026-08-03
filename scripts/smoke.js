@@ -42,53 +42,59 @@ async function readJson(relativePath) {
   return JSON.parse(await fsp.readFile(path.join(workspacePath, relativePath), 'utf8'));
 }
 
+async function createDomainHarnessFixture(root) {
+  await fsp.mkdir(path.join(root, 'docs', 'domain'), { recursive: true });
+  await fsp.writeFile(path.join(root, '.module-manifest.yaml'), [
+    'name: smoke-domain',
+    'description: Smoke domain Harness',
+    'bound_repositories:',
+    '  - name: smoke-service',
+    '    directory: codes/smoke-service',
+    '',
+  ].join('\n'), 'utf8');
+  await fsp.writeFile(path.join(root, 'docs', 'domain', 'whitepaper.md'), '# Smoke Domain\n', 'utf8');
+}
+
 async function main() {
   await fsp.rm(tmpRoot, { recursive: true, force: true });
   await fsp.mkdir(tmpRoot, { recursive: true });
+  const domainRoot = path.join(tmpRoot, 'smoke-domain');
+  await createDomainHarnessFixture(domainRoot);
 
   run(['help'], { includes: 'delivery-workflow start' });
-  run(['init', demandName, '--output-root', tmpRoot], { includes: 'Workspace created' });
+  run(['init', demandName, '--output-root', tmpRoot, '--domain', domainRoot], { includes: 'Workspace created' });
   assertFile('AGENTS.md');
   assertFile('.workflow/workspace.json');
   assertFile('.workflow/progress.json');
   assertFile('.workflow/workflow.json');
+  assertFile('.workflow/quality-policy.yaml');
 
   run(['status', '--workspace', workspacePath], { includes: 'valid: true' });
   run(['next', '--workspace', workspacePath], { includes: 'step: import-prd' });
-  run(['handoff', '--workspace', workspacePath, '--step', 'import-prd', '--port', '3161'], { includes: '--port 3161' });
-  assertFile('.workflow/handoff/current.md');
-  const handoff = await fsp.readFile(path.join(workspacePath, '.workflow/handoff/current.md'), 'utf8');
-  if (!handoff.includes('http://127.0.0.1:3161/')) {
-    throw new Error('Expected handoff return URL to use the requested port.');
-  }
+  run(['gate', 'check', '--workspace', workspacePath], { includes: 'requirement-confirmed\tblocked' });
+  assertFile('.workflow/quality-policy.lock.json');
+  assertFile('.workflow/gates.json');
 
-  run(['done', '--workspace', workspacePath, '--step', 'import-prd', '--summary', 'smoke ready', '--port', '3161'], {
-    includes: 'done:',
-  });
-  assertFile('.workflow/handoff/done.json');
-  const done = await readJson('.workflow/handoff/done.json');
-  if (!String(done.nextUrl || '').startsWith('http://127.0.0.1:3161/')) {
-    throw new Error('Expected done nextUrl to use the requested port.');
-  }
-  run(['status', '--workspace', workspacePath], { includes: 'handoff: ready-for-review' });
+  const sourcePrd = path.join(tmpRoot, 'source-prd.md');
+  await fsp.writeFile(sourcePrd, '# Smoke PRD\n', 'utf8');
+  run(['prd', 'import', sourcePrd, '--workspace', workspacePath], { includes: 'prd:' });
+  assertFile('prd/source-prd.md');
 
   await fsp.mkdir(path.join(workspacePath, 'design'), { recursive: true });
   await fsp.mkdir(path.join(workspacePath, 'tasks'), { recursive: true });
   await fsp.mkdir(path.join(workspacePath, 'review'), { recursive: true });
   await fsp.writeFile(path.join(workspacePath, 'design', 'requirement-confirmation.md'), '# 需求确认\n\n- 覆盖边界条件\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'prd', 'document.md'), '# 解析后的 PRD\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'design', 'technical-design.md'), '# 技术方案\n\n- 修改 Service 分支逻辑\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'tasks', 'task-list.md'), '# 任务清单\n\n- T001 覆盖核心改动\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'change-log.md'), '# 变更记录\n\n- 修改目标代码\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'self-check.md'), '# 自检\n\n- 已自检主路径\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'ai-review.md'), '# AI Review\n\n## 发现问题\n\n- 边界场景需要补测\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'risk-list.md'), '# 风险清单\n\n## 测试缺口\n\n- 异常路径\n', 'utf8');
-  run(['handoff', '--workspace', workspacePath, '--step', '06-generate-unit-tests', '--port', '3161'], { includes: 'step: 06-generate-unit-tests' });
-  const qualityHandoff = await fsp.readFile(path.join(workspacePath, '.workflow/handoff/current.md'), 'utf8');
-  for (const expected of ['质量门禁上下文包', '单测必须优先覆盖', 'AI Review', '风险清单']) {
-    if (!qualityHandoff.includes(expected)) {
-      throw new Error(`Expected quality handoff to include "${expected}".`);
-    }
-  }
+  await fsp.writeFile(path.join(workspacePath, 'review', 'unit-test-plan.md'), '# 单测计划\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'review', 'smoke-test-plan.md'), '# 冒烟计划\n', 'utf8');
+  run(['gate', 'check', '--workspace', workspacePath], { includes: 'design-ready\tready-for-approval' });
+  run(['gate', 'approve', 'design-ready', '--workspace', workspacePath, '--note', 'smoke reviewed'], { includes: 'design-ready / approved' });
 
   const stateFile = path.join(tmpRoot, '.data', 'state.json');
   await fsp.writeFile(stateFile, JSON.stringify({

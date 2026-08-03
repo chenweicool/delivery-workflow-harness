@@ -15,7 +15,7 @@
       "title": "PRD 到技术方案",
       "summary": "导入并解析 PRD，按配置选择是否加载应用上下文，再完成需求和技术方案确认。",
       "inputs": ["PRD 文件或飞书链接", "交付配置中的应用上下文", "design/known-facts.md（可选技术定位输入）"],
-      "outputs": ["prd/**", ".workflow/workspace.json", "design/context-summary.md", "design/requirement-confirmation.md", "design/technical-design.md", "design/technical-confirmation.md"],
+      "outputs": ["prd/**", ".workflow/workspace.json", "design/context-summary.md", "design/requirement-confirmation.md", "design/technical-design.md", "design/technical-confirmation.md", "review/unit-test-plan.md", "review/smoke-test-plan.md"],
       "steps": ["import-prd", "00-load-context", "01-clarify-requirement", "manual-requirement", "02-generate-technical-design", "manual-technical"]
     },
     {
@@ -109,7 +109,7 @@
       "kind": "agent",
       "commandFile": ".workflow/commands/02-generate-technical-design.md",
       "requires": ["design/requirement-confirmation.approved.json"],
-      "outputs": ["design/technical-design.md", "design/technical-confirmation.md", "design/technical-design.changelog.md"],
+      "outputs": ["design/technical-design.md", "design/technical-confirmation.md", "design/technical-design.changelog.md", "review/unit-test-plan.md", "review/smoke-test-plan.md"],
       "metadata": {
         "capabilityTypes": ["api-doc", "rule"]
       }

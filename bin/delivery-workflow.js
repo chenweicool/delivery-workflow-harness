@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
+const fsp = require('fs/promises');
 const http = require('http');
 const os = require('os');
 const path = require('path');
@@ -32,6 +33,8 @@ const {
   attachDomainHarness,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,
+  evaluateQualityGates,
+  submitQualityGate,
   createKnowledgeUpdateProposal,
 } = require(path.join(
   ROOT_DIR,
@@ -52,27 +55,20 @@ function usage() {
     '  dw restart [--port 3040] [--no-open]',
     '  dw status',
     '  dw logs [--lines 80]',
-    '  dw open [--workspace <path>] [--step <step-id>] [--port 3040]',
-    '  dw init <demand-name> [--output-root <path>] [--domain <domain-harness-path>]',
-    '  dw setup [--team-config-root <path>] [--whitepaper-root <path>] [--repo-root <path>] [--profile default]',
-    '  dw config [show|set] [--team-config-root <path>] [--whitepaper-root <path>] [--repo-root <path>] [--profile default]',
-    '  dw function match <keyword>',
-    '  dw context resolve --workspace <path> --function <function-id>',
+    '  dw init <demand-name> --domain <domain-harness-path> [--output-root <path>]',
+    '  dw prd import <file-or-directory> --workspace <path>',
     '  dw domain inspect --root <domain-harness-path>',
     '  dw domain attach --workspace <path> --root <domain-harness-path>',
-    '  dw app fetch --workspace <path> --app <application-id>',
-    '  dw archive propose --workspace <path>',
+    '  dw gate check --workspace <path>',
+    '  dw gate approve|reject|exception <gate-id> --workspace <path> [--note "..."]',
     '  dw status --workspace <path>',
     '  dw next --workspace <path>',
-    '  dw handoff --step <step-id> [--workspace <path>] [--agent codex|claude] [--task T001] [--port 3040]',
-    '  dw done --step <step-id> [--workspace <path>] [--task T001] [--summary "..."] [--port 3040]',
-    '  dw doctor',
     '',
     'Examples:',
     '  npx delivery-workflow-harness start',
     '  dw start',
     '  dw stop',
-    '  dw setup --team-config-root D:\\code\\team-ai-config --repo-root D:\\code\\work-project --profile spm-default',
+    '  dw init negative-bill-export --domain F:\\code\\harness-project\\spm-harness-module-negative',
     '',
     'The full command name "delivery-workflow" is also supported.',
   ].join('\n');
@@ -472,18 +468,17 @@ async function commandInit(args) {
   }
   const outputRoot = normalizeCliPath(args['output-root'] || args.outputRoot || path.resolve(process.cwd(), '..', 'ai-workspaces'));
   const domainRoot = normalizeCliPath(args.domain || args.domainRoot);
-  if (domainRoot) {
-    const inspected = await inspectDomainHarness(domainRoot);
-    if (!inspected.available) {
-      throw new Error(inspected.reason || '领域 Harness 不可用');
-    }
+  if (!domainRoot) {
+    throw new Error('Missing domain harness. Usage: dw init <demand-name> --domain <domain-harness-path>');
+  }
+  const inspected = await inspectDomainHarness(domainRoot);
+  if (!inspected.available) {
+    throw new Error(inspected.reason || '领域 Harness 不可用');
   }
   const workspacePath = await initWorkspace(demandName, outputRoot);
-  if (domainRoot) {
-    const result = await attachDomainHarness({ workspacePath, domainRoot });
-    console.log(`Domain Harness attached: ${result.context.root}`);
-    console.log(`Domain snapshot: ${path.join(workspacePath, 'context', 'domain-summary.md')}`);
-  }
+  const result = await attachDomainHarness({ workspacePath, domainRoot });
+  console.log(`Domain Harness attached: ${result.context.root}`);
+  console.log(`Domain snapshot: ${path.join(workspacePath, 'context', 'domain-summary.md')}`);
   console.log(`Workspace created: ${workspacePath}`);
   console.log(`Open: dw open --workspace ${workspacePath}`);
 }
@@ -599,6 +594,77 @@ async function commandDomain(args) {
   throw new Error('Usage: dw domain [inspect|attach] --root <domain-harness-path> [--workspace <path>]');
 }
 
+async function copyPrdSource(sourcePath, targetPath) {
+  const stat = await fsp.stat(sourcePath);
+  if (stat.isDirectory()) {
+    await fsp.mkdir(targetPath, { recursive: true });
+    const entries = await fsp.readdir(sourcePath, { withFileTypes: true });
+    for (const entry of entries) {
+      await copyPrdSource(path.join(sourcePath, entry.name), path.join(targetPath, entry.name));
+    }
+    return;
+  }
+  await fsp.mkdir(path.dirname(targetPath), { recursive: true });
+  await fsp.copyFile(sourcePath, targetPath);
+}
+
+async function commandPrd(args) {
+  const action = args._[1] || 'import';
+  if (action !== 'import') {
+    throw new Error('Usage: dw prd import <file-or-directory> --workspace <path>');
+  }
+  const sourceValue = args._[2] || args.source || args.path;
+  const workspacePath = resolveWorkspaceArg(args);
+  if (!sourceValue || !workspacePath) {
+    throw new Error('Usage: dw prd import <file-or-directory> --workspace <path>');
+  }
+  if (!pathExists(path.join(workspacePath, 'AGENTS.md'))) {
+    throw new Error('当前目录不是有效 Workspace');
+  }
+  const sourcePath = normalizeCliPath(sourceValue);
+  if (!pathExists(sourcePath)) {
+    throw new Error(`PRD 来源不存在：${sourcePath}`);
+  }
+  const targetPath = path.join(workspacePath, 'prd', path.basename(sourcePath));
+  await copyPrdSource(sourcePath, targetPath);
+  console.log(`prd: ${targetPath}`);
+  console.log(`next: dw gate check --workspace "${workspacePath}"`);
+}
+
+async function commandGate(args) {
+  const action = args._[1] || 'check';
+  const workspacePath = resolveWorkspaceArg(args);
+  if (!workspacePath) {
+    throw new Error('Missing workspace. Usage: dw gate check --workspace <path>');
+  }
+  if (action === 'check') {
+    const result = await evaluateQualityGates(workspacePath);
+    console.log(`gates: ${result.status}`);
+    for (const gate of Object.values(result.gates || {})) {
+      console.log(`${gate.id}\t${gate.status}\t${gate.missing.length ? `缺少：${gate.missing.join('、')}` : '证据齐备'}`);
+    }
+    return;
+  }
+  if (!['approve', 'reject', 'exception'].includes(action)) {
+    throw new Error('Usage: dw gate check|approve|reject|exception <gate-id> --workspace <path>');
+  }
+  const gateId = args._[2] || args.gate || args.gateId;
+  if (!gateId) {
+    throw new Error(`Missing gate id. Usage: dw gate ${action} <gate-id> --workspace <path>`);
+  }
+  const result = await submitQualityGate({
+    workspacePath,
+    gateId,
+    action,
+    note: args.note,
+    operator: args.operator,
+    exceptionExpiresAt: args['expires-at'] || args.expiresAt,
+  });
+  const gate = result.gates[gateId];
+  console.log(`gate: ${gate.id} / ${gate.status}`);
+  console.log(`snapshot: ${path.join(workspacePath, '.workflow', 'gates.json')}`);
+}
+
 async function commandApp(args) {
   const action = args._[1] || 'fetch';
   if (action !== 'fetch') {
@@ -649,12 +715,8 @@ async function commandStatus(args) {
   if (latest && latest.stepId) {
     console.log(`latest: ${latest.stepId} / ${latest.status || ''}`);
   }
-  if (status.handoffState && status.handoffState.done) {
-    const done = status.handoffState.donePayload || {};
-    console.log(`handoff: ready-for-review / ${done.stepId || ''} -> ${done.returnStepId || ''}`);
-  } else if (status.handoffState && status.handoffState.hasCurrent) {
-    console.log(`handoff: working / ${status.handoffState.currentFile}`);
-  }
+  const gates = await evaluateQualityGates(workspacePath);
+  console.log(`gates: ${gates.status}`);
   printNextRecommendation(status.nextRecommendation);
 }
 
@@ -851,6 +913,14 @@ async function main() {
   }
   if (command === 'domain') {
     await commandDomain(args);
+    return;
+  }
+  if (command === 'prd') {
+    await commandPrd(args);
+    return;
+  }
+  if (command === 'gate') {
+    await commandGate(args);
     return;
   }
   if (command === 'app') {

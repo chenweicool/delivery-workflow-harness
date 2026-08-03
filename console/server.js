@@ -65,6 +65,9 @@ const {
   createQualityEvidenceRuntime,
 } = require('./lib/quality-evidence');
 const {
+  createQualityGateRuntime,
+} = require('./lib/quality-gate');
+const {
   createKnowledgeArchiveRuntime,
 } = require('./lib/knowledge-archive');
 const {
@@ -264,6 +267,16 @@ const {
   readWorkspaceConfig,
   readWorkspaceTextFileIfExists,
   writeWorkspaceJsonFile,
+});
+const {
+  evaluateQualityGates,
+  submitQualityGate,
+} = createQualityGateRuntime({
+  normalizeUserPath,
+  exists,
+  readJsonFileIfExists,
+  writeWorkspaceJsonFile,
+  readWorkspaceTextFileIfExists,
 });
 const {
   createKnowledgeUpdateProposal,
@@ -2412,17 +2425,16 @@ async function route(req, res) {
     if (req.method === 'POST' && url.pathname === '/api/workspaces/init') {
       const body = await readJson(req);
       const domainRoot = body.domainRoot || body.domain;
-      if (domainRoot) {
-        const domain = await inspectDomainHarness(domainRoot);
-        if (!domain.available) {
-          throw new Error(domain.reason || '领域 Harness 不可用');
-        }
+      if (!domainRoot) {
+        throw new Error('创建需求必须绑定一个领域 Harness');
+      }
+      const domain = await inspectDomainHarness(domainRoot);
+      if (!domain.available) {
+        throw new Error(domain.reason || '领域 Harness 不可用');
       }
       const workspacePath = await initWorkspace(body.demandName, body.outputRoot, body.workspacePath);
-      const attached = domainRoot
-        ? await attachDomainHarness({ workspacePath, domainRoot })
-        : null;
-      sendJson(res, 200, { workspacePath, domain: attached ? attached.context : null });
+      const attached = await attachDomainHarness({ workspacePath, domainRoot });
+      sendJson(res, 200, { workspacePath, domain: attached.context });
       return;
     }
 
@@ -2454,6 +2466,30 @@ async function route(req, res) {
     if (req.method === 'POST' && url.pathname === '/api/workspace/quality-summary/refresh') {
       const body = await readJson(req);
       sendJson(res, 200, await refreshQualitySummary(body.workspacePath));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/gates/check') {
+      const body = await readJson(req);
+      sendJson(res, 200, await evaluateQualityGates(body.workspacePath));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/gates/approve') {
+      const body = await readJson(req);
+      sendJson(res, 200, await submitQualityGate({ ...body, action: 'approve' }));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/gates/reject') {
+      const body = await readJson(req);
+      sendJson(res, 200, await submitQualityGate({ ...body, action: 'reject' }));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/gates/exception') {
+      const body = await readJson(req);
+      sendJson(res, 200, await submitQualityGate({ ...body, action: 'exception' }));
       return;
     }
 
@@ -2766,5 +2802,7 @@ module.exports = {
   attachDomainHarness,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,
+  evaluateQualityGates,
+  submitQualityGate,
   createKnowledgeUpdateProposal,
 };

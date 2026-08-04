@@ -1,0 +1,19 @@
+.github/workflows/ci.yml
+  s_875f78adb6e5b0::t_b510365a874ac0 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "1d02d60983671180f4bef9ece9e14ee9cc874e6c",
+  "prompts": {},
+  "sessions": {
+    "s_875f78adb6e5b0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fca69-8bdb-7f52-985c-bd355b249b65",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

@@ -1,0 +1,164 @@
+console/lib/agent-prompt.js
+  s_875f78adb6e5b0::t_0e1299ed895938 28,46,64,72-74
+  s_875f78adb6e5b0::t_86e09a4e4dc855 70-71
+  s_875f78adb6e5b0::t_908d2931980a83 76-82,92,94
+  s_34c082a03d07b4::t_7928df6ebe3cc0 124-131,251
+templates/workspace/.workflow/commands/06-implement-task.md
+  s_875f78adb6e5b0::t_fff6fedd4aaea3 37,54,74-75
+console/public/app.js
+  s_875f78adb6e5b0::t_2ec9a22b6a09cb 2350,2365
+  s_34c082a03d07b4::t_7928df6ebe3cc0 1711-1722,1733-1734,1741,1743,1745
+templates/workspace/.workflow/commands/08-verify-tests.md
+  s_875f78adb6e5b0::t_e609b4dd196990 1-20
+console/lib/agents.js
+  s_875f78adb6e5b0::t_0e1299ed895938 14,32,46,55
+docs/domain-harness-workflow-wbs.md
+  s_875f78adb6e5b0::t_b10bed3347c80a 124
+  s_875f78adb6e5b0::t_e9af905981f4de 120,122,125-127
+  s_875f78adb6e5b0::t_908d2931980a83 133,185
+  s_875f78adb6e5b0::t_f1b9e29599248a 187
+  s_875f78adb6e5b0::t_2a2090c13488f5 95-96,110-119,121,128-132,258,264,389,391
+  s_875f78adb6e5b0::t_24ddbc955b7bda 123
+package.json
+  s_875f78adb6e5b0::t_d4d6c795564bce 30
+templates/workspace/.workflow/commands/02-generate-technical-design.md
+  s_34c082a03d07b4::t_7928df6ebe3cc0 7,17-18,73,76,106-107,117
+console/public/index.html
+  s_875f78adb6e5b0::t_294162e9accedc 16-18
+  s_875f78adb6e5b0::t_df3f78be81b2b9 19
+  s_875f78adb6e5b0::t_73e94fe4f41a8d 34,131-174
+  s_875f78adb6e5b0::t_4a1219e79aa27f 86-88,92,100-110,113-116,119-122,124-128
+  s_875f78adb6e5b0::t_c0a137fee36c67 84-85,97,111
+  s_875f78adb6e5b0::t_0bea9bc5e5864f 44-45,58
+  s_875f78adb6e5b0::t_40e1ce7399dba1 61
+  s_875f78adb6e5b0::t_d8aba721484db5 7,32,83,89,91,93-94,96,98-99,117,123,129-130,180
+  s_875f78adb6e5b0::t_3e63c5ca3cba9a 22
+  s_875f78adb6e5b0::t_985a8fa543c3ce 74-81
+console/lib/capability-routing.js
+  s_34c082a03d07b4::t_69835f4568b57f 230
+  s_34c082a03d07b4::t_7928df6ebe3cc0 158-161,165,281-284,327-328
+templates/workspace/AGENTS.md
+  s_34c082a03d07b4::t_7928df6ebe3cc0 16-17
+  s_875f78adb6e5b0::t_d91178f555a487 9,52,55-58,61-63,71
+scripts/regression-api.js
+  s_34c082a03d07b4::t_cc89b8edb729e4 199-200
+  s_875f78adb6e5b0::t_07ac49bc288dbd 71-76,140
+  s_875f78adb6e5b0::t_38f996f0325471 117,128-129
+  s_875f78adb6e5b0::t_e635345ade65f0 161
+  s_875f78adb6e5b0::t_2ec9a22b6a09cb 49,81-82,124-126,142-145
+  s_34c082a03d07b4::t_69835f4568b57f 180-198
+  s_34c082a03d07b4::t_958b40e2c1a8a1 131
+  s_875f78adb6e5b0::t_d401f916a4ad23 207
+  s_34c082a03d07b4::t_7928df6ebe3cc0 216
+  s_875f78adb6e5b0::t_d4d6c795564bce 201,204,208-215,217-227,240-241
+console/lib/quality-evidence.js
+  s_875f78adb6e5b0::t_34d94270ff242f 31-32,34-35,48,54,58,66
+team-config.example/capabilities/capability.schema.json
+  s_875f78adb6e5b0::t_fff6fedd4aaea3 50-56
+templates/workspace/.workflow/commands/README.md
+  s_875f78adb6e5b0::t_d91178f555a487 1-45
+templates/workspace/.workflow/quality-policy.yaml
+  s_875f78adb6e5b0::t_e609b4dd196990 14-18
+console/public/control-plane.css
+  s_875f78adb6e5b0::t_3e63c5ca3cba9a 3
+  s_875f78adb6e5b0::t_65e51f8c6c82a0 6
+  s_875f78adb6e5b0::t_39386678830ecc 5,10
+  s_875f78adb6e5b0::t_5a00f92cd00e48 9
+templates/workspace/.workflow/workflow.json
+  s_875f78adb6e5b0::t_908d2931980a83 2
+  s_875f78adb6e5b0::t_d91178f555a487 3
+console/public/control-plane.js
+  s_875f78adb6e5b0::t_f90d6a755d3587 8,49
+  s_875f78adb6e5b0::t_c0a137fee36c67 45-46
+  s_875f78adb6e5b0::t_294162e9accedc 21-22,36,38
+  s_875f78adb6e5b0::t_e534773b7c5d44 34
+  s_875f78adb6e5b0::t_40e1ce7399dba1 6
+  s_875f78adb6e5b0::t_df3f78be81b2b9 25,48,56
+  s_875f78adb6e5b0::t_985a8fa543c3ce 7,29-32,57
+  s_875f78adb6e5b0::t_4d69f01a8692b4 2,5,9,51,53-55
+  s_875f78adb6e5b0::t_7d92154a38527c 40,42-44
+  s_875f78adb6e5b0::t_48261ed928d1ed 47
+  s_875f78adb6e5b0::t_d8aba721484db5 24,35,50
+  s_875f78adb6e5b0::t_004c5433296a5c 39,41,52
+console/lib/workspace.js
+  s_34c082a03d07b4::t_7928df6ebe3cc0 13-14
+  s_875f78adb6e5b0::t_cf89829ebafac8 15-17
+console/lib/checkpoint.js
+  s_875f78adb6e5b0::t_b11cde69976ae4 20,152-153
+templates/workspace/prd/README.md
+  s_875f78adb6e5b0::t_fff6fedd4aaea3 20-21
+console/lib/domain-harness.js
+  s_875f78adb6e5b0::t_2ec9a22b6a09cb 200,229,245,266-272,351
+  s_875f78adb6e5b0::t_07ac49bc288dbd 82,88
+console/lib/knowledge-archive.js
+  s_875f78adb6e5b0::t_62b71bfad9c33a 32-34,37,41,45-50,63-65,68,72,75-76,82-83,85,87
+console/lib/design-baseline.js
+  s_875f78adb6e5b0::t_b11cde69976ae4 1-65
+console/lib/workspace-runtime.js
+  s_875f78adb6e5b0::t_cf89829ebafac8 212-214
+  s_875f78adb6e5b0::t_e609b4dd196990 5,50-54
+  s_34c082a03d07b4::t_7928df6ebe3cc0 111-113,145-148,177-180
+console/server.js
+  s_875f78adb6e5b0::t_cf89829ebafac8 905-907,2523,2616-2618
+  s_34c082a03d07b4::t_69835f4568b57f 1617,1623,1627,1634-1635
+  s_875f78adb6e5b0::t_b11cde69976ae4 93-94,161-168,189,2570-2575
+  s_34c082a03d07b4::t_84a71abf0d93b7 1976-1980,1982-1986,1989,2037-2043,2086
+  s_34c082a03d07b4::t_7928df6ebe3cc0 2631-2633
+  s_875f78adb6e5b0::t_e4314c9f24d737 1611-1614,1981
+templates/workspace/CLAUDE.md
+  s_875f78adb6e5b0::t_4bf4495d0254e4 12-15
+  s_34c082a03d07b4::t_95781349168855 23
+team-config.example/capabilities/README.md
+  s_875f78adb6e5b0::t_fff6fedd4aaea3 29-30
+docs/daily-progress-2026-08-04.md
+  s_875f78adb6e5b0::t_2a2090c13488f5 1-4,6-16,19-30,34-36
+  s_875f78adb6e5b0::t_e9af905981f4de 5,17,31-32,37-38
+  s_875f78adb6e5b0::t_24ddbc955b7bda 33,39
+  s_875f78adb6e5b0::t_b10bed3347c80a 18
+templates/workspace/.workflow/commands/09-run-smoke.md
+  s_875f78adb6e5b0::t_e609b4dd196990 1-9
+templates/workspace/.workflow/commands/00-import-and-parse-prd.md
+  s_875f78adb6e5b0::t_fff6fedd4aaea3 9-10
+console/lib/capabilities.js
+  s_875f78adb6e5b0::t_e4314c9f24d737 31-32
+docs/domain-harness-workflow-trial-technical-plan.md
+  s_875f78adb6e5b0::t_908d2931980a83 987,1064
+console/lib/quality-gate.js
+  s_875f78adb6e5b0::t_0e1299ed895938 20-26
+templates/workspace/.workflow/commands/03-design-tests.md
+  s_875f78adb6e5b0::t_e609b4dd196990 1-29
+scripts/smoke.js
+  s_875f78adb6e5b0::t_d4d6c795564bce 7,46-55,100-104
+templates/workspace/.workflow/commands/01-clarify-requirement.md
+  s_875f78adb6e5b0::t_fff6fedd4aaea3 70-75
+  s_34c082a03d07b4::t_7928df6ebe3cc0 11-12,50,65-69,76
+console/lib/workflow.js
+  s_875f78adb6e5b0::t_4bf4495d0254e4 12-13,30-32,34,38-39,46
+  s_34c082a03d07b4::t_7928df6ebe3cc0 141,143
+  s_875f78adb6e5b0::t_0e1299ed895938 41-42,120-126,131,134-135,146-147,190-197,199-200
+  s_875f78adb6e5b0::t_cf89829ebafac8 105
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "919d1da9ab2f1717e1af624d66b6397b615e2b6a",
+  "prompts": {},
+  "sessions": {
+    "s_34c082a03d07b4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fca86-122f-7251-9d5f-c9ae461914d1",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    },
+    "s_875f78adb6e5b0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fca69-8bdb-7f52-985c-bd355b249b65",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

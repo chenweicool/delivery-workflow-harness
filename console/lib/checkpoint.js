@@ -17,6 +17,7 @@ function createCheckpointRuntime(deps) {
     nowIso,
     TECHNICAL_REVIEW_FILE,
     TECHNICAL_REVIEW_TEMPLATE,
+    freezeDesignBaselines,
   } = deps;
 
   function technicalReviewTemplate() {
@@ -148,6 +149,9 @@ function createCheckpointRuntime(deps) {
     };
   
     if (action === 'approve') {
+      if (stepId === 'manual-technical') {
+        await freezeDesignBaselines(workspacePath, payload);
+      }
       await writeWorkspaceJsonFile(workspacePath, definition.approvalFile, payload);
       await unlinkWorkspaceFileIfExists(workspacePath, definition.rejectionFile);
     } else {

@@ -34,6 +34,7 @@
 - `tasks/task-progress.md`
 - `review/change-log.md`
 - `review/self-check.md`
+- `.workflow/evidence/capability-degradation.md`
 
 ## 禁止事项
 
@@ -50,7 +51,7 @@
 3. 如果任务被暂缓、退回、缺失、编号不明确或仍需人工确认，必须停止，不得修改代码。
 4. 读取 `tasks/task-list.md`，以其中的范围、文件、验收标准和依赖作为实施细节来源。
 5. 如果 `tasks/task-list.md` 与人工确认结果冲突，必须停止并等待人工确认。
-6. 如果选中任务声明了“推荐 skills”，必须先读取并遵循对应 skill 的 `SKILL.md` 或说明文件；如果页面未注入该 skill，必须记录缺失并暂停等待人工确认。
+6. 先读取 `context/capabilities.md`，只使用当前步骤标记为 `available` 的能力。任务声明的推荐 skill 未挂载时，不得默认暂停：按任务类型执行降级流程（例如 Java 单测复用项目现有测试模式并运行 Maven，文档解析直接读取可访问材料，代码审查使用命令内置检查清单），并在 `.workflow/evidence/capability-degradation.md` 记录缺失能力、替代方式和未覆盖范围。仅当缺少的能力导致关键业务事实无法获得时，才停止并列出具体缺失事实。
 7. 接口文档类任务推荐读取 `design/technical-design.md`、`prd/**`、Controller、Request / Response DTO、枚举、统一返回体和分页对象，再输出正式接口文档或接口变更文档。
 8. 确保每个涉及应用在 `apps/<app-name>` 下有本需求专用 git worktree。
 9. 如果 `apps/<app-name>` 不存在，按 `.workflow/workspace.json` 中应用配置创建。
@@ -70,7 +71,8 @@
 - 源仓库路径：读取 `.workflow/workspace.json` 中的 `apps[].sourcePath`。
 - Worktree 路径：读取 `apps[].worktreePath`；默认使用 `apps/<app-name>`。
 - 分支名：读取 `apps[].featureBranch`。
-- 基准分支：读取 `apps[].baseBranch`；如果为空，使用源仓库当前分支。
+- 基准分支：读取 `apps[].baseBranch`；必须是研发确认的明确值，不允许回退到源仓库当前分支。
+- 开发分支：读取 `apps[].featureBranch`；`apps[].suggestedFeatureBranch` 仅是候选命名，必须经研发确认后才可写入开发分支字段。
 - 应用类型和 skills：读取 `apps[].type` 和 `apps[].skills`。
 - 如果分支已存在于其他 worktree，必须停止并报告已存在路径，不得复用无关代码。
 - 可通过 `git -C <source-repo> worktree add -b <feature-branch> <workspace>/<worktree-path> <base-branch>` 创建 worktree。

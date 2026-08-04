@@ -9,9 +9,10 @@
 任何分析或实现开始前：
 
 1. 读取 `AGENTS.md`。
-2. 执行 `.workflow/commands/` 中的当前阶段命令。不要假设所有节点必须线性执行，先以 `.workflow/progress.md` 和当前命令文件为准。
-3. 严格遵循当前阶段命令。
-4. 读取并维护 `.workflow/progress.md` 和 `.workflow/progress.json`，阶段完成或阻塞时必须回写。
+2. 读取 `.workflow/commands/README.md`，确认当前命令所属的交付生命周期、正式产物和人工确认点。
+3. 执行 `.workflow/commands/` 中的当前阶段命令。不要假设所有节点必须线性执行，先以 `.workflow/progress.md` 和当前命令文件为准。
+4. 严格遵循当前阶段命令。
+5. 读取并维护 `.workflow/progress.md` 和 `.workflow/progress.json`，阶段完成或阻塞时必须回写。
 
 ## 边界
 
@@ -19,7 +20,7 @@
 - 禁止自动执行 worktree 设置，除非当前阶段明确要求。
 - 禁止只根据关键词假设应用范围。
 - 禁止把需求过程文件写入共享公共 AI 仓库。
-- 开始工作前读取 `context/domain-summary.md` 与 `context/capabilities.md`；后者是当前需求已挂载 skills / rules 的可审计快照。
+- 开始工作前读取 `context/domain-summary.md` 与 `context/capabilities.md`；后者是当前需求能力快照。只读取当前步骤标记为 `available` 的能力，未挂载能力按命令文件的降级流程处理，不得阻断阶段。
 - Skill 为目录时先阅读其中的 `SKILL.md`，Rule 为文件时先阅读规则正文；公共源只读，链接位于 `context/skills/linked` 和 `context/rules/linked` 下。
 
 ## 输出纪律

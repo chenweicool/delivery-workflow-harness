@@ -6,7 +6,8 @@
 
 ## Skill 使用策略
 
-- 如果已启用 Word PRD 转 Markdown、文档抽取或飞书文档解析相关 skill，必须优先使用。
+- 如果当前步骤已路由到可用的 Word PRD 转 Markdown、文档抽取或飞书文档解析能力，优先使用。
+- 如果没有可用 skill，直接读取可访问文件并保留原始文件、图片和表格；不得因能力缺失暂停。
 - 使用 `feishu-word-to-md` / `prd-word-to-md` 类 skill 时，输出根目录必须指定为 workspace 根目录，让 skill 自行生成 `prd/document.md`、`prd/assets/`、`prd/tables/`、`prd/metadata/` 等目录。
 - 如果当前只记录了飞书或外部文档链接，且本机无法直接读取链接内容，需要在输出中明确标记“待人工导出或授权读取”。
 - 输出必须是中文。

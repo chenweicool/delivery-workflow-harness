@@ -29,26 +29,25 @@ function createKnowledgeArchiveRuntime(deps) {
     }
 
     const config = await readWorkspaceConfig(workspacePath);
-    const context = config.whitepaperContext || {};
-    const primary = context.primaryFunction;
-    if (!primary) {
-      throw new Error('\u7f3a\u5c11\u5df2\u786e\u8ba4\u529f\u80fd\u70b9\uff0c\u4e0d\u80fd\u751f\u6210\u767d\u76ae\u4e66\u66f4\u65b0\u63d0\u6848');
+    const domainContext = config.domainContext || config.domain || {};
+    if (!domainContext.root) {
+      throw new Error('\u7f3a\u5c11\u9886\u57df Harness \u5feb\u7167\uff0c\u4e0d\u80fd\u751f\u6210\u77e5\u8bc6\u66f4\u65b0\u63d0\u6848');
     }
 
-    const domain = safeFilePart(primary.domain || 'general');
+    const domain = safeFilePart(domainContext.id || domainContext.name || 'domain');
     const caseId = `${safeFilePart(config.demandName || path.basename(workspacePath))}-${new Date().toISOString().slice(0, 10)}`;
     const quality = await readJsonFileIfExists(workspacePath, '.workflow/quality-summary.json') || null;
     const knowledgeCard = await readWorkspaceTextFileIfExists(workspacePath, 'archive/knowledge-card.md');
-    const targetCasePath = `domains/${domain}/cases/${caseId}.md`;
+    const targetCasePath = `catalog/cases/${caseId}.md`;
     const proposal = {
       status: 'pending-knowledge-owner-review',
       generatedAt: new Date().toISOString(),
-      whitepaperRoot: context.root || '',
-      whitepaperRevision: context.revision || '',
-      primaryFunction: primary,
-      relatedFunctions: context.relatedFunctions || [],
-      whitepaperRefs: context.whitepaperRefs || [],
-      riskTags: context.riskTags || [],
+      domain: {
+        id: domainContext.id || '',
+        name: domainContext.name || '',
+        root: domainContext.root,
+        revision: domainContext.revision || '',
+      },
       qualityStatus: quality ? quality.status : 'not-generated',
       evidence: {
         qualitySummary: '.workflow/quality-summary.json',
@@ -61,31 +60,31 @@ function createKnowledgeArchiveRuntime(deps) {
           source: 'archive/knowledge-card.md',
         },
         {
-          action: 'review-function-index',
-          target: `domains/${domain}/function-index.json`,
-          reason: '\u4ec5\u5728\u672c\u6b21\u529f\u80fd\u70b9\u3001\u522b\u540d\u3001\u98ce\u9669\u6216\u5173\u8054\u5e94\u7528\u53d1\u751f\u7a33\u5b9a\u53d8\u5316\u65f6\u66f4\u65b0\u3002',
+          action: 'review-domain-catalog',
+          target: 'catalog/',
+          reason: '\u4ec5\u5728\u53d1\u73b0\u7a33\u5b9a\u3001\u53ef\u590d\u7528\u7684\u9886\u57df\u77e5\u8bc6\u65f6\u66f4\u65b0\u3002',
         },
       ],
-      mergePolicy: '\u77e5\u8bc6\u8d1f\u8d23\u4eba\u5ba1\u6838\u540e\uff0c\u901a\u8fc7\u767d\u76ae\u4e66 Git \u5206\u652f\u548c\u5408\u5e76\u8bf7\u6c42\u5165\u5e93\uff1bDelivery Workflow \u4e0d\u81ea\u52a8\u63d0\u4ea4\u6216\u5408\u5e76\u3002',
+      mergePolicy: '\u77e5\u8bc6\u8d1f\u8d23\u4eba\u5ba1\u6838\u540e\uff0c\u5728 Domain Harness Git \u5206\u652f\u4e2d\u81ea\u884c\u63d0\u4ea4\u548c\u5408\u5e76\uff1bDelivery Workflow \u53ea\u751f\u6210\u63d0\u6848\uff0c\u4e0d\u5199\u5165\u9886\u57df\u76ee\u5f55\u3002',
     };
 
     const patch = [
-      '# \u767d\u76ae\u4e66\u77e5\u8bc6\u66f4\u65b0\u63d0\u6848',
+      '# \u9886\u57df\u77e5\u8bc6\u66f4\u65b0\u63d0\u6848',
       '',
       `- \u72b6\u6001\uff1a${proposal.status}`,
-      `- \u529f\u80fd\u70b9\uff1a${primary.name} (${primary.id})`,
-      `- \u767d\u76ae\u4e66\u7248\u672c\uff1a${proposal.whitepaperRevision || '\u672a\u8bc6\u522b'}`,
+      `- \u9886\u57df\uff1a${proposal.domain.name || proposal.domain.id || domain}`,
+      `- \u9886\u57df\u7248\u672c\uff1a${proposal.domain.revision || '\u672a\u8bc6\u522b'}`,
       `- \u8d28\u91cf\u72b6\u6001\uff1a${proposal.qualityStatus}`,
       '',
       '## \u5efa\u8bae\u53d8\u66f4',
       '',
       `1. \u5c06\u672c\u6b21\u6848\u4f8b\u6574\u7406\u5230 ${targetCasePath}\u3002`,
-      '2. \u4ec5\u5728\u53d1\u73b0\u7a33\u5b9a\u3001\u53ef\u590d\u7528\u7684\u9886\u57df\u53d8\u5316\u65f6\u66f4\u65b0 function-index.json\u3002',
-      '3. \u77e5\u8bc6\u8d1f\u8d23\u4eba\u5ba1\u6838\u540e\u81ea\u884c\u521b\u5efa Git \u5206\u652f\u3001\u63d0\u4ea4\u548c\u5408\u5e76\u8bf7\u6c42\uff1b\u7981\u6b62\u7531\u672c\u5de5\u5177\u81ea\u52a8\u5408\u5e76\u3002',
+      '2. \u4ec5\u5728\u53d1\u73b0\u7a33\u5b9a\u3001\u53ef\u590d\u7528\u7684\u9886\u57df\u53d8\u5316\u65f6\u66f4\u65b0 catalog\u3002',
+      '3. \u77e5\u8bc6\u8d1f\u8d23\u4eba\u5ba1\u6838\u540e\u81ea\u884c\u521b\u5efa Git \u5206\u652f\u3001\u63d0\u4ea4\u548c\u5408\u5e76\u8bf7\u6c42\uff1b\u7981\u6b62\u7531\u672c\u5de5\u5177\u81ea\u52a8\u5199\u5165\u6216\u5408\u5e76\u3002',
       '',
-      '## \u9886\u57df\u98ce\u9669',
+      '## \u9886\u57df\u80cc\u666f',
       '',
-      ...(proposal.riskTags.length ? proposal.riskTags.map((item) => `- ${item}`) : ['- \u65e0\u65b0\u589e\u98ce\u9669\u6807\u7b7e\u3002']),
+      ...(domainContext.productDocuments && domainContext.productDocuments.length ? domainContext.productDocuments.map((item) => `- ${item}`) : ['- \u672a\u8bb0\u5f55\u989d\u5916\u9886\u57df\u8d44\u6599\u3002']),
       '',
       '## \u4ea4\u4ed8\u77e5\u8bc6\u5361\u6458\u8981',
       '',

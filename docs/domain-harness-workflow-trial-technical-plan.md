@@ -984,7 +984,7 @@ archive/
 建议严格按以下顺序修改当前代码：
 
 1. 新增 Domain Harness reader，不先改现有 whitepaper reader。
-2. Workspace schema 新增单数 `domain`，保留 `whitepaperContext` 兼容字段。
+2. Workspace schema 使用单数 `domain`，不保留旧 `whitepaperContext` 兼容字段。
 3. 创建 `domain-lock.json` 和 `domain-summary.md`。
 4. 将现有 whitepaper 功能匹配适配为 Domain Context 的一部分。
 5. 将公司能力仓库和领域 Skills/Rules 合并到当前 capability routing。
@@ -1061,7 +1061,7 @@ archive/
 | 自动发现被当成事实 | discovery 内容必须标记未确认 |
 | Codex/Claude 行为差异 | 用 Workspace 文件协议，而非依赖聊天会话 |
 | 领域知识过期 | revision、hash、verifiedAt 和 freshness gate |
-| 旧配置被破坏 | 新增字段并保持 whitepaperContext 兼容 |
+| 历史配置无法读取 | 当前版本尚未投入使用，明确不提供旧 Workspace 兼容或迁移 |
 | 开发后篡改测试适配实现 | 冻结测试设计 hash，变更必须走 deviation 审批 |
 | 过程文件淹没用户 | 正式文档留根目录，过程材料下沉并默认隐藏 |
 

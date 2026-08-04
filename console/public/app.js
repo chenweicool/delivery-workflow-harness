@@ -1708,19 +1708,18 @@ function renderStepCapabilityPanel() {
 
 function semanticArtifactGroups() {
   return [
-    ['PRD', 'prd/document.md'],
-    ['需求确认', 'design/requirement-confirmation.md'],
-    ['技术方案', 'design/technical-design.md'],
-    ['技术确认', 'design/technical-confirmation.md'],
-    ['任务清单', 'tasks/task-list.md'],
-    ['任务确认', 'tasks/task-confirmation.md'],
-    ['变更记录', 'review/change-log.md'],
-    ['自检记录', 'review/self-check.md'],
-    ['AI Review', 'review/ai-review.md'],
-    ['单测计划', 'review/unit-test-plan.md'],
-    ['发布清单', 'delivery/release-checklist.md'],
-    ['交付总结', 'delivery/delivery-summary.md'],
-    ['归档卡片', 'archive/knowledge-card.md'],
+    ['研发技术方案', 'design/technical-design.md', 'primary'],
+    ['实施任务', 'tasks/task-list.md', 'primary'],
+    ['上线 Checklist', 'delivery/release-checklist.md', 'primary'],
+    ['需求确认', 'design/requirement-confirmation.md', 'evidence'],
+    ['技术确认', 'design/technical-confirmation.md', 'evidence'],
+    ['任务确认', 'tasks/task-confirmation.md', 'evidence'],
+    ['变更记录', 'review/change-log.md', 'evidence'],
+    ['自检记录', 'review/self-check.md', 'evidence'],
+    ['AI Review', 'review/ai-review.md', 'evidence'],
+    ['测试基线', 'design/unit-test-design.md', 'evidence'],
+    ['冒烟基线', 'design/smoke-test-design.md', 'evidence'],
+    ['交付总结', 'delivery/delivery-summary.md', 'evidence'],
   ];
 }
 
@@ -1731,16 +1730,19 @@ function renderSemanticArtifactsPanel() {
   const files = state.status && Array.isArray(state.status.artifactFiles) ? state.status.artifactFiles : [];
   const filePaths = new Set(files.filter((item) => item.type === 'file').map((item) => item.path));
   const rows = semanticArtifactGroups().filter(([, path]) => filePaths.has(path));
+  const primaryRows = rows.filter(([, , group]) => group === 'primary');
+  const evidenceRows = rows.filter(([, , group]) => group !== 'primary');
   els.semanticArtifactsPanel.classList.toggle('hidden', !rows.length);
   if (!rows.length) {
     els.semanticArtifactsPanel.innerHTML = '';
     return;
   }
   els.semanticArtifactsPanel.innerHTML = [
-    '<strong>关键产物</strong>',
+    '<strong>研发交付包</strong>',
     '<div class="artifactChipList">',
-    ...rows.slice(0, 6).map(([label, path]) => `<button type="button" data-semantic-artifact="${escapeHtml(path)}"><span>${escapeHtml(label)}</span><small>${escapeHtml(path)}</small></button>`),
+    ...primaryRows.map(([label, path]) => `<button type="button" data-semantic-artifact="${escapeHtml(path)}"><span>${escapeHtml(label)}</span><small>${escapeHtml(path)}</small></button>`),
     '</div>',
+    evidenceRows.length ? `<details><summary>过程与证据（${evidenceRows.length}）</summary><div class="artifactChipList">${evidenceRows.map(([label, path]) => `<button type="button" data-semantic-artifact="${escapeHtml(path)}"><span>${escapeHtml(label)}</span><small>${escapeHtml(path)}</small></button>`).join('')}</div></details>` : '',
   ].join('');
   els.semanticArtifactsPanel.querySelectorAll('[data-semantic-artifact]').forEach((button) => {
     button.addEventListener('click', () => openCurrentArtifact(button.dataset.semanticArtifact).catch((error) => setMessage(error.message, 'error')));
@@ -2345,7 +2347,7 @@ function renderDomainHarnessPanel() {
       `<strong>已挂载：${escapeHtml(domain.name || domain.id || '领域 Harness')}</strong>`,
       `<span>目录：${escapeHtml(domain.root)}</span>`,
       domain.revision ? `<span>版本：${escapeHtml(domain.revision)}</span>` : '',
-      `<span>领域文档 ${escapeHtml(String((domain.productDocuments || []).length))} · 领域记忆 ${escapeHtml(String((domain.memoryDocuments || []).length))} · Rules ${escapeHtml(String((domain.rules || []).length))} · Skills ${escapeHtml(String((domain.skills || []).length))}</span>`,
+      `<span>Catalog ${escapeHtml(String((domain.catalogDocuments || []).length))} · 领域文档 ${escapeHtml(String((domain.productDocuments || []).length))} · 领域记忆 ${escapeHtml(String((domain.memoryDocuments || []).length))} · Rules ${escapeHtml(String((domain.rules || []).length))} · Skills ${escapeHtml(String((domain.skills || []).length))}</span>`,
       repositories.length ? `<span>候选代码仓：${escapeHtml(repositories.map((item) => item.name).join('、'))}</span>` : '',
       availableCode.length ? `<span>本地可读代码：${escapeHtml(availableCode.join('、'))}</span>` : '<span>候选代码仓尚未就绪；方案阶段会保留为待确认入口。</span>',
       '<span>已生成 `context/domain-summary.md`，Agent 会按摘要读取。</span>',
@@ -2360,7 +2362,7 @@ function renderDomainHarnessPanel() {
     }
     els.domainHarnessPanel.innerHTML = [
       `<strong>可挂载：${escapeHtml((inspection.manifest && inspection.manifest.name) || '领域 Harness')}</strong>`,
-      `<span>领域文档 ${escapeHtml(String((inspection.productDocuments || []).length))} · 领域记忆 ${escapeHtml(String((inspection.memoryDocuments || []).length))} · 代码仓 ${escapeHtml(String((inspection.codeRepositories || []).length))}</span>`,
+      `<span>Catalog ${escapeHtml(String((inspection.catalogDocuments || []).length))} · 领域文档 ${escapeHtml(String((inspection.productDocuments || []).length))} · 领域记忆 ${escapeHtml(String((inspection.memoryDocuments || []).length))} · 代码仓 ${escapeHtml(String((inspection.codeRepositories || []).length))}</span>`,
       inspection.graph && inspection.graph.exists ? '<span>已发现 Graphify 图谱。</span>' : '<span>未发现 Graphify 图谱，不影响挂载。</span>',
       inspection.missing && inspection.missing.length ? `<span>缺口：${escapeHtml(inspection.missing.join('；'))}</span>` : '',
     ].filter(Boolean).join('');

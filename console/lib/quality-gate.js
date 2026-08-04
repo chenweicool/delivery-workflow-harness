@@ -16,7 +16,14 @@ const DEFAULT_QUALITY_POLICY = {
     'design-ready': {
       title: '技术方案准入',
       approval: 'tech-owner',
-      requires: ['design/technical-design.md', 'review/unit-test-plan.md', 'review/smoke-test-plan.md'],
+      requires: [
+        'design/technical-design.md',
+        'design/unit-test-design.md',
+        'design/smoke-test-design.md',
+        '.workflow/baselines/technical-design.lock.json',
+        '.workflow/baselines/unit-test-design.lock.json',
+        '.workflow/baselines/smoke-test-design.lock.json',
+      ],
     },
     'delivery-verified': {
       title: '交付验证',
@@ -24,10 +31,8 @@ const DEFAULT_QUALITY_POLICY = {
       requires: [
         'review/ai-review.md',
         'review/risk-list.md',
-        'review/unit-test-plan.md',
         'review/unit-test-result.md',
         'review/traceability-matrix.md',
-        'review/smoke-test-plan.md',
         'review/smoke-test-result.md',
       ],
     },

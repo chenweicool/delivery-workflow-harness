@@ -4,6 +4,7 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
@@ -40,6 +41,16 @@ function assertFile(relativePath) {
 
 async function readJson(relativePath) {
   return JSON.parse(await fsp.readFile(path.join(workspacePath, relativePath), 'utf8'));
+}
+
+async function lockBaseline(relativePath, baseline) {
+  const content = await fsp.readFile(path.join(workspacePath, relativePath), 'utf8');
+  await fsp.mkdir(path.join(workspacePath, '.workflow', 'baselines'), { recursive: true });
+  await fsp.writeFile(
+    path.join(workspacePath, '.workflow', 'baselines', `${baseline}.lock.json`),
+    JSON.stringify({ version: 1, baseline, path: relativePath, sha256: crypto.createHash('sha256').update(content, 'utf8').digest('hex') }, null, 2),
+    'utf8',
+  );
 }
 
 async function createDomainHarnessFixture(root) {
@@ -86,13 +97,16 @@ async function main() {
   await fsp.writeFile(path.join(workspacePath, 'design', 'requirement-confirmation.md'), '# 需求确认\n\n- 覆盖边界条件\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'prd', 'document.md'), '# 解析后的 PRD\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'design', 'technical-design.md'), '# 技术方案\n\n- 修改 Service 分支逻辑\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'design', 'unit-test-design.md'), '# 单测设计\n\n- UT-001 覆盖边界\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'design', 'smoke-test-design.md'), '# 冒烟设计\n\n- SMOKE-001 手工执行\n', 'utf8');
+  await lockBaseline('design/technical-design.md', 'technical-design');
+  await lockBaseline('design/unit-test-design.md', 'unit-test-design');
+  await lockBaseline('design/smoke-test-design.md', 'smoke-test-design');
   await fsp.writeFile(path.join(workspacePath, 'tasks', 'task-list.md'), '# 任务清单\n\n- T001 覆盖核心改动\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'change-log.md'), '# 变更记录\n\n- 修改目标代码\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'self-check.md'), '# 自检\n\n- 已自检主路径\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'ai-review.md'), '# AI Review\n\n## 发现问题\n\n- 边界场景需要补测\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'risk-list.md'), '# 风险清单\n\n## 测试缺口\n\n- 异常路径\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'unit-test-plan.md'), '# 单测计划\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'smoke-test-plan.md'), '# 冒烟计划\n', 'utf8');
   run(['gate', 'check', '--workspace', workspacePath], { includes: 'design-ready\tready-for-approval' });
   run(['gate', 'approve', 'design-ready', '--workspace', workspacePath, '--note', 'smoke reviewed'], { includes: 'design-ready / approved' });
 

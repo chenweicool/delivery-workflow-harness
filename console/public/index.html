@@ -4,54 +4,34 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>需求交付 Harness</title>
-    <link rel="stylesheet" href="/control-plane.css?v=20260803-capabilities" />
+    <link rel="stylesheet" href="/control-plane.css?v=20260804-delivery-layout" />
   </head>
   <body>
     <div class="app-layout">
       <aside class="sidebar">
         <div class="brand">
-          <p class="eyebrow">DELIVERY CONTROL PLANE</p>
           <h1>需求交付 Harness</h1>
-          <p>目录原生的需求控制面</p>
         </div>
 
-        <nav class="side-nav" aria-label="工作台导航">
-          <button class="nav-item active" type="button" data-nav="workbench"><span>▣</span> 当前需求</button>
-          <button class="nav-item" id="projectsBtn" type="button"><span>□</span> 项目目录</button>
-          <button class="nav-item" id="globalConfigBtn" type="button"><span>⚙</span> 全局配置</button>
-        </nav>
-
-        <section class="sidebar-section">
-          <p class="eyebrow">CURRENT WORKSPACE</p>
-          <strong id="sideWorkspaceName">未选择需求</strong>
-          <p id="sideWorkspacePath" class="path">创建或打开一个需求 Workspace</p>
-          <div class="side-actions">
-            <button id="sideOpenFolderBtn" type="button" disabled>打开目录</button>
-          </div>
+        <section class="sidebar-section project-directory">
+          <strong>项目目录</strong>
+          <p id="sideProjectsRoot" class="path">尚未配置</p>
+          <div id="sideProjectsList" class="sidebar-projects-list"></div>
         </section>
 
-        <section class="sidebar-section capability-summary">
-          <p class="eyebrow">GLOBAL CAPABILITIES</p>
-          <p>团队公共 skills / rules</p>
-          <div class="summary-counts">
-            <span><b id="sideGlobalSkillCount">0</b> Skills</span>
-            <span><b id="sideGlobalRuleCount">0</b> Rules</span>
-          </div>
-          <button id="sideConfigureCapabilitiesBtn" class="text-button" type="button">管理全局挂载 →</button>
-        </section>
-
-        <p class="sidebar-foot">不配置模型或 IDE；在 Workspace 中直接使用你已有的工具。</p>
+        <div class="sidebar-footer"><button id="globalConfigBtn" class="text-button" type="button">⚙ 工作台设置</button></div>
       </aside>
 
       <main class="main-pane">
         <header class="topbar">
           <div>
-            <p id="pageEyebrow" class="eyebrow">WORKBENCH</p>
             <h2 id="pageTitle">建立一份需求 Workspace</h2>
           </div>
           <div class="topbar-actions">
             <span id="workspaceBadge" class="badge">未选择需求</span>
+            <button id="openFolderBtn" class="hidden" type="button">打开目录</button>
             <button id="newWorkspaceBtn" class="primary" type="button">新建需求</button>
+            <button id="returnWorkbenchBtn" class="hidden" type="button">返回工作台</button>
           </div>
         </header>
 
@@ -61,9 +41,8 @@
           <section id="startScreen" class="card start-card">
             <div class="card-heading">
               <div>
-                <p class="eyebrow">START</p>
-                <h2>三步建立需求现场</h2>
-                <p>领域 Harness 提供背景和约束；PRD 是目标行为的第一事实源。创建后，直接在目录中使用 Codex、Claude 或任意 IDE 工作。</p>
+                <h2>三步创建需求 Workspace</h2>
+                <p>领域 Harness 提供背景和约束；PRD 是需求范围和验收依据。创建后，可直接在 Workspace 中使用 Codex、Claude 或任意 IDE 推进交付。</p>
               </div>
             </div>
             <div class="step-grid">
@@ -76,9 +55,10 @@
               <section class="setup-step">
                 <span class="step-number">2</span>
                 <h3>输入需求</h3>
-                <p>需求名用于创建隔离的 Workspace；项目目录来自左侧“全局配置”，也可在此临时调整。</p>
+                <p>需求名称用于创建独立 Workspace；项目目录由工作台设置提供，也可在创建时临时调整。</p>
                 <label><span>需求名称</span><input id="demandName" placeholder="例如：negative-bill-export" /></label>
                 <label><span>项目目录</span><div class="picker-row"><input id="outputRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseOutputRootBtn" type="button">选择目录</button></div></label>
+                <label><span>交付视角</span><select id="perspective"><option value="backend" selected>后端研发（默认）</option><option value="frontend">前端研发</option><option value="qa">测试验证</option><option value="ops">运维发布</option></select></label>
               </section>
               <section class="setup-step optional">
                 <span class="step-number">3</span>
@@ -91,32 +71,112 @@
           </section>
 
           <section id="workspaceScreen" class="hidden">
-            <section class="workspace-bar card">
-              <div><p class="eyebrow">WORKSPACE</p><h2 id="workspaceName">当前需求</h2><p id="workspacePath" class="path"></p></div>
-              <div class="workspace-actions"><button id="changeWorkspaceBtn" type="button">切换需求</button><button id="openFolderBtn" type="button">打开目录</button></div>
+            <section class="card action-guide">
+              <div>
+                <span class="section-kicker">下一步执行指引</span>
+                <h2 id="nextTitle">正在加载当前阶段</h2>
+                <p id="nextDescription"></p>
+                <ol class="action-guide-steps"><li>在 Codex 或 Claude 中打开当前 Workspace。</li><li>读取 <code>AGENTS.md</code>、<code>CLAUDE.md</code> 与 <code>.workflow/commands/README.md</code>。</li><li>执行 <code id="nextCommandFile">当前阶段命令</code>，完成后回写进度和正式产物。</li></ol>
+              </div>
+              <div class="action-guide-actions"><button id="copyActionBtn" class="primary" type="button">复制执行指令</button><small>将指令粘贴到 Codex 或 Claude 后执行。</small></div>
+            </section>
+            <nav class="workspace-tabs" aria-label="需求视图">
+              <button class="workspace-tab active" data-view="overview" type="button">概览</button>
+              <button class="workspace-tab" data-view="context" type="button">需求资料</button>
+              <button class="workspace-tab" data-view="development" type="button">研发实施</button>
+              <button class="workspace-tab" data-view="verification" type="button">验证</button>
+              <button class="workspace-tab" data-view="delivery" type="button">交付结果</button>
+            </nav>
+
+            <section id="overviewView" class="view-panel">
+              <section class="section-heading"><div><h2>交付状态</h2></div><p>选择下列模块，查看对应资料、实施状态和正式交付物。</p></section>
+              <section id="overviewCards" class="delivery-grid"></section>
             </section>
 
-            <section class="card next-card"><p class="eyebrow">NEXT ACTION</p><h2 id="nextTitle">正在加载需求状态</h2><p id="nextDescription"></p><pre id="nextCommand" class="command hidden"></pre></section>
+            <section id="contextView" class="view-panel hidden">
+              <section class="section-heading"><div><h2>需求资料</h2></div><p>领域资料、需求材料和执行约束均以当前 Workspace 快照为准。</p></section>
+              <div class="context-grid context-grid-primary"><section id="domainCard" class="card context-card"></section><section id="capabilitiesCard" class="card context-card capabilities-card"></section></div>
+              <div class="context-grid context-grid-secondary"><section id="prdCard" class="card context-card"></section></div>
+              <details class="card execution-config">
+                <summary><span>本需求执行配置</span><small>交付视角、代码上下文和分支建议</small></summary>
+                <div class="execution-config-content">
+                  <div class="delivery-config-grid">
+                    <label><span>交付视角</span><select id="deliveryPerspective"><option value="backend">后端研发</option><option value="frontend">前端研发</option><option value="qa">测试验证</option><option value="ops">运维发布</option></select></label>
+                    <label><span>建议分支格式</span><input id="deliveryBranchPattern" placeholder="例如：feature/{demand}" /></label>
+                    <label class="checkbox-field"><input id="loadAppContextForClarification" type="checkbox" /><span>需求澄清阶段加载应用代码上下文</span></label>
+                  </div>
+                  <div class="delivery-config-actions"><button id="saveDeliveryConfigBtn" class="primary" type="button">保存执行配置</button></div>
+                </div>
+              </details>
+            </section>
 
-            <section class="section-heading"><div><p class="eyebrow">CONTEXT & CAPABILITIES</p><h2>需求基础与生效能力</h2></div><p>领域能力是需求专属上下文；全局能力由团队统一维护；两者都会在当前需求中明确可见。</p></section>
-            <div class="context-grid context-grid-primary"><section id="domainCard" class="card context-card"></section><section id="capabilitiesCard" class="card context-card capabilities-card"></section></div>
-            <div class="context-grid context-grid-secondary"><section id="prdCard" class="card context-card"></section><section class="card context-card muted-card"><p class="eyebrow">CONNECTORS</p><h3>补充材料</h3><p>本地文件、飞书与内部文档会按统一的“读取—快照—引用”协议进入本次需求，而不是另建一个知识库。</p><span class="badge muted">连接器下一阶段接入</span></section></div>
+            <section id="developmentView" class="view-panel hidden">
+              <section class="section-heading"><div><h2>研发实施</h2></div><p>技术方案、任务拆分和代码工作区构成本阶段的实施依据。</p></section>
+              <section id="developmentCards" class="delivery-grid delivery-grid-secondary"></section>
+              <section class="card development-apps-card"><h3>应用与分支</h3><p>实际分支须以研发确认记录为准。</p><div id="deliveryApps" class="delivery-apps-list"></div></section>
+            </section>
 
-            <section class="section-heading gate-heading"><div><p class="eyebrow">QUALITY GATES</p><h2>质量门禁与人工确认</h2></div><p>门禁只检查正式证据。证据齐备后，才出现对应角色的人工确认动作。</p></section>
-            <section id="gatesPanel" class="gate-list"></section>
+            <section id="verificationView" class="view-panel hidden">
+              <section class="section-heading"><div><h2>验证</h2></div><p>单元测试、接口契约、冒烟验证和需求追溯共同构成验证证据。</p></section>
+              <section id="verificationCards" class="delivery-grid delivery-grid-secondary"></section>
+              <section class="section-heading gate-heading"><div><h3>确认状态</h3></div><p>仅在必需证据齐备后，开放相应责任人的人工确认。</p></section>
+              <section id="gatesPanel" class="gate-list"></section>
+            </section>
 
-            <section class="section-heading"><div><p class="eyebrow">ARTIFACTS</p><h2>正式产物</h2></div><p>分析、方案、测试与验收结论必须回写到目录，聊天记录不作为交付依据。</p></section>
-            <section id="artifactPanel" class="card artifact-panel"></section>
+            <section id="deliveryView" class="view-panel hidden">
+              <section class="section-heading"><div><h2>交付结果</h2></div><p>代码评审、上线检查、交付总结与知识归档在本阶段形成正式结论。</p></section>
+              <section id="deliveryResultCards" class="delivery-grid delivery-grid-secondary"></section>
+            </section>
+          </section>
+
+          <section id="settingsScreen" class="settings-screen hidden">
+            <div class="settings-shell card">
+              <aside class="settings-nav" aria-label="工作台设置分类">
+                <label class="settings-search"><span>设置检索</span><input placeholder="搜索设置" disabled /></label>
+                <p>工作台</p>
+                <button class="settings-nav-item active" data-settings-view="general" type="button">常规</button>
+                <p>能力</p>
+                <button class="settings-nav-item" data-settings-view="capabilities" type="button">全局 Skills 与 Rules</button>
+                <p>集成</p>
+                <button class="settings-nav-item" data-settings-view="mcp" type="button">MCP 服务</button>
+                <button class="settings-nav-item" data-settings-view="feishu" type="button">飞书</button>
+              </aside>
+              <div class="settings-content">
+                <section class="settings-panel" data-settings-panel="general">
+                  <h2>常规</h2>
+                  <p>配置本机的默认项目目录。该目录用于创建和管理需求 Workspace。</p>
+                  <label><span>默认项目目录</span><div class="picker-row"><input id="globalWorkspaceRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseGlobalWorkspaceRootBtn" type="button">选择目录</button></div></label>
+                </section>
+                <section class="settings-panel hidden" data-settings-panel="capabilities">
+                  <h2>全局 Skills 与 Rules</h2>
+                  <p>维护团队通用能力与约束。保存后将写入后续需求的能力快照。</p>
+                  <label><span>全局 Skills</span><textarea id="globalSkills" rows="7" placeholder="每行一个本机路径"></textarea></label>
+                  <label><span>全局 Rules</span><textarea id="globalRules" rows="7" placeholder="每行一个本机路径"></textarea></label>
+                  <label><span>团队补充约束（可选）</span><textarea id="globalNotes" rows="4" placeholder="例如：涉及数据库变更时，技术方案须明确表结构影响和回退方案。"></textarea></label>
+                </section>
+                <section class="settings-panel hidden" data-settings-panel="mcp">
+                  <h2>MCP 服务</h2>
+                  <p>统一登记可供需求流程使用的 MCP 服务。服务连接与授权信息仅在本机配置中保存。</p>
+                  <label><span>服务配置</span><textarea id="mcpServers" rows="9" placeholder="每行一个服务名称或本机配置路径"></textarea></label>
+                  <div class="config-note">当前版本保存服务登记信息；连接校验与运行态管理将在后续集成能力中提供。</div>
+                </section>
+                <section class="settings-panel hidden" data-settings-panel="feishu">
+                  <h2>飞书</h2>
+                  <p>配置飞书文档导入所使用的连接方式。令牌仅引用环境变量或外部密钥，不在此处录入明文。</p>
+                  <label class="checkbox-field"><input id="feishuEnabled" type="checkbox" /><span>启用飞书集成</span></label>
+                  <label><span>接入方式</span><select id="feishuMode"><option value="disabled">未启用</option><option value="proxy">代理服务</option><option value="cli">本机 CLI</option><option value="tokenRef">令牌引用</option><option value="mock">模拟数据</option></select></label>
+                  <label><span>代理服务地址</span><input id="feishuProxyBaseUrl" placeholder="https://example.internal" /></label>
+                  <label><span>本机 CLI 命令</span><input id="feishuCliCommand" placeholder="例如：lark-mcp" /></label>
+                  <label><span>令牌环境变量名</span><input id="feishuTokenRef" placeholder="例如：FEISHU_USER_ACCESS_TOKEN" /></label>
+                </section>
+                <div class="settings-footer"><button id="saveGlobalConfigBtn" class="primary" type="button">保存设置</button></div>
+              </div>
+            </div>
           </section>
         </div>
       </main>
     </div>
 
-    <dialog id="projectsDialog" class="dialog"><form method="dialog" class="dialog-card"><div class="dialog-heading"><div><p class="eyebrow">PROJECT DIRECTORY</p><h2>项目目录</h2><p>一个目录下可管理多个独立需求 Workspace。</p></div><button value="cancel" type="submit">关闭</button></div><label><span>项目目录</span><div class="picker-row"><input id="projectsRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseProjectsRootBtn" type="button">选择目录</button></div></label><div id="projectsList" class="projects-list"></div><div class="dialog-footer"><button id="saveProjectsRootBtn" type="button">保存为默认目录</button><button id="refreshProjectsBtn" class="primary" type="button">刷新项目列表</button></div></form></dialog>
-
-    <dialog id="globalConfigDialog" class="dialog"><form method="dialog" class="dialog-card"><div class="dialog-heading"><div><p class="eyebrow">GLOBAL CONFIGURATION</p><h2>全局配置</h2><p>仅维护团队公共目录和可复用能力，不配置 Codex、Claude 或 IDEA。</p></div><button value="cancel" type="submit">关闭</button></div><label><span>默认项目目录</span><div class="picker-row"><input id="globalWorkspaceRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseGlobalWorkspaceRootBtn" type="button">选择目录</button></div></label><div class="config-note">填写本机已同步的团队公共 Git 目录、公司 skills 仓库目录或规则文件路径。一行一个路径；凭据不写入此处。</div><label><span>全局 Skills</span><textarea id="globalSkills" rows="5" placeholder="F:\code\team-ai-config\skills\common\sqs-spec"></textarea></label><label><span>全局 Rules</span><textarea id="globalRules" rows="5" placeholder="F:\code\team-ai-config\rules\delivery-rules.md"></textarea></label><label><span>团队补充约束（可选）</span><textarea id="globalNotes" rows="3" placeholder="例如：所有涉及数据库的需求须在技术方案中列出表和回滚方案。"></textarea></label><div class="dialog-footer"><button value="cancel" type="submit">取消</button><button id="saveGlobalConfigBtn" class="primary" type="button">保存全局配置</button></div></form></dialog>
-
-    <dialog id="switchWorkspaceDialog" class="dialog"><form method="dialog" class="dialog-card"><div class="dialog-heading"><div><p class="eyebrow">OPEN</p><h2>打开已有 Workspace</h2></div><button value="cancel" type="submit">关闭</button></div><label><span>Workspace 目录</span><div class="picker-row"><input id="existingWorkspacePath" placeholder="F:\code\ai-workspaces\negative-bill-export" /><button id="chooseWorkspaceBtn" type="button">选择目录</button></div></label><button id="useWorkspaceBtn" class="primary" value="default" type="button">打开需求</button></form></dialog>
-    <script src="/control-plane.js?v=20260803-capabilities"></script>
+    <script src="/control-plane.js?v=20260804-delivery-layout"></script>
   </body>
 </html>

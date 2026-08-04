@@ -79,13 +79,13 @@ function parseModuleManifest(text) {
     }
     if (section === 'bound_repositories') {
       const firstField = line.match(/^-\s*([\w-]+):\s*(.*)$/);
-      if (firstField) {
+      if (firstField && indent === 2) {
         currentRepository = { [firstField[1]]: parseYamlScalar(firstField[2]) };
         manifest.boundRepositories.push(currentRepository);
         continue;
       }
       const field = line.match(/^([\w-]+):\s*(.*)$/);
-      if (field && currentRepository) {
+      if (field && currentRepository && indent === 4) {
         currentRepository[field[1]] = parseYamlScalar(field[2]);
       }
     }
@@ -197,6 +197,7 @@ function createDomainHarnessRuntime(deps) {
     const rules = await collectMarkdownFiles(root, 'rules');
     const productDocuments = await collectMarkdownFiles(root, 'docs/domain');
     const memoryDocuments = await collectMarkdownFiles(root, 'docs/memory');
+    const catalogDocuments = await collectMarkdownFiles(root, 'catalog');
     const graphPath = path.join(root, 'graphify-out', 'graph.json');
     const declaredEntrypoints = Object.entries(manifest.entrypoints || {})
       .filter(([, value]) => value)
@@ -225,6 +226,7 @@ function createDomainHarnessRuntime(deps) {
       entrypoints: declaredEntrypoints,
       productDocuments,
       memoryDocuments,
+      catalogDocuments,
       rules,
       skills: skillPaths,
       graph: {
@@ -240,6 +242,7 @@ function createDomainHarnessRuntime(deps) {
   function domainContextMarkdown(context) {
     const productDocuments = (context.productDocuments || []).map((item) => `- ${item}`);
     const memoryDocuments = (context.memoryDocuments || []).map((item) => `- ${item}`);
+    const catalogDocuments = (context.catalogDocuments || []).map((item) => `- ${item}`);
     const rules = (context.rules || []).map((item) => `- ${item}`);
     const skills = (context.skills || []).map((item) => `- ${item.relativePath}${item.exists ? '' : '（未找到）'}`);
     const repositories = (context.codeRepositories || []).map((item) => [
@@ -260,9 +263,13 @@ function createDomainHarnessRuntime(deps) {
       '## 阅读顺序',
       '',
       '1. 先读 PRD，确认目标行为和验收口径。',
-      '2. 再读产品白皮书与领域记忆，理解领域边界和历史风险。',
-      '3. 必须回读本地可用代码，确认当前入口、真实约束和实现影响。',
-      '4. Graphify 仅用于缩小检索范围，命中后仍需回读源码。',
+      '2. 再读领域 Catalog，按业务场景、数据对象和运行时边界缩小影响范围。',
+      '3. 再读产品白皮书与领域记忆，理解领域边界和历史风险。',
+      '4. 必须回读本地可用代码，确认当前入口、真实约束和实现影响。',
+      '5. Graphify 仅用于缩小检索范围，命中后仍需回读源码。',
+      '',
+      '## 领域 Catalog',
+      catalogDocuments.join('\n') || '- 未发现；不得因缺失跳过 PRD、代码和人工确认。',
       '',
       '## 产品文档',
       productDocuments.join('\n') || '- 未发现',
@@ -341,6 +348,7 @@ function createDomainHarnessRuntime(deps) {
         manifestPath: '.module-manifest.yaml',
         productDocuments: context.productDocuments,
         memoryDocuments: context.memoryDocuments,
+        catalogDocuments: context.catalogDocuments,
         graph: context.graph,
         codeRepositories: context.codeRepositories,
         skills: context.skills.map((item) => item.relativePath),

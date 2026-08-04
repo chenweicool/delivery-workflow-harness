@@ -10,7 +10,11 @@ function defaultAppConfig(app) {
     sourcePath,
     worktreePath: app.worktreePath || `apps/${safeName}`,
     baseBranch: app.baseBranch || '',
-    featureBranch: app.featureBranch || `ewan/feature-${safeName}-0616`,
+    // 分支必须在研发确认后由需求配置显式提供，禁止注入个人名称作为默认值。
+    featureBranch: app.featureBranch || '',
+    suggestedFeatureBranch: app.suggestedFeatureBranch || '',
+    branchConfirmedBy: app.branchConfirmedBy || '',
+    branchConfirmedAt: app.branchConfirmedAt || '',
     type: app.type || 'java-backend',
   };
 }

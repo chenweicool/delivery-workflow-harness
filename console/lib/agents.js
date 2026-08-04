@@ -11,7 +11,7 @@ const AGENT_CONTRACTS = {
     name: '技术方案 Agent',
     role: '基于已确认需求、团队模板和真实代码生成可进入拆分的技术方案。',
     sessionPolicy: '建议独立或延续需求会话；必须先读取需求确认产物。',
-    requiredOutputs: ['design/technical-design.md', 'design/technical-confirmation.md', 'design/technical-design.changelog.md'],
+    requiredOutputs: ['design/technical-design.md', 'design/unit-test-design.md', 'design/smoke-test-design.md', 'design/technical-confirmation.md'],
   },
   'coding-implementer': {
     name: '编码实现 Agent',
@@ -29,7 +29,7 @@ const AGENT_CONTRACTS = {
     name: '测试 Agent',
     role: '生成测试策略、单测建议和执行记录，补齐质量门禁证据。',
     sessionPolicy: '可接续 Review 会话，也可独立执行。',
-    requiredOutputs: ['review/unit-test-plan.md', 'review/unit-test-result.md'],
+    requiredOutputs: ['review/unit-test-result.md', 'review/traceability-matrix.md', 'review/smoke-test-result.md'],
   },
   archivist: {
     name: '归档 Agent',
@@ -43,7 +43,7 @@ function agentContractForStep(stepId) {
   if (['import-prd', '00-load-context', '01-clarify-requirement'].includes(stepId)) {
     return { id: 'requirement-analyst', ...AGENT_CONTRACTS['requirement-analyst'] };
   }
-  if (stepId === '02-generate-technical-design') {
+  if (['02-generate-technical-design', '03-design-tests'].includes(stepId)) {
     return { id: 'technical-designer', ...AGENT_CONTRACTS['technical-designer'] };
   }
   if (['05-split-tasks', '06-implement-task'].includes(stepId)) {
@@ -52,7 +52,7 @@ function agentContractForStep(stepId) {
   if (stepId === '07-review-code') {
     return { id: 'reviewer', ...AGENT_CONTRACTS.reviewer };
   }
-  if (stepId === '06-generate-unit-tests') {
+  if (['08-verify-tests', '09-run-smoke'].includes(stepId)) {
     return { id: 'tester', ...AGENT_CONTRACTS.tester };
   }
   if (['09-release-checklist', '08-delivery-summary', '10-archive-knowledge'].includes(stepId)) {

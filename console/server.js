@@ -89,6 +89,9 @@ const {
 const {
   createCheckpointRuntime,
 } = require('./lib/checkpoint');
+const {
+  createDesignBaselineRuntime,
+} = require('./lib/design-baseline');
 const workflowRuntime = require('./lib/workflow');
 const {
   workflowStepSequence,
@@ -155,6 +158,14 @@ const TECHNICAL_REVIEW_FILE = 'design/technical-review.md';
 const TASK_CONFIRMATION_FILE = 'tasks/task-confirmation.md';
 const CAPABILITY_LOCK_FILE = '.workflow/capabilities.lock.json';
 const CAPABILITY_SUMMARY_FILE = 'context/capabilities.md';
+const {
+  freezeDesignBaselines,
+  verifyDesignBaselines,
+} = createDesignBaselineRuntime({
+  readWorkspaceTextFileIfExists,
+  readJsonFileIfExists,
+  writeWorkspaceJsonFile,
+});
 const progressApi = {};
 const {
   getCheckpointState,
@@ -175,6 +186,7 @@ const {
   nowIso,
   TECHNICAL_REVIEW_FILE,
   TECHNICAL_REVIEW_TEMPLATE: () => TECHNICAL_REVIEW_TEMPLATE,
+  freezeDesignBaselines,
 });
 const {
   readWorkflowProgress,
@@ -890,7 +902,9 @@ function resolveProfileApps(profileApps, appIndex, tools, demandName, branchPatt
         sourcePath,
         worktreePath: app.worktreePath || `apps/${name}`,
         baseBranch: app.baseBranch || '',
-        featureBranch: replaceTemplateVars(app.featureBranch || branchPattern || `codex/${name}-{date}`, vars),
+        // Profile 只给研发提供候选命名；featureBranch 必须在 workspace 中由研发显式确认后写入。
+        featureBranch: '',
+        suggestedFeatureBranch: replaceTemplateVars(app.featureBranch || branchPattern || '', vars),
         type: app.type || 'java-backend',
         role: app.role || '',
         repoKey: app.repoKey || '',
@@ -1594,27 +1608,31 @@ async function importLocalPaths(workspacePathValue, sourcePaths, targetSubdir) {
 
 function capabilitiesMarkdown(snapshot) {
   const items = (entries) => entries.length
-    ? entries.map((entry) => `- ${capabilityDisplayName(entry)}`).join('\n')
+    ? entries.map((entry) => [
+      `- [${entry.availability || 'available'}] ${capabilityDisplayName(entry)}`,
+      entry.fallback ? `  - 降级流程：${entry.fallback}` : '',
+    ].filter(Boolean).join('\n')).join('\n')
     : '- 无';
   return [
-    '# 当前需求生效能力',
+    '# 当前需求能力快照',
     '',
     '> 这是当前 Workspace 的能力快照。公共源目录只读；请勿把需求过程文件写回 skills、rules 或领域 Harness。',
     '',
     `generated_at: ${snapshot.generatedAt}`,
     '',
-    '## Skills',
+    '## Skills（仅 `available` 可按步骤路由使用）',
     '',
     items(snapshot.skills),
     '',
-    '## Rules',
+    '## Rules（仅 `available` 可按步骤路由使用）',
     '',
     items(snapshot.rules),
     '',
     '## 使用约束',
     '',
     '- 开始工作前先阅读 `AGENTS.md`、`.workflow/progress.md`、`context/domain-summary.md` 和本文件。',
-    '- Skill 为目录时，先阅读其中的 `SKILL.md`；Rule 为文件时，先阅读规则正文。',
+    '- 只读取当前步骤提示词列出的 `available` 能力；Skill 为目录时先读其中的 `SKILL.md`，Rule 为文件时先读规则正文。',
+    '- `unavailable` 仅表示本机未挂载，不是当前阶段的阻塞条件；按阶段命令的降级流程继续。',
     '- 只在当前需求相关的阶段使用能力；PRD 与人工确认优先于领域背景或通用规则。',
     snapshot.notes ? `\n## 团队补充约束\n\n${snapshot.notes}` : '',
     '',
@@ -1955,10 +1973,20 @@ function formatCapabilitiesForPrompt(routedCapabilities = { enabled: { skills: [
     sections.push(`### 白皮书推荐但未安装\n${selection.missingIds.map((item) => `- ${item}`).join('\n')}`);
   }
   const disabledItems = [...(disabled.skills || []), ...(disabled.rules || [])];
-  if (disabledItems.length) {
+  const unavailableItems = disabledItems.filter((item) => item && item.availability === 'unavailable');
+  const deferredItems = disabledItems.filter((item) => !item || item.availability !== 'unavailable');
+  if (unavailableItems.length) {
+    sections.push([
+      '### 本机未挂载能力',
+      ...unavailableItems.map((item) => `- ${capabilityDisplayName(item)}${item.fallback ? `；降级：${item.fallback}` : ''}`),
+      '',
+      '这些能力不是前置条件，不要读取或安装；按当前命令的内置步骤继续。',
+    ].join('\n'));
+  }
+  if (deferredItems.length) {
     sections.push([
       '### 本步骤未启用能力',
-      ...disabledItems.map((item) => `- ${capabilityDisplayName(item)}`),
+      ...deferredItems.map((item) => `- ${capabilityDisplayName(item)}`),
       '',
       '未启用能力不要使用；如果你判断当前步骤确实需要其中某个能力，必须先说明原因并暂停等待人工确认。',
     ].join('\n'));
@@ -2006,6 +2034,13 @@ async function buildPrompt(workspacePathValue, stepId, taskId, configOverride = 
     ? `\n用户确认的任务编号：${normalizedTaskId}\n`
     : '';
   const config = configOverride || await readWorkspaceConfig(workspacePath);
+  const perspectiveRules = {
+    backend: '后端视角：重点核对接口契约、权限与数据范围、批量/导入导出、事务、异步任务、数据库影响及回滚。',
+    frontend: '前端视角：重点核对页面流程、交互状态、接口契约、兼容性、异常提示及可访问性。',
+    qa: '测试视角：重点核对可验收场景、边界、回归范围、测试数据与可追溯证据。',
+    ops: '运维视角：重点核对发布步骤、配置、观测、容量、回滚和依赖可用性。',
+  };
+  const perspectiveLine = perspectiveRules[config.perspective || 'backend'] || perspectiveRules.backend;
   const appPathLines = (config.appPaths || [])
     .filter((item) => item && item.path)
     .map((item) => `- ${item.name || path.basename(item.path)}: ${item.path}`)
@@ -2048,6 +2083,7 @@ async function buildPrompt(workspacePathValue, stepId, taskId, configOverride = 
     appPathLines ? `本地应用目录参考：\n${appPathLines}\n` : '',
     knowledgeLines ? `背景知识参考：\n${knowledgeLines}\n` : '',
     domainLines ? `领域 Harness 上下文：\n${domainLines}\n` : '',
+    `当前交付视角：\n- ${perspectiveLine}\n`,
     config.branchPattern ? `分支命名规则：${config.branchPattern}\n` : '',
     '交付配置能力：',
     formatCapabilitiesForPrompt(capabilities),
@@ -2484,6 +2520,7 @@ async function route(req, res) {
         throw new Error(domain.reason || '领域 Harness 不可用');
       }
       const workspacePath = await initWorkspace(body.demandName, body.outputRoot, body.workspacePath);
+      await writeWorkspaceConfig(workspacePath, { perspective: body.perspective || 'backend' });
       const attached = await attachDomainHarness({ workspacePath, domainRoot });
       const capabilities = await refreshWorkspaceCapabilities(workspacePath);
       sendJson(res, 200, { workspacePath, domain: attached.context, capabilities });
@@ -2530,6 +2567,12 @@ async function route(req, res) {
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/workspace/design-baselines/verify') {
+      const body = await readJson(req);
+      sendJson(res, 200, await verifyDesignBaselines(normalizeUserPath(body.workspacePath)));
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/gates/check') {
       const body = await readJson(req);
       sendJson(res, 200, await evaluateQualityGates(body.workspacePath));
@@ -2570,6 +2613,9 @@ async function route(req, res) {
       if (Object.prototype.hasOwnProperty.call(body, 'appPaths')) {
         nextConfig.appPaths = Array.isArray(body.appPaths) ? body.appPaths : [];
       }
+      if (Object.prototype.hasOwnProperty.call(body, 'apps')) {
+        nextConfig.apps = Array.isArray(body.apps) ? body.apps : [];
+      }
       if (Object.prototype.hasOwnProperty.call(body, 'knowledge')) {
         nextConfig.knowledge = Array.isArray(body.knowledge) ? body.knowledge : [];
       }
@@ -2581,6 +2627,9 @@ async function route(req, res) {
       }
       if (Object.prototype.hasOwnProperty.call(body, 'branchPattern')) {
         nextConfig.branchPattern = body.branchPattern || '';
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'perspective')) {
+        nextConfig.perspective = body.perspective || 'backend';
       }
       if (Object.prototype.hasOwnProperty.call(body, 'loadAppContextForClarification')) {
         nextConfig.loadAppContextForClarification = Boolean(body.loadAppContextForClarification);

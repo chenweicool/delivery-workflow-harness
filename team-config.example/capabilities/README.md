@@ -26,6 +26,8 @@ capabilities/
 
 Each capability should follow `capability.schema.json`.
 
+`path` 在某台电脑不可用时，workflow 仍可继续：为能力配置 `fallback`，并由执行阶段记录实际降级证据。只有 `requiredFor` 所列场景缺少关键业务事实时才允许阻断。
+
 Recommended profile shape:
 
 ```json

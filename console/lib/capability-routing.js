@@ -155,10 +155,14 @@ async function linkExternalCapability(workspacePath, value, kind) {
 
 async function linkCapabilityEntry(workspacePath, entry, kind) {
   if (entry && typeof entry === 'object') {
-    const linkedPath = await linkExternalCapability(workspacePath, capabilityPathValue(entry), kind);
+    const rawPath = String(capabilityPathValue(entry) || '').trim();
+    const candidate = path.isAbsolute(rawPath) ? rawPath : path.resolve(workspacePath, rawPath);
+    const available = Boolean(rawPath && await exists(candidate));
+    const linkedPath = available ? await linkExternalCapability(workspacePath, rawPath, kind) : '';
     return {
       ...entry,
       path: linkedPath || entry.path || '',
+      availability: available ? 'available' : 'unavailable',
     };
   }
   return linkExternalCapability(workspacePath, entry, kind);
@@ -223,7 +227,7 @@ async function linkConfiguredCapabilities(workspacePath, tools, config) {
   ].filter(Boolean).join('\n');
   const resolved = dedupeCapabilities([...skills, ...rules].filter(Boolean));
   const resolvedRecommendedIds = new Set(resolved
-    .filter((entry) => entry && typeof entry === 'object' && entry.selectionSource === 'whitepaper')
+    .filter((entry) => entry && typeof entry === 'object' && entry.selectionSource === 'whitepaper' && entry.availability !== 'unavailable')
     .flatMap((entry) => capabilityAliases(entry))
     .filter((alias) => recommendedIds.has(alias)));
   return {
@@ -274,6 +278,10 @@ async function routeCapabilitiesForStep(workspacePath, stepId, capabilities, wor
     const enabled = [];
     const disabled = [];
     for (const entry of entries || []) {
+      if (entry && typeof entry === 'object' && entry.availability === 'unavailable') {
+        disabled.push(entry);
+        continue;
+      }
       if (entry && typeof entry === 'object' && entry.enabled === false) {
         disabled.push(entry);
         continue;
@@ -315,6 +323,9 @@ async function routeCapabilitiesForStep(workspacePath, stepId, capabilities, wor
       ...(capabilities.selection || {}),
       enabledIds: [...skillResult.enabled, ...ruleResult.enabled]
         .filter((entry) => entry && entry.selectionSource === 'whitepaper')
+        .map((entry) => entry.id || entry.name || capabilityPathValue(entry)),
+      unavailableIds: [...skillResult.disabled, ...ruleResult.disabled]
+        .filter((entry) => entry && entry.availability === 'unavailable')
         .map((entry) => entry.id || entry.name || capabilityPathValue(entry)),
     },
   };

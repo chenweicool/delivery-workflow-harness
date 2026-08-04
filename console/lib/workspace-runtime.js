@@ -2,6 +2,7 @@ const fsp = require('fs/promises');
 const path = require('path');
 const { execFile } = require('child_process');
 const { promisify } = require('util');
+const { defaultWorkflowDefinition } = require('./workflow');
 
 const execFileAsync = promisify(execFile);
 
@@ -46,6 +47,11 @@ async function initWorkspace(demandName, outputRoot, workspacePathValue) {
   }
 
   await copyRecursive(TEMPLATE_DIR, targetDir);
+  await fsp.writeFile(
+    path.join(targetDir, '.workflow', 'workflow.json'),
+    JSON.stringify({ ...defaultWorkflowDefinition(), version: 2, description: 'Domain Workspace v2：需求、方案、测试基线与交付反验闭环。' }, null, 2),
+    'utf8',
+  );
 
   const dirs = [
     'context/rules',
@@ -100,10 +106,11 @@ function normalizeWorkspaceConfig(config, workspacePath) {
     skills: normalizeTextList(config.skills),
     rules: normalizeTextList(config.rules),
     capabilities: normalizeCapabilityList(config.capabilities),
-    functionPoint: config.functionPoint && typeof config.functionPoint === 'object' ? config.functionPoint : {},
-    whitepaperContext: config.whitepaperContext && typeof config.whitepaperContext === 'object' ? config.whitepaperContext : {},
     domain: config.domain && typeof config.domain === 'object' ? config.domain : {},
     domainContext: config.domainContext && typeof config.domainContext === 'object' ? config.domainContext : {},
+    perspective: ['backend', 'frontend', 'qa', 'ops'].includes(String(config.perspective || '').trim())
+      ? String(config.perspective).trim()
+      : 'backend',
     branchPattern: String(config.branchPattern || '').trim(),
     loadAppContextForClarification: Boolean(config.loadAppContextForClarification),
     notes: config.notes || '',
@@ -135,7 +142,10 @@ async function ensureImplementationWorktrees(workspacePath, config) {
     const appName = app.name || path.basename(sourcePath);
     const targetPath = path.join(workspacePath, app.worktreePath || path.join('apps', appName));
     assertWithin(workspacePath, targetPath);
-    const branchName = app.featureBranch || `ewan/feature-${appName}-0616`;
+    const branchName = String(app.featureBranch || '').trim();
+    if (!branchName) {
+      throw new Error(`应用 ${appName} 未填写经研发确认的开发分支，不能创建 worktree`);
+    }
     const targetGitPath = path.join(targetPath, '.git');
     if (await exists(targetGitPath)) {
       prepared.push({ ...app, sourcePath, worktreePath: targetPath, branchName, created: false });
@@ -164,7 +174,10 @@ async function ensureImplementationWorktrees(workspacePath, config) {
       }
     }
     const existingBranch = await gitOutput(['branch', '--list', branchName], sourcePath);
-    const baseBranch = app.baseBranch || await gitOutput(['branch', '--show-current'], sourcePath) || 'HEAD';
+    const baseBranch = String(app.baseBranch || '').trim();
+    if (!baseBranch) {
+      throw new Error(`应用 ${appName} 未填写经研发确认的基准分支，不能创建 worktree`);
+    }
     const args = existingBranch
       ? ['worktree', 'add', targetPath, branchName]
       : ['worktree', 'add', '-b', branchName, targetPath, baseBranch];
@@ -196,6 +209,9 @@ async function getAppAccessStates(workspacePath, config) {
       worktreeExists: await exists(worktreePath),
       baseBranch: app.baseBranch || '',
       featureBranch: app.featureBranch || '',
+      suggestedFeatureBranch: app.suggestedFeatureBranch || '',
+      branchConfirmedBy: app.branchConfirmedBy || '',
+      branchConfirmedAt: app.branchConfirmedAt || '',
       type: app.type || '',
     });
   }

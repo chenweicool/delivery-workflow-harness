@@ -92,8 +92,8 @@ B 轨：Domain Harness 能力建设
 
 | 角色 | 责任 |
 | --- | --- |
-| Workflow Owner | Runtime、页面、Workspace 契约和向后兼容 |
-| Domain Knowledge Owner | negative 领域知识审核、入口和表关系确认 |
+| Workflow Owner | Runtime、页面、Workspace 契约 |
+| Domain Knowledge Owner | Pilot 领域知识审核、入口和表关系确认 |
 | Capability Owner | 公司通用/领域 Skills、Rules 和版本管理 |
 | Quality Owner | 单测设计标准、反验门禁和冒烟协议 |
 | Pilot User | 以普通组员视角完成真实试用，不参与底层实现判断 |
@@ -106,6 +106,30 @@ B 轨：Domain Harness 能力建设
 - Workflow 发布：Workflow Owner。
 
 ## 4. WBS 总览
+
+### 2026-08-04 执行状态
+
+本次不再使用 negative 作为试点；真实领域仓库和 PRD 待提供。状态中的“待真实验证”表示代码契约和模拟回归已完成，但尚未以真实需求与真实仓库验收。
+
+| WP | 状态 | 本轮结论 |
+| --- | --- | --- |
+| WP-00 | 已完成 | 固化 Domain Workspace v2；不提供旧 Workspace 兼容。 |
+| WP-01 | 已完成 | 单领域 Harness 挂载、快照和只读约束已实现。 |
+| WP-02 | 已完成 | 能力挂载与 `capabilities.lock.json` 已实现；Git revision 冲突检查后续补强。 |
+| WP-03 | 进行中 | 新流程使用正式设计文件；页面隐藏过程文件仍待收敛。 |
+| WP-04 | 已完成 | 已通过 policy-platform 的真实 PRD、Catalog 和 `master` 代码完成上下文装配，并定位报价、算费和账单入口。 |
+| WP-05 | 已完成 | 开发前单测/冒烟设计与三份 baseline lock 已实现。 |
+| WP-06 | 已完成 | 已通过真实需求生成测试反验、追溯矩阵与手工冒烟阻塞记录；真实环境执行按研发决定暂缓。 |
+| WP-07 | 已完成 | 已提供三步创建、四阶段详情、正式产物优先展示与阶段执行指令；过程文件收纳至高级区域。 |
+| WP-08 | 部分完成 | API 回归、CLI smoke、真实需求研发闭环与快速指南已完成；普通组员试用仍待完成。 |
+| KB-01 | 已完成 | 已以 policy-platform 为样板保留并使用 `catalog/`、`discovery/`、`quality/`、`connectors/` 目录边界。 |
+| KB-02 | 已完成 | 已盘点 policy-platform 的产品资料、源码、图谱、Catalog、Skills 与 Rules，并在上下文装配中实际引用。 |
+| KB-03 | 已完成 | 已沉淀“考核目标值算费”纵向样本，包含需求、入口、字段、计算规则、测试与发布边界。 |
+| KB-04 | 准备中 | 先输出可复用的领域白皮书建设 Skill 契约。 |
+| KB-05 / KB-06 | 未开始 | 依赖 KB-03 的样本和目录契约。 |
+| PILOT-01 / PILOT-02 | 未开始 | 依赖真实领域和需求试跑。 |
+
+### 原始拆解
 
 | WP | 工作包 | 优先级 | 夜间槽位 | 依赖 | 交付点 |
 | --- | --- | --- | --- | --- | --- |
@@ -158,9 +182,9 @@ B 轨：Domain Harness 能力建设
 
 验收：
 
-- 新结构允许缺省，旧 Workspace 仍可读取。
+- 当前版本只支持 `domain-mount-v1` Workspace；不提供旧 Workspace 读取或迁移兼容。
 - 不引入通用插件进程协议。
-- 明确 `whitepaperContext` 到 `domainContext` 的兼容策略。
+- 以 `domainContext` 作为唯一上下文字段；不提供旧字段映射。
 
 ### WP-01 单领域 Harness 挂载
 
@@ -231,13 +255,13 @@ review/process/
 - 更新模板和新 Workspace 默认输出路径。
 - 页面正式产物列表过滤 `process/` 和 `.workflow/`。
 - 高级入口允许查看过程材料。
-- 旧路径提供读取兼容或一次性迁移映射。
+- 不提供旧路径读取兼容或迁移映射。
 
 验收：
 
 - 新 Workspace 根部没有大量中间文件。
 - Agent 仍然可以读取完整过程证据。
-- 旧 Workspace 不因路径改变无法打开。
+- 新 Workspace 的正式产物与过程材料边界清晰。
 
 ### WP-04 PRD + 代码 + 领域上下文组装
 
@@ -362,9 +386,9 @@ Discovery：待确认线索
 - 增加单领域挂载回归测试。
 - 增加 capability lock 测试。
 - 增加 baseline/deviation 测试。
-- 增加旧 Workspace 兼容测试。
+- 增加 Domain Workspace v2 与 baseline/deviation 回归测试。
 - 准备一页快速使用说明。
-- 准备 negative 示例需求和脱敏 PRD。
+- 准备 Pilot 领域的示例需求和脱敏 PRD。
 
 验收：
 

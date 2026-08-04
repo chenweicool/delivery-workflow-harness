@@ -46,6 +46,7 @@ async function createDomainHarnessFixture(root) {
   await Promise.all([
     fsp.mkdir(path.join(root, 'docs', 'domain'), { recursive: true }),
     fsp.mkdir(path.join(root, 'docs', 'memory'), { recursive: true }),
+    fsp.mkdir(path.join(root, 'catalog'), { recursive: true }),
     fsp.mkdir(path.join(root, 'rules'), { recursive: true }),
     fsp.mkdir(path.join(root, 'skills', 'settlement-analyst'), { recursive: true }),
     fsp.mkdir(path.join(root, 'graphify-out'), { recursive: true }),
@@ -67,10 +68,18 @@ async function createDomainHarnessFixture(root) {
       '    description: Settlement API',
       '    layer: backend',
       '    directory: codes/settlement-service',
+      '    logical_projects:',
+      '      - name: settlement-api',
+      '        role: HTTP service',
+      '    anchors:',
+      '      - path: src/Application.java',
+      '        symbol: Application',
       '',
     ].join('\n'), 'utf8'),
     fsp.writeFile(path.join(root, 'docs', 'domain', 'settlement.md'), '# Settlement Whitepaper\n', 'utf8'),
     fsp.writeFile(path.join(root, 'docs', 'memory', 'known-risk.md'), '# Historical Risk\n', 'utf8'),
+    fsp.writeFile(path.join(root, 'catalog', 'capability-catalog.md'), '# Capability Catalog\n', 'utf8'),
+    fsp.writeFile(path.join(root, 'catalog', 'data-object-evidence.md'), '# Data Object Evidence\n', 'utf8'),
     fsp.writeFile(path.join(root, 'rules', 'engineering-rules.md'), '# Rule\n', 'utf8'),
     fsp.writeFile(path.join(root, 'skills', 'settlement-analyst', 'SKILL.md'), '# Skill\n', 'utf8'),
     fsp.writeFile(path.join(root, 'graphify-out', 'graph.json'), '{}\n', 'utf8'),
@@ -105,16 +114,21 @@ async function main() {
 
     const { response: initResponse, data: initData } = await requestJson(runtime.url, '/api/workspaces/init', {
       method: 'POST',
-      body: JSON.stringify({ demandName: 'api-regression', outputRoot: workspaceRoot, domainRoot }),
+      body: JSON.stringify({ demandName: 'api-regression', outputRoot: workspaceRoot, domainRoot, perspective: 'qa' }),
     });
     assert.equal(initResponse.status, 200);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'AGENTS.md')), true);
     assert.equal(initData.domain.manifest.name, 'settlement-domain');
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'domain.lock.json')), true);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'context', 'domain-summary.md')), true);
+    const domainSummary = await fsp.readFile(path.join(initData.workspacePath, 'context', 'domain-summary.md'), 'utf8');
+    assert.match(domainSummary, /## 领域 Catalog/);
+    assert.match(domainSummary, /catalog\/capability-catalog\.md/);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'capabilities.lock.json')), true);
+    const initializedWorkspaceConfig = JSON.parse(await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'workspace.json'), 'utf8'));
+    assert.equal(initializedWorkspaceConfig.perspective, 'qa');
     const capabilitySnapshot = await fsp.readFile(path.join(initData.workspacePath, 'context', 'capabilities.md'), 'utf8');
-    assert.match(capabilitySnapshot, /当前需求生效能力/);
+    assert.match(capabilitySnapshot, /当前需求能力快照/);
     const workspaceQuery = encodeURIComponent(initData.workspacePath);
 
     const { response: domainInspectResponse, data: domainInspectData } = await requestJson(
@@ -123,11 +137,12 @@ async function main() {
     );
     assert.equal(domainInspectResponse.status, 200);
     assert.equal(domainInspectData.available, true);
+    assert.equal(domainInspectData.codeRepositories.length, 1);
     assert.equal(domainInspectData.codeRepositories[0].sourceExists, true);
-
-    const { response: whitepaperResponse, data: whitepaperData } = await requestJson(runtime.url, '/api/whitepaper/catalog?query=%E9%87%91%E9%A2%9D%E8%B0%83%E6%95%B4');
-    assert.equal(whitepaperResponse.status, 200);
-    assert.equal(whitepaperData.functions[0].id, 'settlement.bill-adjustment');
+    assert.deepEqual(domainInspectData.catalogDocuments, [
+      'catalog/capability-catalog.md',
+      'catalog/data-object-evidence.md',
+    ]);
 
     await fsp.writeFile(path.join(initData.workspacePath, 'prd', 'document.md'), '# API regression PRD\n', 'utf8');
     const { response: initialGateResponse, data: initialGateData } = await requestJson(runtime.url, '/api/gates/check', {
@@ -138,35 +153,12 @@ async function main() {
     assert.equal(initialGateData.gates['requirement-confirmed'].status, 'blocked');
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'quality-policy.lock.json')), true);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'gates.json')), true);
-    const { response: whitepaperContextResponse, data: whitepaperContextData } = await requestJson(runtime.url, '/api/workspace/whitepaper-context', {
-      method: 'POST',
-      body: JSON.stringify({
-        workspacePath: initData.workspacePath,
-        primaryFunctionId: 'settlement.bill-adjustment',
-      }),
-    });
-    assert.equal(whitepaperContextResponse.status, 200);
-    assert.equal(whitepaperContextData.context.primaryFunction.id, 'settlement.bill-adjustment');
-    assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'whitepaper.lock.json')), true);
-    assert.equal(fs.existsSync(path.join(initData.workspacePath, 'context', 'whitepaper-context.md')), true);
-
-    const { response: fetchWithoutConfirmation } = await requestJson(runtime.url, '/api/workspace/app-source/fetch', {
-      method: 'POST',
-      body: JSON.stringify({
-        workspacePath: initData.workspacePath,
-        appId: 'settlement-service',
-        confirm: false,
-      }),
-    });
-    assert.equal(fetchWithoutConfirmation.status, 500);
-
     const { response: designPromptResponse, data: designPromptData } = await requestJson(runtime.url, `/api/prompt?workspacePath=${workspaceQuery}&stepId=02-generate-technical-design`);
     assert.equal(designPromptResponse.status, 200);
-    assert.match(designPromptData.prompt, /白皮书自动启用能力/);
-    assert.match(designPromptData.prompt, /api-doc-generation/);
     assert.match(designPromptData.prompt, /领域 Harness 上下文/);
     assert.match(designPromptData.prompt, /context\/domain-summary\.md/);
     assert.match(designPromptData.prompt, /settlement-service/);
+    assert.match(designPromptData.prompt, /测试视角/);
 
     const { response: statusResponse, data: statusData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
     assert.equal(statusResponse.status, 200);
@@ -185,12 +177,54 @@ async function main() {
     assert.equal(configData.config.notes, 'API regression context');
     assert.equal(configData.config.loadAppContextForClarification, true);
 
+    const unavailableSkillPath = path.join(tempRoot, 'not-installed-skill');
+    const { response: unavailableCapabilityResponse, data: unavailableCapabilityData } = await requestJson(runtime.url, '/api/workspace/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        skills: [unavailableSkillPath],
+      }),
+    });
+    assert.equal(unavailableCapabilityResponse.status, 200);
+    const { response: capabilityRefreshResponse, data: capabilityRefreshData } = await requestJson(runtime.url, '/api/workspace/capabilities/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(capabilityRefreshResponse.status, 200);
+    assert.equal(capabilityRefreshData.skills.some((item) => item.availability === 'unavailable'), true);
+    const refreshedCapabilitySnapshot = await fsp.readFile(path.join(initData.workspacePath, 'context', 'capabilities.md'), 'utf8');
+    assert.match(refreshedCapabilitySnapshot, /\[unavailable\]/);
+    const { response: unavailablePromptResponse, data: unavailablePromptData } = await requestJson(runtime.url, `/api/prompt?workspacePath=${workspaceQuery}&stepId=02-generate-technical-design`);
+    assert.equal(unavailablePromptResponse.status, 200);
+    assert.match(unavailablePromptData.prompt, /本机未挂载能力/);
+    assert.match(unavailablePromptData.prompt, /不是前置条件/);
+
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'ai-review.md'), '# AI Review\nP0: block release\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'risk-list.md'), '# Risk List\nP2: follow up\n', 'utf8');
-    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'unit-test-plan.md'), '# Unit Test Plan\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'unit-test-design.md'), '# Unit Test Design\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'unit-test-result.md'), '# Unit Test Result\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'technical-design.md'), '# Technical Design\n', 'utf8');
-    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'smoke-test-plan.md'), '# Smoke Test Plan\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'technical-confirmation.md'), '# Technical Confirmation\n\n无阻塞项。\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'smoke-test-design.md'), '# Smoke Test Design\n', 'utf8');
+    const { response: checkpointResponse, data: checkpointData } = await requestJson(runtime.url, '/api/checkpoint/approve', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        stepId: 'manual-technical',
+        operator: 'regression-user',
+        checklist: [
+          'reviewed-technical-files', 'app-scope-confirmed', 'branch-strategy-confirmed', 'risk-accepted', 'review-comments-resolved', 'test-design-approved', 'allow-task-split',
+        ].map((id) => ({ id, checked: true })),
+      }),
+    });
+    assert.equal(checkpointResponse.status, 200, JSON.stringify(checkpointData));
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'baselines', 'technical-design.lock.json')), true);
+    const { response: baselineResponse, data: baselineData } = await requestJson(runtime.url, '/api/workspace/design-baselines/verify', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(baselineResponse.status, 200);
+    assert.equal(baselineData.status, 'valid');
     const { response: designGateResponse, data: designGateData } = await requestJson(runtime.url, '/api/gates/check', {
       method: 'POST',
       body: JSON.stringify({ workspacePath: initData.workspacePath }),
@@ -203,6 +237,8 @@ async function main() {
     });
     assert.equal(approveGateResponse.status, 200);
     assert.equal(approveGateData.gates['design-ready'].status, 'approved');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'traceability-matrix.md'), '# Traceability\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'smoke-test-result.md'), '# Smoke Result\n', 'utf8');
     const { response: qualityResponse, data: qualityData } = await requestJson(runtime.url, '/api/workspace/quality-summary/refresh', {
       method: 'POST',
       body: JSON.stringify({ workspacePath: initData.workspacePath }),
@@ -241,8 +277,6 @@ async function main() {
     assert.equal(handoffData.stepId, 'import-prd');
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'handoff', 'current.md')), true);
     const handoffText = await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'handoff', 'current.md'), 'utf8');
-    assert.match(handoffText, /白皮书与功能上下文/);
-    assert.match(handoffText, /账单调整/);
     assert.match(handoffText, /领域 Harness 上下文/);
 
     const staticModules = [

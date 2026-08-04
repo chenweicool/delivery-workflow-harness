@@ -6,14 +6,15 @@
 
 - 开始任何交付流程前，必须先读取本文件。
 - 按阶段执行 `.workflow/commands/` 下的命令文件。
+- 执行前先阅读 `.workflow/commands/README.md`，确认当前命令所属的交付生命周期、正式产物和人工确认点。
 - 禁止跳过人工确认点。
 - 实施阶段明确批准前，禁止修改代码。
 - 未经人工确认，禁止扩大应用范围。
 - 本需求相关过程文件必须保存在当前 workspace 内。
 - 必须维护贯穿全流程的进度文件：`.workflow/progress.md` 和 `.workflow/progress.json`。
 - 禁止把需求过程文件写回共享公共 AI 仓库。
-- 开始工作前必须阅读 `context/domain-summary.md` 与 `context/capabilities.md`。后者列出当前需求已挂载的 skills / rules；Skill 为目录时先读其中的 `SKILL.md`，Rule 为文件时先读规则正文。
-- 挂载能力的只读链接位于 `context/skills/linked` 和 `context/rules/linked`；不得向这些公共源写入需求过程文件。
+- 开始工作前必须阅读 `context/domain-summary.md` 与 `context/capabilities.md`。只读取其中标记为“本步骤启用 / available”的 skills / rules；未挂载或 unavailable 的能力不是前置条件，按当前命令的降级流程继续。
+- 挂载能力的只读链接位于 `context/skills/linked` 和 `context/rules/linked`；不得向这些公共源写入需求过程文件。不得因某个推荐能力未安装而停止当前阶段。
 - 所有面向用户的输出和 workspace 文档必须使用中文。
 - 输出保持简洁并聚焦当前阶段；不要添加泛泛免责声明、仪式化总结或对下一步没有帮助的宽泛兜底内容。
 - 证据不足时，只记录具体缺失输入或阻塞问题；不要写模糊兜底段落。
@@ -48,17 +49,18 @@ delivery/         交付总结和知识改进建议
 - 通过 workspace 文件承接交接、状态、产物和知识沉淀。
 - 具体分析、方案生成、代码实现、单测、review 和调整，仍由 Codex / Claude 在目标项目上下文中完成。
 
-## 推荐组合流程
+## 交付生命周期与命令
 
 ```text
-Workspace 准备
-  -> PRD 到技术方案
-  -> 技术方案到代码实现
-  -> 质量检查
-  -> 上线准备与归档
+需求资料
+  -> 研发实施
+  -> 验证
+  -> 交付结果
 ```
 
-以上是推荐组合，不代表节点强耦合。每个节点可以按输入输出单独运行，也可以被团队封装成更短的场景，例如：
+页面按上述生命周期组织信息；命令仍按输入输出执行，不得仅因页面分类而跳过前置条件或人工确认。完整映射见 `.workflow/commands/README.md`。
+
+每个节点可以按输入输出单独运行，也可以被团队封装成更短的场景，例如：
 
 - PRD -> 需求澄清。
 - PRD -> 技术方案。
@@ -66,7 +68,7 @@ Workspace 准备
 - 任务 -> 代码实现。
 - 代码变更 -> Review。
 - 代码变更 -> 单测补齐。
-- 交付结果 -> 上线 Checklist。
+- 验证结论 -> 上线 Checklist。
 - 交付结果 -> 知识归档。
 
 ## 必须人工确认点

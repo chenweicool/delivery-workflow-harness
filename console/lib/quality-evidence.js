@@ -28,8 +28,11 @@ function createQualityEvidenceRuntime(deps) {
     const files = [
       ['aiReview', 'review/ai-review.md'],
       ['riskList', 'review/risk-list.md'],
-      ['unitTestPlan', 'review/unit-test-plan.md'],
+      ['unitTestDesign', 'design/unit-test-design.md'],
+      ['smokeTestDesign', 'design/smoke-test-design.md'],
       ['unitTestResult', 'review/unit-test-result.md'],
+      ['traceabilityMatrix', 'review/traceability-matrix.md'],
+      ['smokeTestResult', 'review/smoke-test-result.md'],
     ];
     const evidence = {};
     let combinedText = '';
@@ -42,21 +45,17 @@ function createQualityEvidenceRuntime(deps) {
       combinedText += `\n${content}`;
     }
     const severities = countSeverities(combinedText);
-    const requiredEvidenceReady = evidence.aiReview.exists
-      && evidence.riskList.exists
-      && evidence.unitTestPlan.exists
-      && evidence.unitTestResult.exists;
+    const requiredEvidenceReady = Object.values(evidence).every((item) => item.exists);
     const status = severities.P0 > 0
       ? 'blocked'
       : requiredEvidenceReady
         ? 'ready'
         : 'incomplete';
-    const whitepaper = config.whitepaperContext || {};
+    const domain = config.domainContext || config.domain || {};
     const summary = {
       generatedAt: new Date().toISOString(),
       status,
-      functionPoint: whitepaper.primaryFunction || null,
-      whitepaperRisks: whitepaper.riskTags || [],
+      domain: domain.root ? { id: domain.id || '', name: domain.name || '', revision: domain.revision || '' } : null,
       evidence,
       severities,
       requiredEvidenceReady,
@@ -64,7 +63,7 @@ function createQualityEvidenceRuntime(deps) {
         ? '处理 P0 问题后重新执行质量门禁。'
         : status === 'ready'
           ? '质量证据已齐备，可以进入上线准备与归档。'
-          : '补齐 Review、风险清单、单测计划和单测结果。',
+          : '补齐 Review、风险清单、测试设计、测试结果、追溯矩阵和冒烟结果。',
     };
     await writeWorkspaceJsonFile(workspacePath, QUALITY_SUMMARY_FILE, summary);
     return summary;

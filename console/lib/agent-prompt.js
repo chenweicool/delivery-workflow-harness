@@ -25,7 +25,7 @@ function createAgentPromptRuntime(deps) {
   } = deps;
 
   async function buildQualityGateContext(workspacePath, stepId, config) {
-    if (!['07-review-code', '06-generate-unit-tests'].includes(stepId)) {
+    if (!['07-review-code', '08-verify-tests', '09-run-smoke'].includes(stepId)) {
       return '';
     }
     const targets = await getImplementationTargets(workspacePath, config);
@@ -43,7 +43,7 @@ function createAgentPromptRuntime(deps) {
       ['变更记录', 'review/change-log.md'],
       ['实现自检', 'review/self-check.md'],
     ];
-    if (stepId === '06-generate-unit-tests') {
+    if (stepId === '08-verify-tests') {
       files.push(['AI Review', 'review/ai-review.md']);
       files.push(['风险清单', 'review/risk-list.md']);
     }
@@ -61,21 +61,25 @@ function createAgentPromptRuntime(deps) {
           '- 重点检查需求覆盖、边界条件、兼容性、数据一致性、权限/资金/结算风险和回归风险。',
           '- 禁止修改代码，只输出评审结论和风险清单。',
         ]
-      : [
+      : stepId === '08-verify-tests' ? [
           '- 单测必须优先覆盖本次 diff 触达的分支、边界条件、异常路径和 Review 发现的风险。',
           '- 优先复用项目现有测试框架、基类、mock 风格、断言方式和命名规范。',
           '- 能执行就记录真实命令和结果；不能执行必须写具体阻塞原因。',
           '- 如必须为可测性调整生产代码，只允许最小接缝改动并写入 `review/unit-test-result.md`。',
           '- 集成测试只生成计划；只有检测到项目已有集成测试入口时才执行。',
+        ]
+      : [
+          '- 按 `design/smoke-test-design.md` 执行或记录每个场景。',
+          '- 初版只允许记录 manual 执行证据；未执行必须标识 `not-run` 或 `blocked`。',
+          '- 禁止把 planned 或 not-run 写成通过。',
         ];
-    const whitepaper = config.whitepaperContext || {};
-    const whitepaperRisks = whitepaper.riskTags && whitepaper.riskTags.length
-      ? [
-        `- 功能点: ${whitepaper.primaryFunction ? `${whitepaper.primaryFunction.name} (${whitepaper.primaryFunction.id})` : '未确认'}`,
-        `- 白皮书风险: ${whitepaper.riskTags.join('、')}`,
-        whitepaper.whitepaperRefs && whitepaper.whitepaperRefs.length ? `- 依据: ${whitepaper.whitepaperRefs.join('、')}` : '',
-      ].filter(Boolean).join('\n')
-      : '- 本次未配置白皮书风险标签。';
+    const domain = config.domainContext || config.domain || {};
+    const domainRisks = [
+      domain.name || domain.id ? `- 领域: ${domain.name || domain.id}` : '- 未挂载领域上下文。',
+      domain.revision ? `- 领域版本: ${domain.revision}` : '',
+      domain.productDocuments && domain.productDocuments.length ? `- 产品资料: ${domain.productDocuments.join('、')}` : '',
+      domain.memoryDocuments && domain.memoryDocuments.length ? `- 领域记忆: ${domain.memoryDocuments.join('、')}` : '',
+    ].filter(Boolean).join('\n');
     return [
       '## 质量门禁上下文包',
       '',
@@ -85,9 +89,9 @@ function createAgentPromptRuntime(deps) {
       '',
       qualityRules.join('\n'),
       '',
-      '### 白皮书风险约束',
+      '### 领域约束',
       '',
-      whitepaperRisks,
+      domainRisks,
       '',
       '### 代码变更摘要',
       '',
@@ -117,6 +121,14 @@ function createAgentPromptRuntime(deps) {
       ? nextStep.id
       : stepId;
     const config = await readWorkspaceConfig(workspacePath);
+    const perspectiveRules = {
+      backend: '后端视角：重点核对接口契约、权限与数据范围、批量/导入导出、事务、异步任务、数据库影响及回滚。',
+      frontend: '前端视角：重点核对页面流程、交互状态、接口契约、兼容性、异常提示及可访问性。',
+      qa: '测试视角：重点核对可验收场景、边界、回归范围、测试数据与可追溯证据。',
+      ops: '运维视角：重点核对发布步骤、配置、观测、容量、回滚和依赖可用性。',
+    };
+    const perspective = config.perspective || 'backend';
+    const perspectiveLine = perspectiveRules[perspective] || perspectiveRules.backend;
     const promptConfig = shouldExposeAppContextForStep(stepId, config)
       ? config
       : { ...config, appPaths: [], apps: [] };
@@ -236,6 +248,7 @@ function createAgentPromptRuntime(deps) {
       (contractOutputLines || outputLines) ? `## Agent 必须回写产物\n\n${contractOutputLines || outputLines}\n` : '',
       contractOutputLines && outputLines && contractOutputLines !== outputLines ? `## 当前步骤补充产物\n\n${outputLines}\n` : '',
       capabilityLines ? `## 本步骤启用能力\n\n${capabilityLines}\n` : '',
+      `## 当前交付视角\n\n- ${perspectiveLine}\n`,
       appLines ? `## 候选应用\n\n${appLines}\n` : '',
       whitepaperLines ? `## 白皮书与功能上下文\n\n${whitepaperLines}\n` : '',
       domainLines ? `## 领域 Harness 上下文\n\n${domainLines}\n` : '',

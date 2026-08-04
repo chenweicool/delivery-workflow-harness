@@ -28,6 +28,8 @@ function normalizeCapabilityList(value) {
         path: rawPath,
         appliesToSteps: Array.isArray(item.appliesToSteps) ? item.appliesToSteps.map(String).filter(Boolean) : [],
         capabilityTypes: Array.isArray(item.capabilityTypes) ? item.capabilityTypes.map(String).filter(Boolean) : [],
+        fallback: String(item.fallback || '').trim(),
+        requiredFor: Array.isArray(item.requiredFor) ? item.requiredFor.map(String).filter(Boolean) : [],
         enabled: item.enabled !== false,
         selectionSource: String(item.selectionSource || '').trim(),
       });

@@ -47,6 +47,15 @@
       "type": "array",
       "items": { "type": "string" }
     },
+    "fallback": {
+      "type": "string",
+      "description": "Capability unavailable 时的可执行降级流程。"
+    },
+    "requiredFor": {
+      "type": "array",
+      "description": "只有列出的场景确实需要该能力或其原始事实时才可阻断阶段。",
+      "items": { "type": "string" }
+    },
     "inputs": {
       "type": "array",
       "items": { "type": "string" }

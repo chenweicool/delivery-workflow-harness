@@ -12,9 +12,9 @@
 ## 允许修改
 
 - 目标项目已有测试文件；若为可测性必须修改生产代码，只能做最小接缝并记录原因。
-- `review/unit-test-result.md`、`review/traceability-matrix.md` 与进度文件。
+- `review/evidence/unit-test-result.md`、`review/evidence/traceability-matrix.md` 与进度文件。
 
 ## 输出
 
-- `review/unit-test-result.md`：测试文件、命令、真实执行结果、失败/未执行原因、剩余缺口。
-- `review/traceability-matrix.md`：每条 PRD/需求项对应方案、冻结用例、代码证据、执行结果与缺口；必须显式标识未覆盖需求和 diff 中未设计的新行为。
+- `review/evidence/unit-test-result.md`：测试文件、命令、真实执行结果、失败/未执行原因、剩余缺口。
+- `review/evidence/traceability-matrix.md`：每条 PRD/需求项对应方案、冻结用例、代码证据、执行结果与缺口；必须显式标识未覆盖需求和 diff 中未设计的新行为。

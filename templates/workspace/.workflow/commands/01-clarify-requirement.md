@@ -19,7 +19,7 @@
 - `context/**`
 - `prd/**`
 - `apps/**` 或本地应用目录（仅当页面“需求澄清时加载应用上下文”已开启，且提示词中明确给出应用目录时允许）
-- `design/context-summary.md`
+- `design/process/context-summary.md`
 
 ## 禁止事项
 
@@ -32,11 +32,11 @@
 
 ## 输出
 
-写入 `design/requirement-confirmation.md`。
+写入 `design/process/requirement-confirmation.md`。
 
 ## 输出结构
 
-`design/requirement-confirmation.md` 必须包括：
+`design/process/requirement-confirmation.md` 必须包括：
 
 - 当前阶段
 - 本阶段已完成什么
@@ -90,9 +90,9 @@
 
 AI 在阶段结束时必须提示研发：
 
-- 人工确认结果统一写入 `design/requirement-confirmation.md`。
-- AI 必须在 `design/requirement-confirmation.md` 中写清楚“当前已完成什么、用户现在需要确认什么、哪些可以按默认假设继续”，不能只在对话中说明。
-- 进入技术边界分析前，AI 必须读取 `design/requirement-confirmation.md`。
+- 人工确认结果统一写入 `design/process/requirement-confirmation.md`。
+- AI 必须在 `design/process/requirement-confirmation.md` 中写清楚“当前已完成什么、用户现在需要确认什么、哪些可以按默认假设继续”，不能只在对话中说明。
+- 进入技术边界分析前，AI 必须读取 `design/process/requirement-confirmation.md`。
 - 未确认项不得当作最终结论；按假设继续的内容必须在方案中标记为假设。
 - 人工确认清单通过后会生成 `.approved.json`，该文件才代表允许进入下一阶段。
 

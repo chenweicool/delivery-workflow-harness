@@ -71,6 +71,13 @@ const {
   createKnowledgeArchiveRuntime,
 } = require('./lib/knowledge-archive');
 const {
+  validateDemand,
+  createDeliveryReportRuntime,
+} = require('./lib/delivery-report');
+const {
+  createHarnessClientRuntime,
+} = require('./lib/harness-client');
+const {
   createRunStoreRuntime,
 } = require('./lib/run-store');
 const {
@@ -129,6 +136,9 @@ const {
   importFeishuDocument,
 } = require('./lib/feishu');
 const {
+  ingestPrdSources,
+} = require('./lib/prd-ingestion');
+const {
   DEFAULT_OUTPUT_ROOT,
   readState,
   writeState,
@@ -152,10 +162,10 @@ const MAX_JSON_BODY = 5 * 1024 * 1024;
 const MAX_UPLOAD_BODY = 100 * 1024 * 1024;
 const RUNS_DIR_NAME = 'runs';
 const RUN_LOG_PREVIEW_BYTES = 512 * 1024;
-const AI_ADJUSTMENTS_FILE = 'tasks/ai-adjustments.md';
+const AI_ADJUSTMENTS_FILE = 'tasks/process/ai-adjustments.md';
 const KNOWN_FACTS_FILE = 'design/known-facts.md';
-const TECHNICAL_REVIEW_FILE = 'design/technical-review.md';
-const TASK_CONFIRMATION_FILE = 'tasks/task-confirmation.md';
+const TECHNICAL_REVIEW_FILE = 'design/process/technical-review.md';
+const TASK_CONFIRMATION_FILE = 'tasks/process/task-confirmation.md';
 const CAPABILITY_LOCK_FILE = '.workflow/capabilities.lock.json';
 const CAPABILITY_SUMMARY_FILE = 'context/capabilities.md';
 const {
@@ -303,6 +313,42 @@ const {
   writeWorkspaceJsonFile,
   writeWorkspaceTextFile,
 });
+const {
+  completeDeliveryReport,
+} = createDeliveryReportRuntime({
+  normalizeUserPath,
+  exists,
+  readWorkspaceConfig,
+  readJsonFileIfExists,
+  writeWorkspaceJsonFile,
+  nowIso,
+});
+const {
+  submitDeliveryReport,
+  authorizeHarnessClient,
+  getHarnessClientStatus,
+  logoutHarnessClient,
+} = createHarnessClientRuntime({
+  normalizeUserPath,
+  exists,
+  readJsonFileIfExists,
+  writeWorkspaceJsonFile,
+  readToolsConfig,
+  saveToolsConfig,
+  nowIso,
+});
+
+function redactToolsConfigForApi(tools = {}) {
+  const integrations = { ...(tools.integrations || {}) };
+  if (integrations.harnessClient) {
+    const { accessToken, ...safeHarnessClient } = integrations.harnessClient;
+    integrations.harnessClient = {
+      ...safeHarnessClient,
+      authorized: Boolean(accessToken),
+    };
+  }
+  return { ...tools, integrations };
+}
 const {
   createRunId,
   getRunsDir,
@@ -539,7 +585,7 @@ const TASK_CONFIRMATION_TEMPLATE = [
   '## 执行口径',
   '',
   '- `tasks/task-list.md` 保存 AI 拆出的任务事实、涉及文件、验收标准和依赖关系。',
-  '- `tasks/task-confirmation.md` 保存人工确认后的实施准入结论。',
+  '- `tasks/process/task-confirmation.md` 保存人工确认后的实施准入结论。',
   '- 后续单任务实现必须同时读取两个文件：先按本文件判断任务是否允许实施，再回到任务清单读取完整任务细节。',
   '- 如果两个文件结论冲突、任务编号缺失或允许范围不明确，AI 必须停止实施并等待人工确认。',
   '- 默认不允许全量执行。只有“人工确认结果”为“允许 AI 实施”的任务，才能进入 06 实现阶段。',
@@ -1468,6 +1514,46 @@ async function openWorkspaceFolder(body) {
   return { opened: true, targetPath: workspacePath, mode: 'system-folder' };
 }
 
+async function openWorkspacePath(body) {
+  const workspacePath = normalizeUserPath(body.workspacePath);
+  const relativePath = String(body.path || '').trim().replace(/\\/g, '/');
+  if (!(await exists(path.join(workspacePath, 'AGENTS.md')))) {
+    throw new Error('当前目录不是有效 workspace');
+  }
+  if (!relativePath) {
+    throw new Error('请选择要打开的文件或目录');
+  }
+  const targetPath = path.resolve(workspacePath, relativePath);
+  assertWithin(workspacePath, targetPath);
+  if (!(await exists(targetPath))) {
+    throw new Error(`文件或目录不存在：${relativePath}`);
+  }
+  await openWithSystem(targetPath);
+  return { opened: true, targetPath, mode: 'system-path' };
+}
+
+async function openConfiguredFolder(body, type) {
+  const workspacePath = normalizeUserPath(body.workspacePath);
+  if (!(await exists(path.join(workspacePath, 'AGENTS.md')))) {
+    throw new Error('当前目录不是有效 workspace');
+  }
+  const config = await readWorkspaceConfig(workspacePath);
+  let targetPath = '';
+  if (type === 'domain') {
+    const domain = config.domainContext && config.domainContext.root ? config.domainContext : config.domain || {};
+    targetPath = normalizeUserPath(domain.root);
+  } else {
+    const appName = String(body.appName || '').trim();
+    const app = (config.apps || []).find((item) => item.name === appName);
+    targetPath = app ? normalizeUserPath(app.worktreePath || app.sourcePath) : '';
+  }
+  if (!targetPath || !(await exists(targetPath))) {
+    throw new Error(type === 'domain' ? '未找到可打开的领域目录' : '未找到可打开的应用目录');
+  }
+  await openWithSystem(targetPath);
+  return { opened: true, targetPath, mode: `configured-${type}-folder` };
+}
+
 async function startAiAdjustmentRun(body) {
   const workspacePath = normalizeUserPath(body.workspacePath);
   const executor = body.executor === 'claude' ? 'claude' : 'codex';
@@ -1577,12 +1663,12 @@ async function listWorkspaces(outputRootValue) {
 }
 
 function chooseDestinationDir(prdRoot, targetSubdir) {
-  const allowed = new Set(['', 'assets', 'templates', 'examples', 'references']);
+  const allowed = new Set(['', 'source', 'assets', 'tables', 'metadata', 'templates', 'examples', 'references']);
   const normalized = String(targetSubdir || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
   if (!allowed.has(normalized)) {
     throw new Error('PRD 目标目录不合法');
   }
-  return path.join(prdRoot, normalized);
+  return path.join(prdRoot, normalized || 'source');
 }
 
 async function importLocalPaths(workspacePathValue, sourcePaths, targetSubdir) {
@@ -1603,7 +1689,9 @@ async function importLocalPaths(workspacePathValue, sourcePaths, targetSubdir) {
     await copyRecursive(sourcePath, destination);
     imported.push(path.relative(workspacePath, destination).replace(/\\/g, '/'));
   }
-  return imported;
+  const sourceImports = imported.filter((item) => item.startsWith('prd/source/'));
+  const ingestion = sourceImports.length ? await ingestPrdSources(workspacePath, sourceImports) : null;
+  return { imported, ingestion };
 }
 
 function capabilitiesMarkdown(snapshot) {
@@ -1630,7 +1718,7 @@ function capabilitiesMarkdown(snapshot) {
     '',
     '## 使用约束',
     '',
-    '- 开始工作前先阅读 `AGENTS.md`、`.workflow/progress.md`、`context/domain-summary.md` 和本文件。',
+    '- 开始工作前先阅读 `AGENTS.md`、`.workflow/progress.md`、`context/domain-summary.md` 和本文件；实施、Review、测试、交付阶段还要读取 `context/current-context.md`（若存在）。',
     '- 只读取当前步骤提示词列出的 `available` 能力；Skill 为目录时先读其中的 `SKILL.md`，Rule 为文件时先读规则正文。',
     '- `unavailable` 仅表示本机未挂载，不是当前阶段的阻塞条件；按阶段命令的降级流程继续。',
     '- 只在当前需求相关的阶段使用能力；PRD 与人工确认优先于领域背景或通用规则。',
@@ -1695,7 +1783,7 @@ async function importFeishuPrd(body) {
     const { markdown, ...meta } = item;
     return meta;
   });
-  await writeWorkspaceJsonFile(workspacePath, 'prd/source-feishu.json', {
+  await writeWorkspaceJsonFile(workspacePath, 'prd/source/feishu.json', {
     version: 1,
     importedAt: new Date().toISOString(),
     records,
@@ -1725,7 +1813,7 @@ async function importFeishuPrd(body) {
   return {
     imported: records.filter((item) => item.status === 'imported'),
     failed,
-    sourcePath: 'prd/source-feishu.json',
+    sourcePath: 'prd/source/feishu.json',
     documentPath: imported.length ? 'prd/document.md' : '',
   };
 }
@@ -1868,7 +1956,9 @@ async function importUploadedFiles(req) {
     await fsp.writeFile(destination, file.body);
     imported.push(path.relative(workspacePath, destination).replace(/\\/g, '/'));
   }
-  return imported;
+  const sourceImports = imported.filter((item) => item.startsWith('prd/source/'));
+  const ingestion = sourceImports.length ? await ingestPrdSources(workspacePath, sourceImports) : null;
+  return { imported, ingestion };
 }
 
 async function getCommandText(workspacePath, stepId) {
@@ -2308,7 +2398,7 @@ function buildTaskConfirmationTemplate(taskListContent) {
     '## 执行口径',
     '',
     '- `tasks/task-list.md` 保存 AI 拆出的任务事实、涉及文件、验收标准和依赖关系。',
-    '- `tasks/task-confirmation.md` 保存人工确认后的实施准入结论。',
+    '- `tasks/process/task-confirmation.md` 保存人工确认后的实施准入结论。',
     '- 后续单任务实现必须同时读取两个文件：先按本文件判断任务是否允许实施，再回到任务清单读取完整任务细节。',
     '- 如果两个文件结论冲突、任务编号缺失或允许范围不明确，AI 必须停止实施并等待人工确认。',
     '- 默认不允许全量执行。只有“人工确认结果”为“允许 AI 实施”的任务，才能进入 06 实现阶段。',
@@ -2445,11 +2535,30 @@ async function route(req, res) {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/system/git-identity') {
+      const readConfig = async (key) => {
+        try {
+          return await gitOutput(['config', '--get', key], ROOT_DIR);
+        } catch {
+          return '';
+        }
+      };
+      const [name, configuredId] = await Promise.all([
+        readConfig('user.name'),
+        readConfig('user.username'),
+      ]);
+      sendJson(res, 200, {
+        name,
+        id: configuredId || name,
+      });
+      return;
+    }
+
     if (req.method === 'GET' && url.pathname === '/api/tools/config') {
       const tools = await readToolsConfig();
       const teamProfile = await readTeamProfileConfig(tools);
       sendJson(res, 200, {
-        tools,
+        tools: redactToolsConfigForApi(tools),
         teamProfile: {
           available: teamProfile.available,
           reason: teamProfile.reason,
@@ -2465,10 +2574,33 @@ async function route(req, res) {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/tools/config') {
-      const tools = await saveToolsConfig(await readJson(req));
+      const body = await readJson(req);
+      const currentTools = await readToolsConfig();
+      const requestedTools = body.tools || body || {};
+      const currentIntegrations = currentTools.integrations || {};
+      const requestedIntegrations = requestedTools.integrations || {};
+      const requestedHarnessClient = requestedIntegrations.harnessClient || null;
+      const { authorized: _authorized, ...safeRequestedHarnessClient } = requestedHarnessClient || {};
+      const tools = await saveToolsConfig({
+        ...body,
+        tools: {
+          ...currentTools,
+          ...requestedTools,
+          integrations: {
+            ...currentIntegrations,
+            ...requestedIntegrations,
+            ...(requestedHarnessClient ? {
+              harnessClient: {
+                ...(currentIntegrations.harnessClient || {}),
+                ...safeRequestedHarnessClient,
+              },
+            } : {}),
+          },
+        },
+      });
       const teamProfile = await readTeamProfileConfig(tools);
       sendJson(res, 200, {
-        tools,
+        tools: redactToolsConfigForApi(tools),
         teamProfile: {
           available: teamProfile.available,
           reason: teamProfile.reason,
@@ -2519,7 +2651,8 @@ async function route(req, res) {
       if (!domain.available) {
         throw new Error(domain.reason || '领域 Harness 不可用');
       }
-      const workspacePath = await initWorkspace(body.demandName, body.outputRoot, body.workspacePath);
+      const demand = validateDemand(body.demand);
+      const workspacePath = await initWorkspace(body.demandName, body.outputRoot, body.workspacePath, demand);
       await writeWorkspaceConfig(workspacePath, { perspective: body.perspective || 'backend' });
       const attached = await attachDomainHarness({ workspacePath, domainRoot });
       const capabilities = await refreshWorkspaceCapabilities(workspacePath);
@@ -2573,6 +2706,70 @@ async function route(req, res) {
       return;
     }
 
+    if (req.method === 'POST' && url.pathname === '/api/workspace/delivery-report/complete') {
+      const body = await readJson(req);
+      const result = await completeDeliveryReport(body.workspacePath);
+      result.submission = await submitDeliveryReport(body.workspacePath);
+      sendJson(res, 200, result);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/delivery-report/submit') {
+      const body = await readJson(req);
+      sendJson(res, 200, await submitDeliveryReport(body.workspacePath));
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/harness-client/status') {
+      sendJson(res, 200, await getHarnessClientStatus());
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/harness-client/configure') {
+      const body = await readJson(req);
+      const serverUrl = String(body.serverUrl || '').trim().replace(/\/+$/, '');
+      let parsed;
+      try {
+        parsed = new URL(serverUrl);
+      } catch {
+        throw new Error('Harness Server 地址必须是有效的 HTTP 或 HTTPS 地址。');
+      }
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        throw new Error('Harness Server 地址必须是有效的 HTTP 或 HTTPS 地址。');
+      }
+      const authorizeUrl = String(body.authorizeUrl || `${parsed.origin}/#/harness/authorize`).trim();
+      const currentTools = await readToolsConfig();
+      const currentClient = (currentTools.integrations || {}).harnessClient || {};
+      await saveToolsConfig({
+        tools: {
+          ...currentTools,
+          integrations: {
+            ...(currentTools.integrations || {}),
+            harnessClient: {
+              ...currentClient,
+              enabled: true,
+              authMode: 'browser-pkce',
+              serverUrl,
+              authorizeUrl,
+              clientId: String(body.clientId || currentClient.clientId || 'delivery-workflow-desktop').trim() || 'delivery-workflow-desktop',
+            },
+          },
+        },
+      });
+      sendJson(res, 200, await getHarnessClientStatus());
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/harness-client/login') {
+      sendJson(res, 200, await authorizeHarnessClient());
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/harness-client/logout') {
+      sendJson(res, 200, await logoutHarnessClient());
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/gates/check') {
       const body = await readJson(req);
       sendJson(res, 200, await evaluateQualityGates(body.workspacePath));
@@ -2612,6 +2809,9 @@ async function route(req, res) {
       }
       if (Object.prototype.hasOwnProperty.call(body, 'appPaths')) {
         nextConfig.appPaths = Array.isArray(body.appPaths) ? body.appPaths : [];
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'demand')) {
+        nextConfig.demand = validateDemand(body.demand, { requireStartedAt: true });
       }
       if (Object.prototype.hasOwnProperty.call(body, 'apps')) {
         nextConfig.apps = Array.isArray(body.apps) ? body.apps : [];
@@ -2683,8 +2883,8 @@ async function route(req, res) {
 
     if (req.method === 'POST' && url.pathname === '/api/workspace/import-local-prd') {
       const body = await readJson(req);
-      const imported = await importLocalPaths(body.workspacePath, body.sourcePaths, body.targetSubdir);
-      sendJson(res, 200, { imported });
+      const result = await importLocalPaths(body.workspacePath, body.sourcePaths, body.targetSubdir);
+      sendJson(res, 200, result);
       return;
     }
 
@@ -2789,6 +2989,24 @@ async function route(req, res) {
 
     if (req.method === 'POST' && url.pathname === '/api/workspace/open-folder') {
       const data = await openWorkspaceFolder(await readJson(req));
+      sendJson(res, 200, data);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/open-path') {
+      const data = await openWorkspacePath(await readJson(req));
+      sendJson(res, 200, data);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/open-domain-folder') {
+      const data = await openConfiguredFolder(await readJson(req), 'domain');
+      sendJson(res, 200, data);
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/open-app-folder') {
+      const data = await openConfiguredFolder(await readJson(req), 'app');
       sendJson(res, 200, data);
       return;
     }
@@ -2913,6 +3131,11 @@ module.exports = {
   refreshWorkspaceCapabilities,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,
+  completeDeliveryReport,
+  submitDeliveryReport,
+  authorizeHarnessClient,
+  getHarnessClientStatus,
+  logoutHarnessClient,
   evaluateQualityGates,
   submitQualityGate,
   createKnowledgeUpdateProposal,

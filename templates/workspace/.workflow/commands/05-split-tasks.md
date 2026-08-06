@@ -10,7 +10,7 @@
 - 任务描述保持简洁，聚焦实施范围、涉及文件、验收标准和风险。
 - 不要添加泛泛兜底、无意义说明或与实施无关的背景复述。
 - 证据不足时，只标记具体待确认点，不要扩写成宽泛风险。
-- AI 只负责生成任务建议和推荐顺序，不允许默认全量执行；实际进入 06 实现阶段的任务必须来自 `tasks/task-confirmation.md` 的人工准入结论。
+- AI 只负责生成任务建议和推荐顺序，不允许默认全量执行；实际进入 06 实现阶段的任务必须来自 `tasks/process/task-confirmation.md` 的人工准入结论。
 
 ## 允许读取
 
@@ -60,7 +60,7 @@
 - 除非同一个接口契约必须跨应用改动，否则不要把无关应用混在一个任务里。
 - 高风险任务必须标记为需要人工确认。
 - 仍依赖不明确业务决策的任务，必须标记为暂不可由 AI 实施。
-- 如果 `design/technical-design.md` 或 `design/technical-confirmation.md` 标记需要接口文档生成 / 更新，必须拆出独立任务，并在该任务的“推荐 skills”中写明 `api-doc-generation`。
+- 如果 `design/technical-design.md` 或 `design/process/technical-confirmation.md` 标记需要接口文档生成 / 更新，必须拆出独立任务，并在该任务的“推荐能力”中标记“接口文档能力”；由当前 Workspace 的能力路由决定具体 Skill。
 - 如果任务适合由特定 skill 辅助完成，必须写入“推荐 skills”；没有明确推荐时写“无”。
 
 ## 停止点

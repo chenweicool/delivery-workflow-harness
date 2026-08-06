@@ -73,12 +73,18 @@ async function main() {
   await createDomainHarnessFixture(domainRoot);
 
   run(['help'], { includes: 'delivery-workflow start' });
-  run(['init', demandName, '--output-root', tmpRoot, '--domain', domainRoot], { includes: 'Workspace created' });
+  run(['init', demandName, '--output-root', tmpRoot, '--domain', domainRoot, '--owner', 'Smoke', '--owner-id', 'smoke', '--demand-url', 'https://example.internal/demand/smoke'], { includes: 'Workspace created' });
   assertFile('AGENTS.md');
   assertFile('.workflow/workspace.json');
   assertFile('.workflow/progress.json');
   assertFile('.workflow/workflow.json');
   assertFile('.workflow/quality-policy.yaml');
+  run(['report', 'complete', '--workspace', workspacePath], { includes: 'status: created' });
+  assertFile('delivery/delivery-report.json');
+  const report = await readJson('delivery/delivery-report.json');
+  if (report.schemaVersion !== '1.0' || report.demand.owner.id !== 'smoke') {
+    throw new Error('Expected delivery report v1 to contain demand statistics.');
+  }
 
   run(['status', '--workspace', workspacePath], { includes: 'valid: true' });
   run(['next', '--workspace', workspacePath], { includes: 'step: import-prd' });
@@ -89,12 +95,14 @@ async function main() {
   const sourcePrd = path.join(tmpRoot, 'source-prd.md');
   await fsp.writeFile(sourcePrd, '# Smoke PRD\n', 'utf8');
   run(['prd', 'import', sourcePrd, '--workspace', workspacePath], { includes: 'prd:' });
-  assertFile('prd/source-prd.md');
+  assertFile('prd/source/source-prd.md');
+  assertFile('prd/document.md');
+  assertFile('prd/metadata/ingestion.json');
 
   await fsp.mkdir(path.join(workspacePath, 'design'), { recursive: true });
   await fsp.mkdir(path.join(workspacePath, 'tasks'), { recursive: true });
   await fsp.mkdir(path.join(workspacePath, 'review'), { recursive: true });
-  await fsp.writeFile(path.join(workspacePath, 'design', 'requirement-confirmation.md'), '# 需求确认\n\n- 覆盖边界条件\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'design', 'process', 'requirement-confirmation.md'), '# 需求确认\n\n- 覆盖边界条件\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'prd', 'document.md'), '# 解析后的 PRD\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'design', 'technical-design.md'), '# 技术方案\n\n- 修改 Service 分支逻辑\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'design', 'unit-test-design.md'), '# 单测设计\n\n- UT-001 覆盖边界\n', 'utf8');
@@ -103,10 +111,10 @@ async function main() {
   await lockBaseline('design/unit-test-design.md', 'unit-test-design');
   await lockBaseline('design/smoke-test-design.md', 'smoke-test-design');
   await fsp.writeFile(path.join(workspacePath, 'tasks', 'task-list.md'), '# 任务清单\n\n- T001 覆盖核心改动\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'change-log.md'), '# 变更记录\n\n- 修改目标代码\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'self-check.md'), '# 自检\n\n- 已自检主路径\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'ai-review.md'), '# AI Review\n\n## 发现问题\n\n- 边界场景需要补测\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'risk-list.md'), '# 风险清单\n\n## 测试缺口\n\n- 异常路径\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'review', 'process', 'change-log.md'), '# 变更记录\n\n- 修改目标代码\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'review', 'process', 'self-check.md'), '# 自检\n\n- 已自检主路径\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'review', 'quality-report.md'), '# AI Review\n\n## 发现问题\n\n- 边界场景需要补测\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'review', 'evidence', 'risk-list.md'), '# 风险清单\n\n## 测试缺口\n\n- 异常路径\n', 'utf8');
   run(['gate', 'check', '--workspace', workspacePath], { includes: 'design-ready\tready-for-approval' });
   run(['gate', 'approve', 'design-ready', '--workspace', workspacePath, '--note', 'smoke reviewed'], { includes: 'design-ready / approved' });
 

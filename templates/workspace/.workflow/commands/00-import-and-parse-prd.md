@@ -6,9 +6,10 @@
 
 ## Skill 使用策略
 
+- 先读取 `prd/metadata/ingestion.json`（若存在），确认哪些原件已由内置适配器标准化、哪些仍需要解析；已生成 `prd/document.md` 时不得无故覆盖。
 - 如果当前步骤已路由到可用的 Word PRD 转 Markdown、文档抽取或飞书文档解析能力，优先使用。
 - 如果没有可用 skill，直接读取可访问文件并保留原始文件、图片和表格；不得因能力缺失暂停。
-- 使用 `feishu-word-to-md` / `prd-word-to-md` 类 skill 时，输出根目录必须指定为 workspace 根目录，让 skill 自行生成 `prd/document.md`、`prd/assets/`、`prd/tables/`、`prd/metadata/` 等目录。
+- 使用已路由的“PRD 文档解析能力”时，输出根目录必须指定为 workspace 根目录，让能力自行生成 `prd/document.md`、`prd/assets/`、`prd/tables/`、`prd/metadata/` 等目录；不得假设或写死具体 Skill 名称。
 - 如果当前只记录了飞书或外部文档链接，且本机无法直接读取链接内容，需要在输出中明确标记“待人工导出或授权读取”。
 - 输出必须是中文。
 - 输出保持简洁，只保留 PRD 原文事实、无法解析内容和低置信度内容；不要额外写泛泛总结或免责声明。
@@ -34,7 +35,7 @@
 
 相关资源按解析 skill 的约定写入：
 
-- `prd/original/`
+- `prd/source/`
 - `prd/assets/`
 - `prd/references/`
 - `prd/templates/`

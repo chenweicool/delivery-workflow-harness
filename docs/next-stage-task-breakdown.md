@@ -211,6 +211,29 @@ Tasks:
    - Support continue-session and role-session modes.
    - Keep `.workflow/agent-sessions.json` as a pointer index, not chat storage.
 
+7. CLI usability (`dw`) improvement. **TODO**
+   - Provide a zero-configuration local entry point so users do not need to
+     understand `npm link` before trying the workflow.
+   - Make `dw help` task-oriented: show the recommended `start -> init -> PRD
+     import -> next` path and copyable Windows examples.
+   - Reduce repeated `--workspace` input where the current workspace can be
+     safely detected or explicitly remembered.
+   - Make PRD import results clearer: distinguish Markdown generated directly,
+     source retained pending parsing, and import failures; guide the user to
+     the next available action.
+
+8. Knowledge-base construction reusable capability. **PENDING DESIGN**
+   - Based on the existing Domain Harness layout and a real pilot knowledge
+     source, define a reusable path for collection, normalization, evidence
+     linking, human review, and incremental update proposals.
+   - Do not prematurely force the result into a Skill: decide from the pilot
+     whether it should be a Skill, a workflow command/template, or a Domain
+     Harness scaffolding capability.
+   - Keep discovered material separate from reviewed catalog/whitepaper truth;
+     reusable capability may propose updates but cannot publish knowledge.
+   - Produce one small end-to-end sample and an input/output contract before
+     generalizing to more domains or external knowledge tools.
+
 Exit criteria:
 
 - A new user can complete setup without understanding raw JSON/path internals.

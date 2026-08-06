@@ -120,9 +120,10 @@ function createWorkspaceStatusRuntime(deps) {
     artifactFiles.push(...(await listFiles(workspacePath, 'delivery', 60)));
     artifactFiles.push(...(await listFiles(workspacePath, 'archive', 60)));
     const materialPrdFiles = prdFiles.filter(
-      (item) => item.type === 'file' && !['prd/README.md', 'prd/.gitkeep'].includes(item.path)
+      (item) => item.type === 'file' && item.path !== 'prd/README.md' && !item.path.endsWith('/.gitkeep')
     );
-    const visibleArtifactFiles = artifactFiles.filter((item) => item.type === 'file' && !item.path.endsWith('/.gitkeep'));
+    const allArtifactFiles = artifactFiles.filter((item) => item.type === 'file' && !item.path.endsWith('/.gitkeep'));
+    const visibleArtifactFiles = allArtifactFiles.filter((item) => !/(^|\/)(process|approvals|templates)\//.test(item.path));
     const hasExternalPrdSource = Array.isArray(config.feishuDocs) && config.feishuDocs.some((item) => String(item || '').trim());
     const hasParsedPrd = await pathExistsInWorkspace(workspacePath, 'prd/document.md');
   
@@ -211,6 +212,7 @@ function createWorkspaceStatusRuntime(deps) {
       prdFiles,
       materialPrdCount: materialPrdFiles.length,
       artifactFiles: visibleArtifactFiles,
+      allArtifactFiles,
       appAccessStates,
       tasks,
       handoffState,

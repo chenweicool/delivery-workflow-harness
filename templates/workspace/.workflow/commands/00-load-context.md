@@ -30,7 +30,7 @@
 
 ## 输出
 
-写入 `design/context-summary.md`。
+写入 `design/process/context-summary.md`。
 
 ## 输出结构
 

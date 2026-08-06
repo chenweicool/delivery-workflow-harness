@@ -38,7 +38,7 @@
 
 - `archive/index.md`
 - `archive/knowledge-card.md`
-- `archive/platform-push-plan.md`
+- `archive/process/platform-push-plan.md`
 
 ## `archive/index.md` 必须章节
 
@@ -70,7 +70,7 @@
 ## 4. 不适用边界
 ```
 
-## `archive/platform-push-plan.md` 必须章节
+## `archive/process/platform-push-plan.md` 必须章节
 
 ```md
 # 知识库推送计划

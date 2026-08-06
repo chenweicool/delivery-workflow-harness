@@ -14,9 +14,9 @@
 
 ## Skill 使用策略
 
-- 如可用，优先参考 `code-review` 描述残余风险；涉及接口文档变更或生成时参考 `api-doc-generation`；存在测试缺口时参考 `java-unit-test`。
-- 如果 skill 可用，用它让交付总结和知识改进建议更具体。
-- 如果 skill 不可用，继续按本命令文件执行，并在 `delivery/knowledge-improvement.md` 中记录缺失能力。
+- 如当前步骤已路由到可用的代码评审、接口文档或单元测试能力，可用其补充残余风险、接口影响和测试缺口。
+- 如果能力可用，用它让交付总结和知识改进建议更具体；不得假设某个特定 Skill 名称已安装。
+- 如果 skill 不可用，继续按本命令文件执行，并在 `archive/knowledge-update-proposal.md` 中记录缺失能力。
 
 ## 允许读取
 
@@ -39,7 +39,7 @@
 写入：
 
 - `delivery/delivery-summary.md`
-- `delivery/knowledge-improvement.md`
+- `archive/knowledge-update-proposal.md`
 
 ## `delivery/delivery-summary.md` 必须章节
 
@@ -59,7 +59,7 @@
 ## 6. 剩余风险
 ```
 
-## `delivery/knowledge-improvement.md` 必须章节
+## `archive/knowledge-update-proposal.md` 必须章节
 
 ```md
 # 公共知识改进建议

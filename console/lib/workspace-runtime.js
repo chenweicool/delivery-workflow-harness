@@ -32,7 +32,19 @@ function createWorkspaceRuntime(deps) {
     normalizeCapabilityList,
   } = deps;
 
-async function initWorkspace(demandName, outputRoot, workspacePathValue) {
+function normalizeDemandConfig(value = {}, fallbackStartedAt = '') {
+  const owner = value.owner && typeof value.owner === 'object' ? value.owner : {};
+  return {
+    startedAt: String(value.startedAt || fallbackStartedAt || '').trim(),
+    owner: {
+      name: String(owner.name || '').trim(),
+      id: String(owner.id || '').trim(),
+    },
+    url: String(value.url || '').trim(),
+  };
+}
+
+async function initWorkspace(demandName, outputRoot, workspacePathValue, demandInput = {}) {
   if (!(await exists(TEMPLATE_DIR))) {
     throw new Error(`模板目录不存在：${TEMPLATE_DIR}`);
   }
@@ -59,20 +71,32 @@ async function initWorkspace(demandName, outputRoot, workspacePathValue) {
     'context/rules/linked',
     'context/skills/linked',
     'prd/assets',
+    'prd/source',
+    'prd/metadata',
+    'prd/tables',
     'prd/templates',
     'prd/examples',
     'prd/references',
+    'design/process',
+    'design/approvals',
+    'design/templates',
+    'tasks/process',
+    'tasks/approvals',
+    'review/process',
+    'review/evidence',
+    'archive/process',
   ];
   for (const dir of dirs) {
     await ensureDir(path.join(targetDir, dir));
   }
 
+  const initializedAt = new Date().toISOString();
   const sourceCommit = await gitHead(ROOT_DIR);
   const knowledgeVersion = [
     '# Knowledge Snapshot Version',
     '',
     `workspace: ${safeDemandName}`,
-    `init_time: ${new Date().toISOString()}`,
+    `init_time: ${initializedAt}`,
     `source_repo: ${path.basename(ROOT_DIR)}`,
     `source_commit: ${sourceCommit}`,
     `delivery_workflow_path: ${WORKFLOW_DIR}`,
@@ -84,6 +108,7 @@ async function initWorkspace(demandName, outputRoot, workspacePathValue) {
   const inheritedConfig = await resolveTeamDefaultsForWorkspace(tools, safeDemandName);
   await writeWorkspaceConfig(targetDir, {
     demandName: safeDemandName,
+    demand: normalizeDemandConfig(demandInput, initializedAt),
     ...inheritedConfig,
     feishuDocs: [],
     notes: inheritedConfig.notes || '',
@@ -99,6 +124,7 @@ function normalizeWorkspaceConfig(config, workspacePath) {
   const apps = normalizeApps(config.apps, appPaths);
   return {
     demandName: config.demandName || path.basename(workspacePath),
+    demand: normalizeDemandConfig(config.demand),
     feishuDocs: Array.isArray(config.feishuDocs) ? config.feishuDocs : [],
     appPaths: apps.map((app) => ({ name: app.name, path: app.sourcePath })),
     apps,

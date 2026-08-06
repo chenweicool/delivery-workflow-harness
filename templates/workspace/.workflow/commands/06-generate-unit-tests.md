@@ -21,7 +21,7 @@
 
 ## Skill 使用策略
 
-- 如可用，优先使用 `java-unit-test`。
+- 如当前步骤已路由到可用的单元测试能力，优先按该能力的 `SKILL.md` 执行；不得假设某个特定 Skill 名称已安装。
 - 如果当前不是 Java 项目，按目标项目现有测试框架执行。
 - 如果缺少测试能力或环境，写入具体阻塞点，不写泛泛建议。
 
@@ -32,20 +32,20 @@
 - `prd/**`
 - `design/**`
 - `tasks/task-list.md`
-- `tasks/task-confirmation.md`
-- `tasks/task-progress.md`
-- `review/change-log.md`
-- `review/self-check.md`
-- `review/ai-review.md`
-- `review/risk-list.md`
+- `tasks/process/task-confirmation.md`
+- `tasks/process/task-progress.md`
+- `review/process/change-log.md`
+- `review/process/self-check.md`
+- `review/quality-report.md`
+- `review/evidence/risk-list.md`
 - `apps/**` 下已确认应用代码、测试和 git diff
 
 ## 允许修改
 
 - 目标应用中的测试文件。
-- 为测试暴露必要接缝的最小生产代码改动，但必须写入 `review/unit-test-result.md`。
-- `review/unit-test-plan.md`
-- `review/unit-test-result.md`
+- 为测试暴露必要接缝的最小生产代码改动，但必须写入 `review/evidence/unit-test-result.md`。
+- `review/evidence/unit-test-plan.md`
+- `review/evidence/unit-test-result.md`
 - `.workflow/progress.md`
 - `.workflow/progress.json`
 
@@ -61,8 +61,8 @@
 
 写入：
 
-- `review/unit-test-plan.md`
-- `review/unit-test-result.md`
+- `review/evidence/unit-test-plan.md`
+- `review/evidence/unit-test-result.md`
 
 ## `review/unit-test-plan.md` 必须章节
 
@@ -78,7 +78,7 @@
 ## 4. 暂不覆盖原因
 ```
 
-## `review/unit-test-result.md` 必须章节
+## `review/evidence/unit-test-result.md` 必须章节
 
 ```md
 # 单测结果
@@ -96,7 +96,7 @@
 
 ## 集成测试处理
 
-如果项目已有集成测试能力，追加到 `review/unit-test-plan.md` 的“集成测试计划”小节并说明是否执行。
+如果项目已有集成测试能力，追加到 `review/evidence/unit-test-plan.md` 的“集成测试计划”小节并说明是否执行。
 
 如果没有可识别入口，只写计划和阻塞原因，不新增未知框架。
 

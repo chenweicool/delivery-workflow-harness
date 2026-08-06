@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://delivery-workflow-harness.local/schemas/delivery-report/1.0",
+  "title": "Delivery Workflow Delivery Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "reportId", "generatedAt", "demand", "extensions"],
+  "properties": {
+    "schemaVersion": { "const": "1.0" },
+    "reportId": { "type": "string", "pattern": "^dvr_[0-9a-f-]{36}$" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "demand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startedAt", "completedAt", "owner", "url"],
+      "properties": {
+        "startedAt": { "type": "string", "format": "date-time" },
+        "completedAt": { "type": "string", "format": "date-time" },
+        "owner": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "id"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "id": { "type": "string" }
+          }
+        },
+        "url": { "type": "string", "format": "uri", "pattern": "^https?://" }
+      }
+    },
+    "extensions": { "type": "object" }
+  }
+}

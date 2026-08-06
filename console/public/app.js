@@ -1151,7 +1151,7 @@ function renderCurrentStep() {
 }
 
 function artifactExists(relativePath) {
-  const files = state.status && Array.isArray(state.status.artifactFiles) ? state.status.artifactFiles : [];
+  const files = state.status && Array.isArray(state.status.allArtifactFiles) ? state.status.allArtifactFiles : [];
   return files.some((item) => item.type === 'file' && item.path === relativePath);
 }
 
@@ -1161,31 +1161,31 @@ function agentContractForStep(stepId) {
       name: '需求分析 Agent',
       role: '整理 PRD、加载上下文、澄清需求口径。',
       session: '可多轮澄清，最终回写需求确认文件。',
-      outputs: ['prd/document.md', 'design/context-summary.md', 'design/requirement-confirmation.md'],
+      outputs: ['prd/document.md', 'design/process/context-summary.md', 'design/process/requirement-confirmation.md'],
     },
     design: {
       name: '技术方案 Agent',
       role: '基于已确认需求和真实代码生成技术方案。',
       session: '可接续需求会话，也可独立会话。',
-      outputs: ['design/technical-design.md', 'design/technical-confirmation.md', 'design/technical-design.changelog.md'],
+      outputs: ['design/technical-design.md', 'design/process/technical-confirmation.md', 'design/process/technical-design.changelog.md'],
     },
     coding: {
       name: '编码实现 Agent',
       role: '按已确认任务实现代码，并沉淀变更证据。',
       session: '可按任务连续会话。',
-      outputs: ['tasks/task-progress.md', 'review/change-log.md', 'review/self-check.md'],
+      outputs: ['tasks/process/task-progress.md', 'review/process/change-log.md', 'review/process/self-check.md'],
     },
     review: {
       name: 'Review Agent',
       role: '审查 diff、风险和一致性，输出修复建议。',
       session: '建议独立会话。',
-      outputs: ['review/ai-review.md', 'review/risk-list.md'],
+      outputs: ['review/quality-report.md', 'review/evidence/risk-list.md'],
     },
     test: {
       name: '测试 Agent',
       role: '生成测试计划和执行结果。',
       session: '可接续 Review 会话。',
-      outputs: ['review/unit-test-plan.md', 'review/unit-test-result.md'],
+      outputs: ['review/evidence/unit-test-plan.md', 'review/evidence/unit-test-result.md'],
     },
     archive: {
       name: '归档 Agent',
@@ -1227,15 +1227,15 @@ function stageReadiness() {
     hasReadablePrdSource: prdCount > 0 || artifactExists('prd/document.md') || notesReady,
     hasPrdMd: artifactExists('prd/document.md'),
     hasWhitepaperFunction: Boolean(config.whitepaperContext && config.whitepaperContext.primaryFunction),
-    hasContext: artifactExists('design/context-summary.md'),
-    hasRequirement: artifactExists('design/requirement-confirmation.md'),
+    hasContext: artifactExists('design/process/context-summary.md'),
+    hasRequirement: artifactExists('design/process/requirement-confirmation.md'),
     hasDesign: artifactExists('design/technical-design.md'),
-    hasTechnicalConfirmation: artifactExists('design/technical-confirmation.md'),
+    hasTechnicalConfirmation: artifactExists('design/process/technical-confirmation.md'),
     hasTasks: artifactExists('tasks/task-list.md'),
-    hasChangeLog: artifactExists('review/change-log.md'),
-    hasSelfCheck: artifactExists('review/self-check.md'),
-    hasReview: artifactExists('review/ai-review.md'),
-    hasRiskList: artifactExists('review/risk-list.md'),
+    hasChangeLog: artifactExists('review/process/change-log.md'),
+    hasSelfCheck: artifactExists('review/process/self-check.md'),
+    hasReview: artifactExists('review/quality-report.md'),
+    hasRiskList: artifactExists('review/evidence/risk-list.md'),
     hasRelease: artifactExists('delivery/release-checklist.md'),
     hasDeliverySummary: artifactExists('delivery/delivery-summary.md'),
     hasArchive: artifactExists('archive/knowledge-card.md'),
@@ -1322,14 +1322,14 @@ function stageActionPackage(unit, nextStep) {
       ],
       writebacks: [
         { label: 'PRD Markdown', path: 'prd/document.md', done: hasPrdMd },
-        { label: '上下文摘要', path: 'design/context-summary.md', done: hasContext },
-        { label: '需求确认', path: 'design/requirement-confirmation.md', done: hasRequirement },
+        { label: '上下文摘要', path: 'design/process/context-summary.md', done: hasContext },
+        { label: '需求确认', path: 'design/process/requirement-confirmation.md', done: hasRequirement },
       ],
       items: [
         { label: '补充材料和应用', done: prdCount > 0, current: prdCount === 0, action: 'materials', hint: '页面保存 PRD、候选应用和本次上下文' },
         { label: '转 Markdown', done: hasPrdMd, current: prdCount > 0 && !hasPrdMd, action: 'prompt', hint: 'AI 回写 prd/document.md' },
-        { label: '加载上下文', done: hasContext, current: hasPrdMd && !hasContext, action: 'prompt', hint: 'AI 回写 design/context-summary.md' },
-        { label: '形成确认口径', done: hasRequirement, current: hasContext && !hasRequirement, action: 'prompt', hint: 'AI 回写 design/requirement-confirmation.md' },
+        { label: '加载上下文', done: hasContext, current: hasPrdMd && !hasContext, action: 'prompt', hint: 'AI 回写 design/process/context-summary.md' },
+        { label: '形成确认口径', done: hasRequirement, current: hasContext && !hasRequirement, action: 'prompt', hint: 'AI 回写 design/process/requirement-confirmation.md' },
         { label: '生成技术方案', done: hasDesign, current: hasRequirement && !hasDesign, action: 'prompt', hint: 'AI 回写 design/technical-design.md' },
       ],
     },
@@ -1345,12 +1345,12 @@ function stageActionPackage(unit, nextStep) {
       ],
       writebacks: [
         { label: '技术方案', path: 'design/technical-design.md', done: hasDesign },
-        { label: '技术确认', path: 'design/technical-confirmation.md', done: hasTechnicalConfirmation },
+        { label: '技术确认', path: 'design/process/technical-confirmation.md', done: hasTechnicalConfirmation },
         { label: '任务清单', path: 'tasks/task-list.md', done: hasTasks },
-        { label: '变更记录', path: 'review/change-log.md', done: artifactExists('review/change-log.md') },
+        { label: '变更记录', path: 'review/process/change-log.md', done: artifactExists('review/process/change-log.md') },
       ],
       items: [
-        { label: '确认方案', done: artifactExists('design/technical-confirmation.md'), action: 'prompt' },
+        { label: '确认方案', done: artifactExists('design/process/technical-confirmation.md'), action: 'prompt' },
         { label: '拆分任务', done: hasTasks, current: !hasTasks, action: 'prompt' },
         { label: '逐项实现', done: false, current: hasTasks, action: 'prompt' },
       ],
@@ -1366,16 +1366,16 @@ function stageActionPackage(unit, nextStep) {
         { label: '验收质量结论', hint: '查看 Review、风险和测试建议', action: hasReview ? 'review' : 'prompt', done: false, current: hasReview, disabled: !hasReview, reason: '等待 Agent 回写质量结论。' },
       ],
       writebacks: [
-        { label: '变更记录', path: 'review/change-log.md', done: hasChangeLog },
-        { label: '自检记录', path: 'review/self-check.md', done: ready.hasSelfCheck },
-        { label: 'AI Review', path: 'review/ai-review.md', done: hasReview },
-        { label: '风险清单', path: 'review/risk-list.md', done: hasRiskList },
-        { label: '单测计划', path: 'review/unit-test-plan.md', done: artifactExists('review/unit-test-plan.md') },
+        { label: '变更记录', path: 'review/process/change-log.md', done: hasChangeLog },
+        { label: '自检记录', path: 'review/process/self-check.md', done: ready.hasSelfCheck },
+        { label: 'AI Review', path: 'review/quality-report.md', done: hasReview },
+        { label: '风险清单', path: 'review/evidence/risk-list.md', done: hasRiskList },
+        { label: '单测计划', path: 'review/evidence/unit-test-plan.md', done: artifactExists('review/evidence/unit-test-plan.md') },
       ],
       items: [
         { label: '变更记录', done: hasChangeLog, current: !hasChangeLog, action: 'prompt' },
         { label: 'AI Review', done: hasReview, current: hasChangeLog && !hasReview, action: 'prompt' },
-        { label: '测试计划', done: artifactExists('review/unit-test-plan.md'), action: 'prompt' },
+        { label: '测试计划', done: artifactExists('review/evidence/unit-test-plan.md'), action: 'prompt' },
       ],
     },
     'release-and-archive': {
@@ -1711,12 +1711,12 @@ function semanticArtifactGroups() {
     ['研发技术方案', 'design/technical-design.md', 'primary'],
     ['实施任务', 'tasks/task-list.md', 'primary'],
     ['上线 Checklist', 'delivery/release-checklist.md', 'primary'],
-    ['需求确认', 'design/requirement-confirmation.md', 'evidence'],
-    ['技术确认', 'design/technical-confirmation.md', 'evidence'],
-    ['任务确认', 'tasks/task-confirmation.md', 'evidence'],
-    ['变更记录', 'review/change-log.md', 'evidence'],
-    ['自检记录', 'review/self-check.md', 'evidence'],
-    ['AI Review', 'review/ai-review.md', 'evidence'],
+    ['需求确认', 'design/process/requirement-confirmation.md', 'evidence'],
+    ['技术确认', 'design/process/technical-confirmation.md', 'evidence'],
+    ['任务确认', 'tasks/process/task-confirmation.md', 'evidence'],
+    ['变更记录', 'review/process/change-log.md', 'evidence'],
+    ['自检记录', 'review/process/self-check.md', 'evidence'],
+    ['AI Review', 'review/quality-report.md', 'evidence'],
     ['测试基线', 'design/unit-test-design.md', 'evidence'],
     ['冒烟基线', 'design/smoke-test-design.md', 'evidence'],
     ['交付总结', 'delivery/delivery-summary.md', 'evidence'],
@@ -2775,7 +2775,7 @@ async function importFeishuPrdToLocal(options = {}) {
           body: `已读取 ${imported.length} 个飞书文档，后续 Agent 会优先使用本地 PRD Markdown。`,
           paths: [
             data.documentPath || 'prd/document.md',
-            data.sourcePath || 'prd/source-feishu.json',
+            data.sourcePath || 'prd/source/feishu.json',
           ],
         });
       }

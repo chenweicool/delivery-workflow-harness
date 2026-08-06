@@ -6,7 +6,7 @@
 
 所有评审输出必须使用中文。只有代码符号、命令、文件路径、类名、方法名、分支名和固定协议术语保留原文。
 
-如果本地 code review skill 可用，使用其中的评审视角和风险分类；如果不可用，按本文件清单执行。
+如果当前步骤已路由到可用的代码评审能力，使用其中的评审视角和风险分类；如果不可用，按本文件清单执行。不得假设某个特定 Skill 名称已安装。
 
 ## 输出要求
 
@@ -22,8 +22,8 @@
 - `prd/**`
 - `design/**`
 - `tasks/task-list.md`
-- `review/change-log.md`
-- `review/self-check.md`
+- `review/process/change-log.md`
+- `review/process/self-check.md`
 - `apps/**` 下已确认应用代码和 git diff
 
 ## 禁止事项
@@ -35,8 +35,8 @@
 
 写入：
 
-- `review/ai-review.md`
-- `review/risk-list.md`
+- `review/quality-report.md`
+- `review/evidence/risk-list.md`
 
 ## 必须章节
 
@@ -75,7 +75,7 @@
 - 本步骤必须作为独立 Review Agent 执行，不要直接采信实现 Agent 的自检结论。
 - 不修改代码；如需修复，记录到风险清单或待确认问题，等待后续修复步骤。
 
-## `review/risk-list.md` 必须章节
+## `review/evidence/risk-list.md` 必须章节
 
 ```md
 # 风险清单

@@ -5,6 +5,8 @@ const fsp = require('fs/promises');
 const http = require('http');
 const os = require('os');
 const path = require('path');
+const { ingestPrdSources } = require('../console/lib/prd-ingestion');
+const { validateDemand } = require('../console/lib/delivery-report');
 const { spawn } = require('child_process');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -36,6 +38,11 @@ const {
   evaluateQualityGates,
   submitQualityGate,
   createKnowledgeUpdateProposal,
+  completeDeliveryReport,
+  submitDeliveryReport,
+  authorizeHarnessClient,
+  getHarnessClientStatus,
+  logoutHarnessClient,
 } = require(path.join(
   ROOT_DIR,
   'console',
@@ -55,12 +62,18 @@ function usage() {
     '  dw restart [--port 3040] [--no-open]',
     '  dw status',
     '  dw logs [--lines 80]',
-    '  dw init <demand-name> --domain <domain-harness-path> [--output-root <path>]',
+    '  dw init <demand-name> --domain <domain-harness-path> --owner <name> --demand-url <url> [--owner-id <id>] [--output-root <path>]',
     '  dw prd import <file-or-directory> --workspace <path>',
     '  dw domain inspect --root <domain-harness-path>',
     '  dw domain attach --workspace <path> --root <domain-harness-path>',
     '  dw gate check --workspace <path>',
     '  dw gate approve|reject|exception <gate-id> --workspace <path> [--note "..."]',
+    '  dw report complete --workspace <path>',
+    '  dw report submit --workspace <path>',
+    '  dw harness configure --server-url <url> [--token-env HARNESS_INGEST_TOKEN]',
+    '  dw harness login',
+    '  dw harness status',
+    '  dw harness logout',
     '  dw status --workspace <path>',
     '  dw next --workspace <path>',
     '',
@@ -68,7 +81,7 @@ function usage() {
     '  npx delivery-workflow-harness start',
     '  dw start',
     '  dw stop',
-    '  dw init negative-bill-export --domain F:\\code\\harness-project\\spm-harness-module-negative',
+    '  dw init negative-bill-export --domain F:\\code\\harness-project\\spm-harness-module-negative --owner 张三 --demand-url https://example.internal/demand/123',
     '',
     'The full command name "delivery-workflow" is also supported.',
   ].join('\n');
@@ -471,11 +484,23 @@ async function commandInit(args) {
   if (!domainRoot) {
     throw new Error('Missing domain harness. Usage: dw init <demand-name> --domain <domain-harness-path>');
   }
+  const ownerName = String(args.owner || args.ownerName || '').trim();
+  const demandUrl = String(args['demand-url'] || args.demandUrl || '').trim();
+  if (!ownerName || !demandUrl) {
+    throw new Error('Missing demand owner or URL. Usage: dw init <demand-name> --owner <name> --demand-url <url>');
+  }
   const inspected = await inspectDomainHarness(domainRoot);
   if (!inspected.available) {
     throw new Error(inspected.reason || '领域 Harness 不可用');
   }
-  const workspacePath = await initWorkspace(demandName, outputRoot);
+  const demand = validateDemand({
+    owner: {
+      name: ownerName,
+      id: String(args['owner-id'] || args.ownerId || '').trim(),
+    },
+    url: demandUrl,
+  });
+  const workspacePath = await initWorkspace(demandName, outputRoot, '', demand);
   const result = await attachDomainHarness({ workspacePath, domainRoot });
   console.log(`Domain Harness attached: ${result.context.root}`);
   console.log(`Domain snapshot: ${path.join(workspacePath, 'context', 'domain-summary.md')}`);
@@ -625,9 +650,12 @@ async function commandPrd(args) {
   if (!pathExists(sourcePath)) {
     throw new Error(`PRD 来源不存在：${sourcePath}`);
   }
-  const targetPath = path.join(workspacePath, 'prd', path.basename(sourcePath));
+  const targetPath = path.join(workspacePath, 'prd', 'source', path.basename(sourcePath));
   await copyPrdSource(sourcePath, targetPath);
+  const sourceRelativePath = path.relative(workspacePath, targetPath).replace(/\\/g, '/');
+  const ingestion = await ingestPrdSources(workspacePath, [sourceRelativePath]);
   console.log(`prd: ${targetPath}`);
+  console.log(`markdown: ${ingestion.document.status} (${path.join(workspacePath, ingestion.document.path)})`);
   console.log(`next: dw gate check --workspace "${workspacePath}"`);
 }
 
@@ -696,6 +724,97 @@ async function commandArchive(args) {
   console.log(`knowledge-proposal: ${proposal.status}`);
   console.log(`proposal: ${path.join(workspacePath, 'archive', 'knowledge-update-proposal.json')}`);
   console.log(`patch: ${path.join(workspacePath, 'archive', 'knowledge-patch.md')}`);
+}
+
+async function commandReport(args) {
+  const action = args._[1] || 'complete';
+  const workspacePath = resolveWorkspaceArg(args);
+  if (!workspacePath) {
+    throw new Error('Missing workspace. Usage: dw report complete|submit --workspace <path>');
+  }
+  if (action === 'submit') {
+    const submission = await submitDeliveryReport(workspacePath);
+    console.log(`submission: ${submission.status}`);
+    if (submission.receiptFile) {
+      console.log(`receipt: ${path.join(workspacePath, submission.receiptFile)}`);
+    }
+    if (submission.error) {
+      console.log(`error: ${submission.error}`);
+      process.exitCode = 1;
+    }
+    return;
+  }
+  if (action !== 'complete') {
+    throw new Error('Usage: dw report complete|submit --workspace <path>');
+  }
+  const result = await completeDeliveryReport(workspacePath);
+  console.log(`report: ${path.join(workspacePath, result.reportFile)}`);
+  console.log(result.created ? 'status: created' : 'status: existing');
+  const submission = await submitDeliveryReport(workspacePath);
+  console.log(`submission: ${submission.status}`);
+  if (submission.receiptFile) {
+    console.log(`receipt: ${path.join(workspacePath, submission.receiptFile)}`);
+  }
+  if (submission.error) {
+    console.log(`submission-error: ${submission.error}`);
+  }
+}
+
+async function commandHarness(args) {
+  const action = args._[1] || 'status';
+  const current = await readToolsConfig();
+  const existing = (current.integrations || {}).harnessClient || {};
+  if (action === 'status') {
+    console.log(JSON.stringify(await getHarnessClientStatus(), null, 2));
+    return;
+  }
+  if (action === 'login') {
+    const result = await authorizeHarnessClient();
+    console.log(`Harness Client authorized until: ${new Date(result.expiresAt).toISOString()}`);
+    return;
+  }
+  if (action === 'logout') {
+    await logoutHarnessClient();
+    console.log('Harness Client local authorization cleared.');
+    return;
+  }
+  if (action !== 'configure') {
+    throw new Error('Usage: dw harness configure|login|logout|status');
+  }
+  const serverUrl = String(args['server-url'] || args.serverUrl || '').trim();
+  if (!serverUrl) {
+    throw new Error('Missing server URL. Usage: dw harness configure --server-url <url>');
+  }
+  let parsed;
+  try {
+    parsed = new URL(serverUrl);
+  } catch {
+    throw new Error('Harness Server 地址必须是有效的 HTTP 或 HTTPS 地址。');
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error('Harness Server 地址必须是有效的 HTTP 或 HTTPS 地址。');
+  }
+  const next = await saveToolsConfig({
+    tools: {
+      ...current,
+      integrations: {
+        ...(current.integrations || {}),
+        harnessClient: {
+          enabled: true,
+          serverUrl: serverUrl.replace(/\/+$/, ''),
+          tokenEnv: String(args['token-env'] || args.tokenEnv || existing.tokenEnv || 'HARNESS_INGEST_TOKEN').trim() || 'HARNESS_INGEST_TOKEN',
+          authMode: args['auth-mode'] || args.authMode || 'browser-pkce',
+          clientId: args['client-id'] || args.clientId || existing.clientId || 'delivery-workflow-desktop',
+          authorizeUrl: args['authorize-url'] || args.authorizeUrl || `${new URL(serverUrl).origin}/#/harness/authorize`,
+          accessToken: existing.accessToken || '',
+          accessTokenExpiresAt: existing.accessTokenExpiresAt || 0,
+        },
+      },
+    },
+  });
+  console.log('Harness Client configured.');
+  console.log(`serverUrl: ${next.integrations.harnessClient.serverUrl}`);
+  console.log(`tokenEnv: ${next.integrations.harnessClient.tokenEnv}`);
 }
 
 async function commandStatus(args) {
@@ -929,6 +1048,14 @@ async function main() {
   }
   if (command === 'archive') {
     await commandArchive(args);
+    return;
+  }
+  if (command === 'report') {
+    await commandReport(args);
+    return;
+  }
+  if (command === 'harness') {
+    await commandHarness(args);
     return;
   }
   if (command === 'status') {

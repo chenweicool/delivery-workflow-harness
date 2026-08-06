@@ -11,7 +11,7 @@ const DEFAULT_QUALITY_POLICY = {
     'requirement-confirmed': {
       title: '需求口径确认',
       approval: 'product-or-demand-owner',
-      requires: ['prd/document.md', 'design/requirement-confirmation.md'],
+      requires: ['prd/document.md', 'design/process/requirement-confirmation.md'],
     },
     'design-ready': {
       title: '技术方案准入',
@@ -29,11 +29,11 @@ const DEFAULT_QUALITY_POLICY = {
       title: '交付验证',
       approval: 'quality-or-tech-owner',
       requires: [
-        'review/ai-review.md',
-        'review/risk-list.md',
-        'review/unit-test-result.md',
-        'review/traceability-matrix.md',
-        'review/smoke-test-result.md',
+        'review/quality-report.md',
+        'review/evidence/risk-list.md',
+        'review/evidence/unit-test-result.md',
+        'review/evidence/traceability-matrix.md',
+        'review/evidence/smoke-test-result.md',
       ],
     },
   },

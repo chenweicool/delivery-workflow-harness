@@ -97,6 +97,10 @@ async function main() {
     const { response: initialStateResponse, data: initialState } = await requestJson(runtime.url, '/api/state');
     assert.equal(initialStateResponse.status, 200);
     assert.equal(typeof initialState.outputRoot, 'string');
+    const { response: gitIdentityResponse, data: gitIdentityData } = await requestJson(runtime.url, '/api/system/git-identity');
+    assert.equal(gitIdentityResponse.status, 200);
+    assert.equal(typeof gitIdentityData.name, 'string');
+    assert.equal(typeof gitIdentityData.id, 'string');
 
     const workspaceRoot = path.join(tempRoot, 'workspaces');
     const whitepaperRoot = path.join(rootDir, 'team-config.example');
@@ -114,7 +118,16 @@ async function main() {
 
     const { response: initResponse, data: initData } = await requestJson(runtime.url, '/api/workspaces/init', {
       method: 'POST',
-      body: JSON.stringify({ demandName: 'api-regression', outputRoot: workspaceRoot, domainRoot, perspective: 'qa' }),
+      body: JSON.stringify({
+        demandName: 'api-regression',
+        outputRoot: workspaceRoot,
+        domainRoot,
+        perspective: 'qa',
+        demand: {
+          url: 'https://example.internal/demand/api-regression',
+          owner: { name: 'API 回归', id: 'api-regression' },
+        },
+      }),
     });
     assert.equal(initResponse.status, 200);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'AGENTS.md')), true);
@@ -127,9 +140,85 @@ async function main() {
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'capabilities.lock.json')), true);
     const initializedWorkspaceConfig = JSON.parse(await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'workspace.json'), 'utf8'));
     assert.equal(initializedWorkspaceConfig.perspective, 'qa');
+    assert.equal(initializedWorkspaceConfig.demand.owner.name, 'API 回归');
+    assert.equal(initializedWorkspaceConfig.demand.url, 'https://example.internal/demand/api-regression');
     const capabilitySnapshot = await fsp.readFile(path.join(initData.workspacePath, 'context', 'capabilities.md'), 'utf8');
     assert.match(capabilitySnapshot, /当前需求能力快照/);
     const workspaceQuery = encodeURIComponent(initData.workspacePath);
+    const { response: reportResponse, data: reportData } = await requestJson(runtime.url, '/api/workspace/delivery-report/complete', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(reportResponse.status, 200);
+    assert.equal(reportData.created, true);
+    assert.equal(reportData.report.schemaVersion, '1.0');
+    assert.equal(reportData.report.demand.owner.id, 'api-regression');
+    assert.equal(reportData.report.demand.url, 'https://example.internal/demand/api-regression');
+    assert.equal(reportData.submission.status, 'not-configured');
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, 'delivery', 'delivery-report.json')), true);
+    const { response: repeatedReportResponse, data: repeatedReportData } = await requestJson(runtime.url, '/api/workspace/delivery-report/complete', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(repeatedReportResponse.status, 200);
+    assert.equal(repeatedReportData.created, false);
+    assert.equal(repeatedReportData.report.reportId, reportData.report.reportId);
+    assert.equal(repeatedReportData.submission.status, 'not-configured');
+    const { response: harnessConfigResponse, data: harnessConfigData } = await requestJson(runtime.url, '/api/harness-client/configure', {
+      method: 'POST',
+      body: JSON.stringify({
+        serverUrl: 'https://harness.example.internal/api/v1/harness/delivery-reports',
+        clientId: 'delivery-workflow-desktop',
+      }),
+    });
+    assert.equal(harnessConfigResponse.status, 200);
+    assert.equal(harnessConfigData.enabled, true);
+    assert.equal(harnessConfigData.authorizationStatus, 'required');
+    assert.equal(Object.prototype.hasOwnProperty.call(harnessConfigData, 'accessToken'), false);
+    const { response: harnessStatusResponse, data: harnessStatusData } = await requestJson(runtime.url, '/api/harness-client/status');
+    assert.equal(harnessStatusResponse.status, 200);
+    assert.equal(harnessStatusData.serverUrl, 'https://harness.example.internal/api/v1/harness/delivery-reports');
+    assert.equal(Object.prototype.hasOwnProperty.call(harnessStatusData, 'accessToken'), false);
+    const { response: safeToolsResponse, data: safeToolsData } = await requestJson(runtime.url, '/api/tools/config');
+    assert.equal(safeToolsResponse.status, 200);
+    assert.equal(Object.prototype.hasOwnProperty.call(safeToolsData.tools.integrations.harnessClient, 'accessToken'), false);
+    const { response: tokenSeedResponse } = await requestJson(runtime.url, '/api/tools/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        tools: {
+          integrations: {
+            harnessClient: {
+              accessToken: 'local-regression-token',
+              accessTokenExpiresAt: Date.now() + 60_000,
+            },
+          },
+        },
+      }),
+    });
+    assert.equal(tokenSeedResponse.status, 200);
+    const { response: safeSaveResponse, data: safeSaveData } = await requestJson(runtime.url, '/api/tools/config', {
+      method: 'POST',
+      body: JSON.stringify({ tools: safeToolsData.tools }),
+    });
+    assert.equal(safeSaveResponse.status, 200);
+    assert.equal(Object.prototype.hasOwnProperty.call(safeSaveData.tools.integrations.harnessClient, 'accessToken'), false);
+    const { response: preservedStatusResponse, data: preservedStatusData } = await requestJson(runtime.url, '/api/harness-client/status');
+    assert.equal(preservedStatusResponse.status, 200);
+    assert.equal(preservedStatusData.authorizationStatus, 'authorized');
+    const localMarkdown = path.join(tempRoot, 'local-prd.md');
+    const localDocx = path.join(tempRoot, 'local-prd.docx');
+    await fsp.writeFile(localMarkdown, '# 本地 PRD\n\n正文内容。\n', 'utf8');
+    await fsp.writeFile(localDocx, 'not-a-real-docx', 'utf8');
+    const { response: localImportResponse, data: localImportData } = await requestJson(runtime.url, '/api/workspace/import-local-prd', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath, sourcePaths: [localMarkdown, localDocx] }),
+    });
+    assert.equal(localImportResponse.status, 200);
+    assert.equal(localImportData.ingestion.document.status, 'generated');
+    assert.equal(localImportData.ingestion.records.some((item) => item.kind === 'docx' && item.status === 'needs-parser'), true);
+    const normalizedPrd = await fsp.readFile(path.join(initData.workspacePath, 'prd', 'document.md'), 'utf8');
+    assert.match(normalizedPrd, /本地 PRD/);
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, 'prd', 'metadata', 'ingestion.json')), true);
 
     const { response: domainInspectResponse, data: domainInspectData } = await requestJson(
       runtime.url,
@@ -199,12 +288,12 @@ async function main() {
     assert.match(unavailablePromptData.prompt, /本机未挂载能力/);
     assert.match(unavailablePromptData.prompt, /不是前置条件/);
 
-    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'ai-review.md'), '# AI Review\nP0: block release\n', 'utf8');
-    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'risk-list.md'), '# Risk List\nP2: follow up\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'quality-report.md'), '# AI Review\nP0: block release\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'risk-list.md'), '# Risk List\nP2: follow up\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'unit-test-design.md'), '# Unit Test Design\n', 'utf8');
-    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'unit-test-result.md'), '# Unit Test Result\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'unit-test-result.md'), '# Unit Test Result\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'technical-design.md'), '# Technical Design\n', 'utf8');
-    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'technical-confirmation.md'), '# Technical Confirmation\n\n无阻塞项。\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'process', 'technical-confirmation.md'), '# Technical Confirmation\n\n## 确认结果\n\n无阻塞项。\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'smoke-test-design.md'), '# Smoke Test Design\n', 'utf8');
     const { response: checkpointResponse, data: checkpointData } = await requestJson(runtime.url, '/api/checkpoint/approve', {
       method: 'POST',
@@ -219,6 +308,14 @@ async function main() {
     });
     assert.equal(checkpointResponse.status, 200, JSON.stringify(checkpointData));
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'baselines', 'technical-design.lock.json')), true);
+    assert.equal(fs.existsSync(path.join(initData.workspacePath, 'context', 'current-context.md')), true);
+    const currentContext = await fsp.readFile(path.join(initData.workspacePath, 'context', 'current-context.md'), 'utf8');
+    assert.match(currentContext, /新会话必读顺序/);
+    assert.match(currentContext, /无阻塞项/);
+    const { response: layeredStatusResponse, data: layeredStatusData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(layeredStatusResponse.status, 200);
+    assert.equal(layeredStatusData.allArtifactFiles.some((item) => item.path === 'design/process/technical-confirmation.md'), true);
+    assert.equal(layeredStatusData.artifactFiles.some((item) => item.path === 'design/process/technical-confirmation.md'), false);
     const { response: baselineResponse, data: baselineData } = await requestJson(runtime.url, '/api/workspace/design-baselines/verify', {
       method: 'POST',
       body: JSON.stringify({ workspacePath: initData.workspacePath }),
@@ -237,8 +334,8 @@ async function main() {
     });
     assert.equal(approveGateResponse.status, 200);
     assert.equal(approveGateData.gates['design-ready'].status, 'approved');
-    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'traceability-matrix.md'), '# Traceability\n', 'utf8');
-    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'smoke-test-result.md'), '# Smoke Result\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'traceability-matrix.md'), '# Traceability\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'smoke-test-result.md'), '# Smoke Result\n', 'utf8');
     const { response: qualityResponse, data: qualityData } = await requestJson(runtime.url, '/api/workspace/quality-summary/refresh', {
       method: 'POST',
       body: JSON.stringify({ workspacePath: initData.workspacePath }),

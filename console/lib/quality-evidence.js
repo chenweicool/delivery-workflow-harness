@@ -26,13 +26,13 @@ function createQualityEvidenceRuntime(deps) {
     }
     const config = await readWorkspaceConfig(workspacePath);
     const files = [
-      ['aiReview', 'review/ai-review.md'],
-      ['riskList', 'review/risk-list.md'],
+      ['aiReview', 'review/quality-report.md'],
+      ['riskList', 'review/evidence/risk-list.md'],
       ['unitTestDesign', 'design/unit-test-design.md'],
       ['smokeTestDesign', 'design/smoke-test-design.md'],
-      ['unitTestResult', 'review/unit-test-result.md'],
-      ['traceabilityMatrix', 'review/traceability-matrix.md'],
-      ['smokeTestResult', 'review/smoke-test-result.md'],
+      ['unitTestResult', 'review/evidence/unit-test-result.md'],
+      ['traceabilityMatrix', 'review/evidence/traceability-matrix.md'],
+      ['smokeTestResult', 'review/evidence/smoke-test-result.md'],
     ];
     const evidence = {};
     let combinedText = '';

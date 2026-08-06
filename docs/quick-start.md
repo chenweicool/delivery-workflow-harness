@@ -180,10 +180,10 @@ Delivery Workflow 是需求组织者和交付 Harness，不替代 Codex / Claude
 质量阶段应至少回写：
 
 ```text
-review/unit-test-plan.md
-review/unit-test-result.md
-review/ai-review.md
-review/risk-list.md
+review/quality-report.md
+review/evidence/unit-test-plan.md
+review/evidence/unit-test-result.md
+review/evidence/risk-list.md
 .workflow/quality-summary.json
 ```
 

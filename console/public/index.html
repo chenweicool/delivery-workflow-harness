@@ -57,6 +57,9 @@
                 <h3>输入需求</h3>
                 <p>需求名称用于创建独立 Workspace；项目目录由工作台设置提供，也可在创建时临时调整。</p>
                 <label><span>需求名称</span><input id="demandName" placeholder="例如：negative-bill-export" /></label>
+                <label><span>需求链接</span><input id="demandUrl" type="url" placeholder="例如：https://xxx.feishu.cn/wiki/..." /></label>
+                <label><span>需求负责人</span><input id="demandOwnerName" placeholder="默认读取 Git 用户名，例如：张三" /></label>
+                <label><span>负责人账号（可选）</span><input id="demandOwnerId" placeholder="默认读取 Git 用户名，例如：zhangsan" /></label>
                 <label><span>项目目录</span><div class="picker-row"><input id="outputRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseOutputRootBtn" type="button">选择目录</button></div></label>
                 <label><span>交付视角</span><select id="perspective"><option value="backend" selected>后端研发（默认）</option><option value="frontend">前端研发</option><option value="qa">测试验证</option><option value="ops">运维发布</option></select></label>
               </section>
@@ -140,6 +143,7 @@
                 <p>集成</p>
                 <button class="settings-nav-item" data-settings-view="mcp" type="button">MCP 服务</button>
                 <button class="settings-nav-item" data-settings-view="feishu" type="button">飞书</button>
+                <button class="settings-nav-item" data-settings-view="harness" type="button">Harness Client</button>
               </aside>
               <div class="settings-content">
                 <section class="settings-panel" data-settings-panel="general">
@@ -169,6 +173,20 @@
                   <label><span>本机 CLI 命令</span><input id="feishuCliCommand" placeholder="例如：lark-mcp" /></label>
                   <label><span>令牌环境变量名</span><input id="feishuTokenRef" placeholder="例如：FEISHU_USER_ACCESS_TOKEN" /></label>
                 </section>
+                <section class="settings-panel hidden" data-settings-panel="harness">
+                  <h2>Harness Client</h2>
+                  <p>配置交付报告接收地址后，通过浏览器登录智审平台完成授权。访问令牌只保存在本机，不会在页面中显示。</p>
+                  <label><span>报告接收地址</span><input id="harnessServerUrl" placeholder="https://harness.example.com/api/v1/harness/delivery-reports" /></label>
+                  <label><span>授权页地址（可选）</span><input id="harnessAuthorizeUrl" placeholder="https://harness.example.com/#/harness/authorize" /></label>
+                  <label><span>Client ID</span><input id="harnessClientId" value="delivery-workflow-desktop" /></label>
+                  <div id="harnessClientStatus" class="config-note">正在读取授权状态…</div>
+                  <div class="card-actions">
+                    <button id="saveHarnessConfigBtn" type="button">保存 Harness 配置</button>
+                    <button id="loginHarnessClientBtn" class="primary" type="button">浏览器登录授权</button>
+                    <button id="logoutHarnessClientBtn" type="button">退出本机授权</button>
+                    <button id="submitHarnessReportBtn" type="button">上报当前报告</button>
+                  </div>
+                </section>
                 <div class="settings-footer"><button id="saveGlobalConfigBtn" class="primary" type="button">保存设置</button></div>
               </div>
             </div>
@@ -177,6 +195,6 @@
       </main>
     </div>
 
-    <script src="/control-plane.js?v=20260804-delivery-layout"></script>
+    <script src="/control-plane.js?v=20260806-harness-client-ui"></script>
   </body>
 </html>

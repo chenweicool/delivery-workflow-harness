@@ -41,13 +41,13 @@ async function buildAiAdjustmentPrompt(workspacePath, body, runConfig, preparedW
     .join('\n');
   const files = [
     ['技术方案', 'design/technical-design.md'],
-    ['技术方案确认', 'design/technical-confirmation.md'],
+    ['技术方案确认', 'design/process/technical-confirmation.md'],
     ['任务清单', 'tasks/task-list.md'],
-    ['任务确认', 'tasks/task-confirmation.md'],
-    ['任务进度', 'tasks/task-progress.md'],
-    ['变更记录', 'review/change-log.md'],
-    ['自检记录', 'review/self-check.md'],
-    ['AI Review', 'review/ai-review.md'],
+    ['任务确认', 'tasks/process/task-confirmation.md'],
+    ['任务进度', 'tasks/process/task-progress.md'],
+    ['变更记录', 'review/process/change-log.md'],
+    ['自检记录', 'review/process/self-check.md'],
+    ['AI Review', 'review/quality-report.md'],
   ];
   const contextSections = [];
   for (const [title, file] of files) {
@@ -82,7 +82,7 @@ async function buildAiAdjustmentPrompt(workspacePath, body, runConfig, preparedW
     '',
     '- 先理解用户调整诉求，再看当前 diff，避免重复实现已完成内容。',
     '- 如果用户诉求和已确认技术方案/任务确认冲突，必须停止并说明冲突，不要强行改。',
-    '- 修改完成后，必须更新 review/change-log.md、review/self-check.md 和 tasks/ai-adjustments.md。',
+    '- 修改完成后，必须更新 review/process/change-log.md、review/process/self-check.md 和 tasks/process/ai-adjustments.md。',
     '- 不要提交 git commit，不要 push。',
     '- 输出中文总结，说明改了什么、未完成什么、需要人工确认什么。',
     '',

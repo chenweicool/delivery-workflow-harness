@@ -29,7 +29,7 @@ function createDesignBaselineRuntime(deps) {
         sha256: digest(content),
         lockedAt,
         approvedBy: approval.operator || 'local-user',
-        approvalFile: 'design/technical-design.approved.json',
+        approvalFile: 'design/approvals/technical-design.approved.json',
       };
       await writeWorkspaceJsonFile(workspacePath, spec.lock, lock);
       locks.push(lock);

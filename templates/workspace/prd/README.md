@@ -6,15 +6,17 @@
 
 ```text
 prd/
-  README.md              本说明
-  main.md                主 PRD 或需求正文
+  document.md            解析后供后续阶段读取的主 PRD
+  source/                原始 Word、PDF、飞书来源记录等
   assets/                截图、流程图、页面标注
+  tables/                抽取出的表格
+  metadata/              文档解析元数据
   templates/             Excel 模板、导入导出样例
   examples/              示例数据、异常样例、历史单据样例
   references/            外部文档摘录或业务补充说明
 ```
 
-如果只有一个需求文档，建议命名为 `main.md`。
+原始文件一律放入 `source/`；解析后的主文档固定为 `document.md`。本说明属于模板说明，不是 PRD 产物。
 
 如果有导入模板、导出模板或示例 Excel，优先放入 `templates/`，AI 在产品需求分析和技术边界分析阶段需要读取这些文件来抽取字段、校验规则和映射关系。
 

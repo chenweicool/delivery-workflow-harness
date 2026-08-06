@@ -2,7 +2,7 @@
 
 ## 目标
 
-结合 `tasks/task-list.md` 和 `tasks/task-confirmation.md`，只实现一个已确认任务。
+结合 `tasks/task-list.md` 和 `tasks/process/task-confirmation.md`，只实现一个已确认任务。
 
 ## 必要用户输入
 
@@ -23,17 +23,17 @@
 - `prd/**`
 - `design/**`
 - `tasks/task-list.md`
-- `tasks/task-confirmation.md`
-- `tasks/task-progress.md`
+- `tasks/process/task-confirmation.md`
+- `tasks/process/task-progress.md`
 - `apps/**` 下已确认应用代码
 - `.workflow/workspace.json` 中记录的源应用路径
 
 ## 允许修改
 
 - `apps/**` 下已确认应用 worktree 中与选中任务必要相关的文件。
-- `tasks/task-progress.md`
-- `review/change-log.md`
-- `review/self-check.md`
+- `tasks/process/task-progress.md`
+- `review/process/change-log.md`
+- `review/process/self-check.md`
 - `.workflow/evidence/capability-degradation.md`
 
 ## 禁止事项
@@ -46,7 +46,7 @@
 
 ## 必须流程
 
-1. 先读取 `tasks/task-confirmation.md`，确认当前人工确认批次中选中的任务。
+1. 先读取 `tasks/process/task-confirmation.md`，确认当前人工确认批次中选中的任务。
 2. 校验选中任务是否明确列入“允许 AI 实施”，且任务明细中标记为 `允许 AI 实施`。
 3. 如果任务被暂缓、退回、缺失、编号不明确或仍需人工确认，必须停止，不得修改代码。
 4. 读取 `tasks/task-list.md`，以其中的范围、文件、验收标准和依赖作为实施细节来源。
@@ -56,14 +56,14 @@
 8. 确保每个涉及应用在 `apps/<app-name>` 下有本需求专用 git worktree。
 9. 如果 `apps/<app-name>` 不存在，按 `.workflow/workspace.json` 中应用配置创建。
 10. worktree 创建后，禁止编辑源应用路径；所有代码改动必须发生在 `apps/<app-name>` 下。
-11. 读取或创建 `tasks/task-progress.md`，在改代码前将选中任务标记为 `实施中`。
+11. 读取或创建 `tasks/process/task-progress.md`，在改代码前将选中任务标记为 `实施中`。
 12. 修改文件前先说明计划改动文件。
 13. 只实现选中任务。
 14. 条件允许时运行聚焦验证。
 15. 在应用 worktree 下查看 `git diff`。
-16. 更新 `review/change-log.md`。
-17. 更新 `review/self-check.md`。
-18. 更新 `tasks/task-progress.md`，记录最终任务状态、变更文件、验证结果、剩余风险和下一建议任务。
+16. 更新 `review/process/change-log.md`。
+17. 更新 `review/process/self-check.md`。
+18. 更新 `tasks/process/task-progress.md`，记录最终任务状态、变更文件、验证结果、剩余风险和下一建议任务。
 
 ## Worktree 规则
 
@@ -77,7 +77,7 @@
 - 如果分支已存在于其他 worktree，必须停止并报告已存在路径，不得复用无关代码。
 - 可通过 `git -C <source-repo> worktree add -b <feature-branch> <workspace>/<worktree-path> <base-branch>` 创建 worktree。
 
-## `task-progress.md` 必须章节
+## `tasks/process/task-progress.md` 必须章节
 
 ```md
 # 任务执行进度
@@ -95,7 +95,7 @@
 | --- | --- | --- | --- | --- |
 ```
 
-## `change-log.md` 必须章节
+## `review/process/change-log.md` 必须章节
 
 ```md
 # 变更记录
@@ -111,7 +111,7 @@
 ## 剩余风险
 ```
 
-## `self-check.md` 必须章节
+## `review/process/self-check.md` 必须章节
 
 ```md
 # 自检

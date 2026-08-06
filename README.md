@@ -110,9 +110,45 @@ evidence for demand confirmation, technical-design readiness, and delivery
 verification. `dw gate check` writes the auditable state to
 `.workflow/gates.json`; only an evidence-ready gate can be approved.
 
-Technical design must freeze `review/unit-test-plan.md` and
-`review/smoke-test-plan.md`. Later implementation is verified against those
-plans rather than adding tests only at the end.
+Technical design must freeze `design/unit-test-design.md` and
+`design/smoke-test-design.md`. Later implementation is verified against those
+baselines rather than adding tests only at the end.
+
+## Workspace Artifact Layout
+
+New Workspaces keep final artifacts separate from process records:
+
+```text
+prd/document.md                    parsed PRD
+prd/source/                        original PRD material
+design/*.md                        approved design and test baselines
+design/process/                    context, confirmations and revision history
+design/approvals/                  checkpoint records
+tasks/task-list.md                 approved task plan
+tasks/process/                     task confirmation and execution progress
+review/quality-report.md           independent review conclusion
+review/evidence/                   test, smoke, risk and traceability evidence
+review/process/                    change log and self-check
+archive/                           knowledge proposal and case card
+.workflow/                         commands, locks and runtime state
+```
+
+After the technical-design checkpoint is approved, Workflow generates
+`context/current-context.md`. A new Codex or Claude session reads it through
+the Workspace instructions, then follows its links to the approved design and
+test baselines. Skills remain external capabilities: the Workflow routes and
+locks selected skills, but does not hard-code team or integration-specific
+Skill implementations.
+
+## PRD Ingestion
+
+Local PRD imports are first copied to `prd/source/`. The built-in ingestion
+adapter immediately normalizes Markdown and plain-text files into
+`prd/document.md`, and records every source plus its parser status in
+`prd/metadata/ingestion.json`. DOCX, PDF, and legacy DOC sources remain safely
+archived and are marked `needs-parser` until a later parser adapter or an Agent
+produces the normalized Markdown; this does not require a team Skill to be
+installed.
 
 The detailed architecture and connector model are in
 [docs/control-plane-refactor-plan.md](docs/control-plane-refactor-plan.md).

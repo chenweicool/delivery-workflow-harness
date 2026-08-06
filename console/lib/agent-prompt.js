@@ -34,18 +34,18 @@ function createAgentPromptRuntime(deps) {
       worktreePath: app.exists ? app.worktreePath : app.sourcePath,
     }))).catch((error) => `无法读取 diff：${error.message}`);
     const files = [
-      ['需求确认', 'design/requirement-confirmation.md'],
+      ['需求确认', 'design/process/requirement-confirmation.md'],
       ['技术方案', 'design/technical-design.md'],
-      ['技术确认', 'design/technical-confirmation.md'],
+      ['技术确认', 'design/process/technical-confirmation.md'],
       ['任务清单', 'tasks/task-list.md'],
-      ['任务确认', 'tasks/task-confirmation.md'],
+      ['任务确认', 'tasks/process/task-confirmation.md'],
       ['本次交付说明', 'design/known-facts.md'],
-      ['变更记录', 'review/change-log.md'],
-      ['实现自检', 'review/self-check.md'],
+      ['变更记录', 'review/process/change-log.md'],
+      ['实现自检', 'review/process/self-check.md'],
     ];
     if (stepId === '08-verify-tests') {
-      files.push(['AI Review', 'review/ai-review.md']);
-      files.push(['风险清单', 'review/risk-list.md']);
+      files.push(['AI Review', 'review/quality-report.md']);
+      files.push(['风险清单', 'review/evidence/risk-list.md']);
     }
     const sections = [];
     for (const [label, relativePath] of files) {
@@ -65,7 +65,7 @@ function createAgentPromptRuntime(deps) {
           '- 单测必须优先覆盖本次 diff 触达的分支、边界条件、异常路径和 Review 发现的风险。',
           '- 优先复用项目现有测试框架、基类、mock 风格、断言方式和命名规范。',
           '- 能执行就记录真实命令和结果；不能执行必须写具体阻塞原因。',
-          '- 如必须为可测性调整生产代码，只允许最小接缝改动并写入 `review/unit-test-result.md`。',
+          '- 如必须为可测性调整生产代码，只允许最小接缝改动并写入 `review/evidence/unit-test-result.md`。',
           '- 集成测试只生成计划；只有检测到项目已有集成测试入口时才执行。',
         ]
       : [

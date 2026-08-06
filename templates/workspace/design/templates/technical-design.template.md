@@ -5,8 +5,8 @@
 | 文档类型 | 文档名称 / 链接 | 备注 |
 | --- | --- | --- |
 | PRD |  |  |
-| 需求澄清 | `design/requirement-confirmation.md` |  |
-| 上下文摘要 | `design/context-summary.md` |  |
+| 需求澄清 | `design/process/requirement-confirmation.md` |  |
+| 上下文摘要 | `design/process/context-summary.md` |  |
 
 ## 二、相关方
 

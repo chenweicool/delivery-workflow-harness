@@ -1,0 +1,218 @@
+console/lib/agents.js
+  s_332f0f9145a182::t_551c0c5a48e310 8,14,20,26,32
+docs/quick-start.md
+  s_332f0f9145a182::t_f6e9b6e1230a6f 183-186
+templates/workspace/.workflow/commands/01-clarify-requirement.md
+  s_332f0f9145a182::t_3b815ae9142ee4 22,35,39,93-95
+README.md
+  s_332f0f9145a182::t_e5094778705093 142-151
+  s_332f0f9145a182::t_f6e9b6e1230a6f 113-141
+templates/workspace/prd/metadata/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+templates/workspace/.workflow/commands/09-release-checklist.md
+  s_332f0f9145a182::t_c23a35c6c05937 20
+bin/delivery-workflow.js
+  s_f266cba4875104::t_34471f23a24cb6 43,74,771-775,806-810
+  s_332f0f9145a182::t_470947c70a219c 653,819
+  s_f266cba4875104::t_3a543b21f8220b 44-45,76,768,776-780,782
+  s_332f0f9145a182::t_e05b32a93423c5 8,655-656,658
+  s_b03987b44460a7::t_b16713b22bb190 9,496,503
+  s_f266cba4875104::t_5efe32a05df6a9 42,72-73,75,733-748,753-767,769-770,781,783-805,811-817,1055-1058
+  s_b03987b44460a7::t_412c8f959d3c57 41,65,71,84,487-491,497-502,729-732,749-752,818,1053-1054,1059-1060
+templates/workspace/review/process/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+console/lib/harness-client.js
+  s_f266cba4875104::t_27e8f0df8970c1 2-4,17-19,48,83,85,98,135-158,193-194,196-204,206,208-212
+  s_f266cba4875104::t_a787f47fb31096 1,5-15,21-47,49-79,84,86-97,99-134,214-220
+  s_f266cba4875104::t_03e4ecb7bc7542 16
+  s_f266cba4875104::t_2e80f30d26abe2 20,80-82,159-192,213
+  s_f266cba4875104::t_83f97776db7893 207
+  s_f266cba4875104::t_3a3e217e1612f1 195,205
+templates/workspace/design/approvals/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+templates/workspace/.workflow/commands/09-run-smoke.md
+  s_332f0f9145a182::t_84b234d086be17 9
+templates/workspace/.workflow/commands/08-delivery-summary.md
+  s_332f0f9145a182::t_c23a35c6c05937 17-18
+  s_332f0f9145a182::t_c43f58456b5b40 19,42,62
+console/lib/agent-adjustment.js
+  s_332f0f9145a182::t_551c0c5a48e310 44,46-50,85
+templates/workspace/.workflow/commands/02-generate-technical-design.md
+  s_332f0f9145a182::t_dedb1bc789e400 51,53,57-58,60,64,67,71,74
+  s_332f0f9145a182::t_96e746741a4a23 83-84,88,90,119,122,137,140,144-148,150
+  s_332f0f9145a182::t_2cb5abb9334771 7,11-13,25-26,35-39,41-43
+console/lib/prd-ingestion.js
+  s_332f0f9145a182::t_fcc016a8513d4d 1-122
+console/public/control-plane.css
+  s_332f0f9145a182::t_49b34fbc7ce234 11-16
+console/lib/agent-prompt.js
+  s_332f0f9145a182::t_bb9f8eb8c664d0 37,39,41,43-44,47-48,68
+templates/workspace/.workflow/commands/10-archive-knowledge.md
+  s_332f0f9145a182::t_c43f58456b5b40 41,73
+templates/workspace/.workflow/commands/00-import-and-parse-prd.md
+  s_332f0f9145a182::t_7527ac61ebd8b4 9
+  s_332f0f9145a182::t_3b815ae9142ee4 12,38
+templates/workspace/AGENTS.md
+  s_332f0f9145a182::t_e88071c680ab3b 16,27-28,30,32
+  s_b03987b44460a7::t_b16713b22bb190 31,74
+  s_332f0f9145a182::t_62360ceb8a3b59 103-104
+templates/workspace/CLAUDE.md
+  s_332f0f9145a182::t_e88071c680ab3b 23
+scripts/regression-api.js
+  s_332f0f9145a182::t_fd2ee14a652743 208-221
+  s_f266cba4875104::t_ee8f8bfaf3c434 185-207
+  s_f266cba4875104::t_cad9279c13e1e9 157,166
+  s_b03987b44460a7::t_f21df15270d424 121-130,143-144,148-156,158-165
+  s_332f0f9145a182::t_d6505352d32604 291-292,294,296,311,337-338
+  s_b03987b44460a7::t_36f961e6ae9aa3 100-103
+  s_f266cba4875104::t_3f5ce6bbe69ab5 167-184
+  s_332f0f9145a182::t_6b8ee37c4d1d8e 312-314
+  s_332f0f9145a182::t_950b2e7254d44c 315-318
+console/server.js
+  s_332f0f9145a182::t_4f22d0ba224aaf 1517-1533,2996-2997,3010-3012
+  s_332f0f9145a182::t_e05b32a93423c5 138-140,1694,1961,2886-2887
+  s_332f0f9145a182::t_bb9f8eb8c664d0 167-168,588,2401
+  s_f266cba4875104::t_56c4a0a9d520c2 77-79,322-327,331-333,336,2710-2717,2719,3135
+  s_f266cba4875104::t_83f97776db7893 2577-2579,2584-2589,2598-2600
+  s_f266cba4875104::t_b70a99e1673b18 2722-2771
+  s_332f0f9145a182::t_7fb40e7f8411f9 1534-1555,2998-3009
+  s_b03987b44460a7::t_36f961e6ae9aa3 2538-2555
+  s_b03987b44460a7::t_e9559698eeafc5 73-76,316-321,334-335,338-339,2654-2655,2709,2718,2813-2815,3134
+  s_332f0f9145a182::t_e88071c680ab3b 1556,1666,1671,1786,1816,2556,2772,3013
+  s_332f0f9145a182::t_3569ee0811c10a 165
+  s_f266cba4875104::t_3a3e217e1612f1 337
+  s_f266cba4875104::t_e098e24521266e 329-330,340-351,2561,2603,3137-3138
+  s_332f0f9145a182::t_95261e1eb79a21 1692-1693,1959-1960
+  s_332f0f9145a182::t_46aa8194150f1f 1721
+  s_f266cba4875104::t_34471f23a24cb6 328,3136
+  s_f266cba4875104::t_bac2d1f522c1d4 2580-2583,2590-2597
+console/lib/design-baseline.js
+  s_332f0f9145a182::t_20bca084496a94 32
+console/public/app.js
+  s_332f0f9145a182::t_62360ceb8a3b59 1373,1378,2778
+  s_332f0f9145a182::t_84e8e1a59cefcc 1154
+  s_332f0f9145a182::t_e79b4ce98bc695 1164,1170,1176,1182,1188,1230-1231,1233,1235-1238,1325-1326,1331-1332,1348,1350,1353,1369-1372,1714-1719
+docs/next-stage-task-breakdown.md
+  s_332f0f9145a182::t_68bfeabef8e9e9 224-235
+  s_332f0f9145a182::t_b0464651c1f191 214-223,236
+docs/delivery-report-v1.md
+  s_b03987b44460a7::t_7496cdfab7b3a5 1-29
+  s_f266cba4875104::t_9d0cd6abe82438 30-31
+templates/workspace/prd/README.md
+  s_332f0f9145a182::t_8107b132ceec42 9-10,12-13,19
+scripts/smoke.js
+  s_b03987b44460a7::t_f21df15270d424 76,82-87
+  s_332f0f9145a182::t_d6505352d32604 98,105,114-117
+  s_332f0f9145a182::t_fd2ee14a652743 99-100
+templates/workspace/prd/source/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+schemas/delivery-report.schema.json
+  s_b03987b44460a7::t_7496cdfab7b3a5 1-33
+templates/workspace/prd/tables/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+console/lib/quality-evidence.js
+  s_332f0f9145a182::t_551c0c5a48e310 29-30,33-35
+console/lib/workspace-status.js
+  s_332f0f9145a182::t_098abf74a37b77 123
+  s_332f0f9145a182::t_84e8e1a59cefcc 125-126,215
+templates/workspace/.workflow/commands/00-load-context.md
+  s_332f0f9145a182::t_3b815ae9142ee4 33
+package.json
+  s_f266cba4875104::t_7616a485839507 33,36,46
+  s_f266cba4875104::t_83f97776db7893 56
+  s_f266cba4875104::t_cad9279c13e1e9 30
+  s_b03987b44460a7::t_412c8f959d3c57 55,57
+console/public/control-plane.js
+  s_f266cba4875104::t_2dae7094a5d737 70
+  s_f266cba4875104::t_aa752b020935de 65
+  s_b03987b44460a7::t_a3d4ef304cefb9 6,24,56
+  s_332f0f9145a182::t_22443beeef0b35 30,43,50,57
+  s_f266cba4875104::t_30d02374fec97a 32
+  s_b03987b44460a7::t_36f961e6ae9aa3 68-69
+  s_f266cba4875104::t_0ee305c0795c75 9,31,33-37
+  s_332f0f9145a182::t_433adbd8022cf4 29,45,49,51-55
+templates/workspace/tasks/process/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+console/lib/workspace-runtime.js
+  s_b03987b44460a7::t_e9559698eeafc5 35-47,93,99,111,127
+  s_332f0f9145a182::t_e88071c680ab3b 74-76,80-87
+templates/workspace/.workflow/commands/README.md
+  s_332f0f9145a182::t_c43f58456b5b40 10-11,19,22,30-33,42
+  s_b03987b44460a7::t_b16713b22bb190 45-46
+templates/workspace/tasks/approvals/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+templates/workspace/design/process/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+templates/workspace/.workflow/commands/06-implement-task.md
+  s_332f0f9145a182::t_b0566c450a39e4 5,26-27,34-36,49,59,64-66,80,98,114
+console/public/index.html
+  s_b03987b44460a7::t_a3d4ef304cefb9 60
+  s_b03987b44460a7::t_36f961e6ae9aa3 61-62
+  s_f266cba4875104::t_4766cc1fd5d693 146,176-188
+  s_f266cba4875104::t_ce0e54522ad3b7 198
+templates/workspace/archive/process/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+console/lib/delivery-report.js
+  s_b03987b44460a7::t_7496cdfab7b3a5 1-94
+templates/workspace/.workflow/commands/08-verify-tests.md
+  s_332f0f9145a182::t_84b234d086be17 15,19-20
+templates/workspace/.workflow/commands/07-review-code.md
+  s_332f0f9145a182::t_84b234d086be17 25-26,38-39,78
+  s_332f0f9145a182::t_c23a35c6c05937 9
+console/lib/checkpoint.js
+  s_332f0f9145a182::t_62360ceb8a3b59 34
+  s_332f0f9145a182::t_2525c858e2ea87 77
+  s_332f0f9145a182::t_20bca084496a94 37,71-76,78,80,84-98,100-144,233-234,264
+  s_332f0f9145a182::t_91834b0793333b 79,82,99,145
+console/lib/quality-gate.js
+  s_332f0f9145a182::t_551c0c5a48e310 14,32-36
+templates/workspace/.workflow/commands/05-split-tasks.md
+  s_332f0f9145a182::t_b0566c450a39e4 13
+  s_332f0f9145a182::t_bba48de1d248a9 63
+templates/workspace/review/evidence/.gitkeep
+  s_332f0f9145a182::t_508038b898e1f6 1
+templates/workspace/.workflow/commands/06-generate-unit-tests.md
+  s_332f0f9145a182::t_c23a35c6c05937 24
+  s_332f0f9145a182::t_84b234d086be17 35-40,46-48,64-65,81,99
+docs/harness-client-guide.md
+  s_f266cba4875104::t_5fca65f9decc1d 1-6,11-74
+  s_f266cba4875104::t_ce0e54522ad3b7 7-10
+console/lib/workflow.js
+  s_332f0f9145a182::t_a7ade574b2ef32 14,18-19,32-33,40-41,52,88,94,99-101,109-111,117-118,131,136-138,149-151,157,163-165,173-175,181-182,188,194,200,212,218
+scripts/check-harness-client.js
+  s_f266cba4875104::t_7616a485839507 1-84
+templates/workspace/.workflow/quality-policy.yaml
+  s_332f0f9145a182::t_aea79f50caf012 8,23-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "14048ebfcebd9587612e53e5cc1d7cc228734d09",
+  "prompts": {},
+  "sessions": {
+    "s_332f0f9145a182": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fcfc1-5201-7332-b269-80add0549b38",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    },
+    "s_b03987b44460a7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd6f7-3b5b-7950-ad1b-ca1b7882a30c",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    },
+    "s_f266cba4875104": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd717-4838-7512-892c-a035655e02e9",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

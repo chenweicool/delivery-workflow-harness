@@ -5,9 +5,24 @@ const fs = require('fs/promises');
 const http = require('http');
 const os = require('os');
 const path = require('path');
-const { createHarnessClientRuntime } = require('../console/lib/harness-client');
+const { buildAuthorizationUrl, buildWindowsOpenArgs, createHarnessClientRuntime } = require('../console/lib/harness-client');
 
 async function main() {
+  const authorizationUrl = new URL(buildAuthorizationUrl('https://harness.example.internal/#/harness/authorize', {
+    client_id: 'delivery-workflow-desktop',
+    redirect_uri: 'http://127.0.0.1:39999/callback',
+    state: 'test-state',
+    code_challenge: 'test-challenge',
+  }));
+  assert.equal(authorizationUrl.search, '');
+  assert.equal(authorizationUrl.hash.startsWith('#/harness/authorize?'), true);
+  const authorizationParams = new URLSearchParams(authorizationUrl.hash.split('?')[1]);
+  assert.equal(authorizationParams.get('client_id'), 'delivery-workflow-desktop');
+  assert.equal(authorizationParams.get('redirect_uri'), 'http://127.0.0.1:39999/callback');
+  assert.equal(authorizationParams.get('state'), 'test-state');
+  assert.equal(authorizationParams.get('code_challenge'), 'test-challenge');
+  const windowsArgs = buildWindowsOpenArgs(authorizationUrl.toString());
+  assert.deepEqual(windowsArgs, [authorizationUrl.toString()]);
   const workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), 'delivery-workflow-harness-client-'));
   const report = {
     schemaVersion: '1.0',

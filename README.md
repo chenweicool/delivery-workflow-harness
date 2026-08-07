@@ -155,29 +155,54 @@ The detailed architecture and connector model are in
 
 ## Public npm Publishing
 
-The package is published to the public npm registry. Only the publishing
-computer needs an npm account login; other computers can run the published
-package without logging in:
+The package is published to the public npm registry. Users do not need an npm
+account; they can run the released `latest` package directly:
 
 ```bash
-npx -y delivery-workflow-harness@beta start
+npx -y delivery-workflow-harness@latest start
 ```
 
-For a beta release from the publishing computer, run:
+The repository maintains two automated release paths:
+
+- Dependabot opens weekly pull requests for npm dependencies and GitHub
+  Actions updates. It never merges or publishes automatically.
+- Pushing a Git tag named `v<package-version>` runs checks and publishes the
+  package. Stable versions use the npm `latest` tag; prerelease versions use
+  `beta`.
+
+For current publishing restrictions, repository maintenance locations, and
+the activation checklist, see [npm release and maintenance](docs/npm-release-and-maintenance.md).
+
+Before enabling the release workflow, configure npm **Trusted Publishing** for
+this GitHub repository and the `Publish npm package` workflow. This lets npm
+verify GitHub's short-lived OIDC identity; do not add an npm token or `.npmrc`
+credential to this repository.
+
+To release, first commit the intended package version, then create and push a
+matching annotated tag:
 
 ```bash
-npm login --registry=https://registry.npmjs.org/
-npm whoami
-npm publish --tag beta --registry=https://registry.npmjs.org/
+npm version prerelease --preid beta
+git push origin main --follow-tags
+
+# After beta verification:
+npm version 0.2.0
+git push origin main --follow-tags
 ```
 
-`npm publish` runs `prepublishOnly`, which executes syntax checks, regression
-tests, and `npm pack --dry-run` before the package is uploaded.
+Published npm versions are immutable. If the workflow fails, fix the issue,
+create a new version, and tag that version; never try to republish the same
+version.
 
-Each published version must be new. After the beta trial is accepted, update
-the package version and publish without `--tag beta` to release `latest`.
-Never commit npm tokens, recovery codes, or `.npmrc` credentials to this
-repository.
+Globally installed users can upgrade after a release with:
+
+```bash
+npm update -g delivery-workflow-harness
+```
+
+Do not schedule this command as a silent background update: it may interrupt a
+running local console. Prefer showing an update notice and letting the user
+restart when ready.
 
 ## Status
 

@@ -38,6 +38,25 @@ function safeErrorMessage(error) {
   return String(error && error.message ? error.message : error || '未知上报错误').slice(0, 500);
 }
 
+function buildAuthorizationUrl(authorizeUrl, params) {
+  const url = new URL(authorizeUrl);
+  if (url.hash.startsWith('#/')) {
+    const fragment = url.hash.slice(1);
+    const separator = fragment.indexOf('?');
+    const routePath = separator >= 0 ? fragment.slice(0, separator) : fragment;
+    const query = new URLSearchParams(separator >= 0 ? fragment.slice(separator + 1) : '');
+    Object.entries(params).forEach(([key, value]) => query.set(key, value));
+    url.hash = `${routePath}?${query.toString()}`;
+    return url.toString();
+  }
+  Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, value));
+  return url.toString();
+}
+
+function buildWindowsOpenArgs(url) {
+  return [String(url)];
+}
+
 function createHarnessClientRuntime(deps) {
   const {
     normalizeUserPath,
@@ -49,6 +68,7 @@ function createHarnessClientRuntime(deps) {
     nowIso,
     fetchImpl = global.fetch,
   } = deps;
+  let pendingAuthorization = null;
 
   async function writeReceipt(workspacePath, reportId, data) {
     const receiptFile = path.posix.join(RECEIPT_DIRECTORY, `${reportId}.json`);
@@ -132,7 +152,10 @@ function createHarnessClientRuntime(deps) {
     }
   }
 
-  async function authorizeHarnessClient() {
+  async function startHarnessAuthorization() {
+    if (pendingAuthorization) {
+      throw new Error('已有浏览器授权正在等待回调，请在已打开的授权页完成操作或稍后重试。');
+    }
     const tools = await readToolsConfig();
     const config = normalizeHarnessClientConfig((tools.integrations || {}).harnessClient);
     if (!config.serverUrl || !config.authorizeUrl || !config.clientId) {
@@ -142,13 +165,13 @@ function createHarnessClientRuntime(deps) {
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
     const state = crypto.randomBytes(24).toString('base64url');
     const callback = await waitForAuthorizationCallback(state);
-    const authorizationUrl = new URL(config.authorizeUrl);
-    authorizationUrl.searchParams.set('client_id', config.clientId);
-    authorizationUrl.searchParams.set('redirect_uri', callback.redirectUri);
-    authorizationUrl.searchParams.set('state', state);
-    authorizationUrl.searchParams.set('code_challenge', challenge);
-    openBrowser(authorizationUrl.toString());
-    const code = await callback.result;
+    const authorizationUrl = buildAuthorizationUrl(config.authorizeUrl, {
+      client_id: config.clientId,
+      redirect_uri: callback.redirectUri,
+      state,
+      code_challenge: challenge,
+    });
+    const completion = callback.result.then(async (code) => {
     const tokenUrl = new URL(config.serverUrl);
     tokenUrl.pathname = tokenUrl.pathname.replace(/\/delivery-reports$/, '/delivery-reports/tokens');
     const response = await fetchImpl(tokenUrl.toString(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clientId: config.clientId, code, codeVerifier: verifier }) });
@@ -156,6 +179,20 @@ function createHarnessClientRuntime(deps) {
     if (!response.ok || payload.code !== 200 || !payload.data?.accessToken) throw new Error(payload.message || '授权令牌交换失败。');
     await saveToolsConfig({ tools: { ...tools, integrations: { ...(tools.integrations || {}), harnessClient: { ...(tools.integrations || {}).harnessClient, enabled: true, authMode: 'browser-pkce', accessToken: payload.data.accessToken, accessTokenExpiresAt: payload.data.expiresAt } } } });
     return { status: 'authorized', expiresAt: payload.data.expiresAt };
+    });
+    pendingAuthorization = completion;
+    completion.then(
+      () => { if (pendingAuthorization === completion) pendingAuthorization = null; },
+      () => { if (pendingAuthorization === completion) pendingAuthorization = null; },
+    );
+    completion.catch(() => {});
+    return { authorizationUrl, completion };
+  }
+
+  async function authorizeHarnessClient() {
+    const pending = await startHarnessAuthorization();
+    openBrowser(pending.authorizationUrl);
+    return pending.completion;
   }
 
   async function getHarnessClientStatus() {
@@ -208,13 +245,15 @@ function createHarnessClientRuntime(deps) {
     return { redirectUri: `http://127.0.0.1:${server.address().port}/callback`, result };
   }
 
-  function openBrowser(url) { const command = process.platform === 'win32' ? 'cmd' : process.platform === 'darwin' ? 'open' : 'xdg-open'; const args = process.platform === 'win32' ? ['/c', 'start', '', url] : [url]; const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true }); child.unref(); }
+  function openBrowser(url) { const command = process.platform === 'win32' ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open'; const args = process.platform === 'win32' ? buildWindowsOpenArgs(url) : [url]; const child = spawn(command, args, { detached: true, stdio: 'ignore', windowsHide: true }); child.unref(); }
 
-  return { submitDeliveryReport, authorizeHarnessClient, getHarnessClientStatus, logoutHarnessClient };
+  return { submitDeliveryReport, startHarnessAuthorization, authorizeHarnessClient, getHarnessClientStatus, logoutHarnessClient };
 }
 
 module.exports = {
   normalizeHarnessClientConfig,
   validateServerUrl,
+  buildAuthorizationUrl,
+  buildWindowsOpenArgs,
   createHarnessClientRuntime,
 };

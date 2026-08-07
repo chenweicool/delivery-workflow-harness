@@ -325,6 +325,7 @@ const {
 });
 const {
   submitDeliveryReport,
+  startHarnessAuthorization,
   authorizeHarnessClient,
   getHarnessClientStatus,
   logoutHarnessClient,
@@ -2761,7 +2762,8 @@ async function route(req, res) {
     }
 
     if (req.method === 'POST' && url.pathname === '/api/harness-client/login') {
-      sendJson(res, 200, await authorizeHarnessClient());
+      const pending = await startHarnessAuthorization();
+      sendJson(res, 200, { status: 'pending', authorizationUrl: pending.authorizationUrl });
       return;
     }
 
@@ -3133,6 +3135,7 @@ module.exports = {
   refreshQualitySummary,
   completeDeliveryReport,
   submitDeliveryReport,
+  startHarnessAuthorization,
   authorizeHarnessClient,
   getHarnessClientStatus,
   logoutHarnessClient,

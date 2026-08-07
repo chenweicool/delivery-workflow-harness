@@ -1,0 +1,64 @@
+console/server.js
+  s_f266cba4875104::t_3ddf6e0ffe4804 328,2765-2766,3138
+README.md
+  s_a06ed72901817f::t_59d2728c4594ef 158-159,162,165-171,176-182,185-188,190,193-201,203-205
+  s_a06ed72901817f::t_eb77b7a72399a4 173-175
+  s_a06ed72901817f::t_498b4b0472ed8c 189
+.github/workflows/publish-npm.yml
+  s_a06ed72901817f::t_59d2728c4594ef 1-20,22-24,26-28,30-59
+  s_a06ed72901817f::t_571d9a48beb19c 21,25,29
+docs/harness-v1-stage-summary.md
+  s_f266cba4875104::t_e35e2e4bbb1d8b 55,110-113
+  s_f266cba4875104::t_c8344e210ee30d 1,3-4,6,8,11,14-54,56-76,79,81,83,85-91,93,95-99,101,103-106,108
+package.json
+  s_a06ed72901817f::t_109c7f1e6581cd 30
+docs/harness-client-guide.md
+  s_a06ed72901817f::t_109c7f1e6581cd 73-74
+console/lib/harness-client.js
+  s_f266cba4875104::t_4450836ad45940 58-59
+  s_f266cba4875104::t_69c90ea0ef94cc 57,248
+  s_f266cba4875104::t_62d285f572bae4 71,155-158,168,173-174,182-195,250
+  s_f266cba4875104::t_e6837ac69187dd 41-55,169-172,256
+  s_f266cba4875104::t_d8b97676aabbbe 56,257
+.github/dependabot.yml
+  s_a06ed72901817f::t_59d2728c4594ef 1-19
+scripts/check-no-private-endpoints.js
+  s_a06ed72901817f::t_109c7f1e6581cd 1-43
+console/public/control-plane.js
+  s_f266cba4875104::t_19b5a8b6e44207 35-36
+docs/npm-release-and-maintenance.md
+  s_a06ed72901817f::t_eb77b7a72399a4 1-77
+scripts/check-harness-client.js
+  s_f266cba4875104::t_d8b97676aabbbe 8,24
+  s_f266cba4875104::t_e6837ac69187dd 12-23
+  s_f266cba4875104::t_69c90ea0ef94cc 25
+  s_a06ed72901817f::t_109c7f1e6581cd 11
+docs/workflow-report-governance-and-next-stage.md
+  s_f266cba4875104::t_14888d75abfe66 1-150
+console/public/index.html
+  s_f266cba4875104::t_e1b01372b850ed 198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "d46e2cd976d77c986bc4e4772773b0b2ae7072be",
+  "prompts": {},
+  "sessions": {
+    "s_a06ed72901817f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fda33-8909-7bb1-9d61-14528e95db4d",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    },
+    "s_f266cba4875104": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd717-4838-7512-892c-a035655e02e9",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

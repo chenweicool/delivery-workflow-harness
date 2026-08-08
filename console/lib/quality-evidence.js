@@ -29,9 +29,9 @@ function createQualityEvidenceRuntime(deps) {
       ['aiReview', 'review/quality-report.md'],
       ['riskList', 'review/evidence/risk-list.md'],
       ['unitTestDesign', 'design/unit-test-design.md'],
-      ['smokeTestDesign', 'design/smoke-test-design.md'],
       ['unitTestResult', 'review/evidence/unit-test-result.md'],
       ['traceabilityMatrix', 'review/evidence/traceability-matrix.md'],
+      ['smokeTestCase', 'review/evidence/smoke-test-case.md'],
       ['smokeTestResult', 'review/evidence/smoke-test-result.md'],
     ];
     const evidence = {};
@@ -63,7 +63,7 @@ function createQualityEvidenceRuntime(deps) {
         ? '处理 P0 问题后重新执行质量门禁。'
         : status === 'ready'
           ? '质量证据已齐备，可以进入上线准备与归档。'
-          : '补齐 Review、风险清单、测试设计、测试结果、追溯矩阵和冒烟结果。',
+          : '补齐 Review、风险清单、单测设计与结果、追溯矩阵、研发提供的冒烟用例和冒烟结果。',
     };
     await writeWorkspaceJsonFile(workspacePath, QUALITY_SUMMARY_FILE, summary);
     return summary;

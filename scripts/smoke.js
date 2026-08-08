@@ -106,10 +106,8 @@ async function main() {
   await fsp.writeFile(path.join(workspacePath, 'prd', 'document.md'), '# 解析后的 PRD\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'design', 'technical-design.md'), '# 技术方案\n\n- 修改 Service 分支逻辑\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'design', 'unit-test-design.md'), '# 单测设计\n\n- UT-001 覆盖边界\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'design', 'smoke-test-design.md'), '# 冒烟设计\n\n- SMOKE-001 手工执行\n', 'utf8');
   await lockBaseline('design/technical-design.md', 'technical-design');
   await lockBaseline('design/unit-test-design.md', 'unit-test-design');
-  await lockBaseline('design/smoke-test-design.md', 'smoke-test-design');
   await fsp.writeFile(path.join(workspacePath, 'tasks', 'task-list.md'), '# 任务清单\n\n- T001 覆盖核心改动\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'process', 'change-log.md'), '# 变更记录\n\n- 修改目标代码\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'process', 'self-check.md'), '# 自检\n\n- 已自检主路径\n', 'utf8');

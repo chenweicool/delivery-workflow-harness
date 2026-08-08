@@ -49,8 +49,10 @@
               <section class="setup-step">
                 <span class="step-number">1</span>
                 <h3>绑定领域 Harness</h3>
-                <p>只读挂载产品白皮书、领域记忆、代码入口、领域 skills 与 rules。一份需求只绑定一个领域。</p>
-                <div class="picker-row"><input id="domainRoot" placeholder="F:\code\harness-project\spm-harness-module-negative" /><button id="chooseDomainBtn" type="button">选择目录</button></div>
+                <p>支持本地目录和 Git 地址。第一个添加的是主 Harness，其余作为只读参考上下文。</p>
+                <label><span>Git 地址或本地目录</span><input id="domainRoot" placeholder="粘贴 Git 地址，或输入本地目录" /></label>
+                <div class="picker-row"><button id="chooseDomainBtn" type="button">浏览并添加本地目录</button><button id="addDomainSourceBtn" class="primary" type="button">添加输入的地址</button></div>
+                <div id="domainSourceList" class="domain-source-list"><span class="domain-source-empty">尚未添加 Harness</span></div>
               </section>
               <section class="setup-step">
                 <span class="step-number">2</span>
@@ -195,6 +197,6 @@
       </main>
     </div>
 
-    <script src="/control-plane.js?v=20260807-harness-browser-direct"></script>
+    <script src="/control-plane.js?v=20260808-multi-harness-flow"></script>
   </body>
 </html>

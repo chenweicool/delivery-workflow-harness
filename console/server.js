@@ -1456,8 +1456,8 @@ async function readWorkspaceDiff(body) {
 function openWithSystem(targetPath) {
   return new Promise((resolve, reject) => {
     const isWindows = process.platform === 'win32';
-    const command = isWindows ? 'cmd' : process.platform === 'darwin' ? 'open' : 'xdg-open';
-    const args = isWindows ? ['/c', 'start', '', targetPath] : [targetPath];
+    const command = isWindows ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open';
+    const args = [targetPath];
     const child = spawn(command, args, {
       windowsHide: true,
       detached: true,
@@ -1513,6 +1513,52 @@ async function openWorkspaceFolder(body) {
   }
   await openWithSystem(workspacePath);
   return { opened: true, targetPath: workspacePath, mode: 'system-folder' };
+}
+
+function normalizeDomainSources(value) {
+  const values = Array.isArray(value) ? value : [value];
+  return Array.from(new Set(values
+    .flatMap((item) => String(item || '').split(/[\r\n,]+/))
+    .map((item) => item.trim())
+    .filter(Boolean)));
+}
+
+function isGitRemote(value) {
+  return /^(https?:\/\/|ssh:\/\/|git@)/i.test(String(value || '').trim());
+}
+
+async function materializeDomainSources(workspacePathValue, sourcesValue) {
+  const workspacePath = normalizeUserPath(workspacePathValue || '');
+  const sources = normalizeDomainSources(sourcesValue);
+  if (!sources.length) throw new Error('创建需求至少需要填写一个 Harness 本地目录或 Git 地址');
+  const resolved = [];
+  for (const [index, source] of sources.entries()) {
+    if (!isGitRemote(source)) {
+      const root = normalizeUserPath(source);
+      const inspected = await inspectDomainHarness(root);
+      if (!inspected.available) throw new Error(`Harness 无法挂载：${source}；${inspected.reason || ''}`);
+      resolved.push({ source, root, cloned: false });
+      continue;
+    }
+    const sourceName = sanitizeName(path.basename(source.replace(/[\\/]+$/, '')).replace(/\.git$/i, '') || `harness-${index + 1}`);
+    const target = path.join(workspacePath, 'context', 'domain-sources', `${String(index + 1).padStart(2, '0')}-${sourceName}`);
+    assertWithin(workspacePath, target);
+    if (!(await exists(target))) {
+      await ensureDir(path.dirname(target));
+      try {
+        await execFileAsync('git', ['clone', '--depth', '1', '--', source, target], {
+          windowsHide: true,
+          maxBuffer: 10 * 1024 * 1024,
+        });
+      } catch (error) {
+        throw new Error(`无法克隆 Harness：${source}；${String(error.stderr || error.message || '').trim()}`);
+      }
+    }
+    const inspected = await inspectDomainHarness(target);
+    if (!inspected.available) throw new Error(`克隆结果不是可挂载 Harness：${source}；${inspected.reason || ''}`);
+    resolved.push({ source, root: target, cloned: true });
+  }
+  return resolved;
 }
 
 async function openWorkspacePath(body) {
@@ -2644,20 +2690,22 @@ async function route(req, res) {
 
     if (req.method === 'POST' && url.pathname === '/api/workspaces/init') {
       const body = await readJson(req);
-      const domainRoot = body.domainRoot || body.domain;
-      if (!domainRoot) {
-        throw new Error('创建需求必须绑定一个领域 Harness');
-      }
-      const domain = await inspectDomainHarness(domainRoot);
-      if (!domain.available) {
-        throw new Error(domain.reason || '领域 Harness 不可用');
+      const domainSources = normalizeDomainSources(body.domainRoots || body.domainSources || body.domainRoot || body.domain);
+      if (!domainSources.length) throw new Error('创建需求必须绑定至少一个领域 Harness');
+      for (const source of domainSources.filter((item) => !isGitRemote(item))) {
+        const domain = await inspectDomainHarness(source);
+        if (!domain.available) throw new Error(domain.reason || '领域 Harness 不可用');
       }
       const demand = validateDemand(body.demand);
       const workspacePath = await initWorkspace(body.demandName, body.outputRoot, body.workspacePath, demand);
       await writeWorkspaceConfig(workspacePath, { perspective: body.perspective || 'backend' });
-      const attached = await attachDomainHarness({ workspacePath, domainRoot });
+      const domains = await materializeDomainSources(workspacePath, domainSources);
+      let attached = null;
+      for (const [index, domain] of domains.entries()) {
+        attached = await attachDomainHarness({ workspacePath, domainRoot: domain.root, primary: index === 0, source: domain.source });
+      }
       const capabilities = await refreshWorkspaceCapabilities(workspacePath);
-      sendJson(res, 200, { workspacePath, domain: attached.context, capabilities });
+      sendJson(res, 200, { workspacePath, domain: attached.context, domains, capabilities });
       return;
     }
 
@@ -3130,6 +3178,7 @@ module.exports = {
   resolveWhitepaperWorkspaceContext,
   inspectDomainHarness,
   attachDomainHarness,
+  materializeDomainSources,
   refreshWorkspaceCapabilities,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,

@@ -17,7 +17,7 @@
 | 命令 | 目标 | 正式产物 |
 | --- | --- | --- |
 | `02-generate-technical-design.md` | 形成可实施技术方案 | `design/technical-design.md`、`design/process/technical-confirmation.md` |
-| `03-design-tests.md` | 冻结单测和冒烟设计基线 | `design/unit-test-design.md`、`design/smoke-test-design.md` |
+| `03-design-tests.md` | 冻结单测设计基线 | `design/unit-test-design.md` |
 | `05-split-tasks.md` | 拆分可确认的实施任务 | `tasks/task-list.md` |
 | `06-implement-task.md` | 实施单个已确认任务 | `tasks/process/task-progress.md`、`review/process/change-log.md`、`review/process/self-check.md` |
 
@@ -30,7 +30,7 @@
 | `07-review-code.md` | 基于真实 diff 进行代码评审 | `review/quality-report.md`、`review/evidence/risk-list.md` |
 | `06-generate-unit-tests.md` | 补齐必要单测并记录真实结果 | `review/evidence/unit-test-result.md` |
 | `08-verify-tests.md` | 形成需求到实现、测试的追溯结论 | `review/evidence/unit-test-result.md`、`review/evidence/traceability-matrix.md` |
-| `09-run-smoke.md` | 记录冒烟验证证据 | `review/evidence/smoke-test-result.md` |
+| `09-run-smoke.md` | 执行研发提测前提供的冒烟用例 | `review/evidence/smoke-test-case.md`、`review/evidence/smoke-test-result.md` |
 
 页面中的确认状态只汇总必需证据与人工确认结果；不得将“未执行”或“计划执行”标记为通过。
 
@@ -44,4 +44,4 @@
 
 需求确认完成后，使用页面“确认完成并生成”或执行 `dw report complete --workspace <path>` 写入 `delivery/delivery-report.json`。该动作会固定需求完成时间，重复执行不会覆盖已生成报告。
 
-外部系统推送、发布执行或知识库写入均需单独取得授权；命令默认只生成本地证据和计划。
+外部系统推送、发布执行或知识库写入均需单独取得授权；命令默认只生成本地证据和计划。仅当 `dw report complete --workspace <path>` 或 `dw report submit --workspace <path>` 返回 `submission: submitted` 且生成 receipt 时，才可表述“已推送远端智审平台”。

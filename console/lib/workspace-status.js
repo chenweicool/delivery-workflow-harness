@@ -22,13 +22,16 @@ function createWorkspaceStatusRuntime(deps) {
   } = deps;
 
   function buildNextRecommendation(workflow, steps, config, appAccessStates, tasks) {
+    const blockerForRequirement = (requirement) => requirement.path === 'review/evidence/smoke-test-case.md'
+      ? '阻塞：缺少研发提测前提供的冒烟用例 review/evidence/smoke-test-case.md；请由研发补充后再执行冒烟验证。'
+      : `阻塞：缺少前置产物 ${requirement.path}；请先完成生成该产物的上一步。`;
     const sequence = workflowStepSequence(workflow);
     const next = sequence.find((step) => steps[step.id] && !steps[step.id].done);
     if (!next) {
       return {
         status: 'done',
         title: '流程已完成',
-        summary: '当前 workflow 中的步骤都已完成，可以进入交付回收或归档复盘。',
+        summary: '当前 workflow 中的步骤都已完成。请核对交付产物；如需生成统计报告，执行 dw report complete --workspace <path>。',
         stepId: '',
         unitId: '',
         blockers: [],
@@ -39,7 +42,7 @@ function createWorkspaceStatusRuntime(deps) {
     const blockers = [];
     for (const requirement of step.requirementStatuses || []) {
       if (!requirement.exists) {
-        blockers.push(`缺少前置产物：${requirement.path}`);
+        blockers.push(blockerForRequirement(requirement));
       }
     }
   
@@ -71,8 +74,8 @@ function createWorkspaceStatusRuntime(deps) {
         status: blockers.length ? 'blocked' : 'waiting',
         title: blockers.length ? `等待产物：${step.title || next.id}` : `需要人工确认：${step.title || next.id}`,
         summary: blockers.length
-          ? '先完成上一步 AI 产物，再回到人工确认区处理。'
-          : '请预览确认文件、勾选确认清单，并记录确认或退回意见。',
+          ? '当前不能确认：请先按阻塞说明补齐产物，再回到本节点。'
+          : `当前产物已齐备：请预览确认文件、勾选确认清单，并记录确认或退回意见。确认后下一步将自动切换。`,
         stepId: next.id,
         unitId: next.unitId,
         blockers,
@@ -83,14 +86,19 @@ function createWorkspaceStatusRuntime(deps) {
       status: blockers.length || step.blocked ? 'blocked' : 'ready',
       title: blockers.length || step.blocked ? `暂不能执行：${step.title || next.id}` : `建议执行：${step.title || next.id}`,
       summary: blockers.length || step.blocked
-        ? '先处理前置确认、任务或应用代码访问问题。'
+        ? '当前不能执行：请按下方阻塞说明处理前置确认、任务、代码访问或研发输入。'
         : step.kind === 'agent'
-          ? '当前步骤可以交给 Codex / Claude，执行后回到页面查看产物。'
+          ? `当前步骤可以交给 Codex / Claude：执行 ${step.commandFile || '当前命令'}，回写产物后系统会定位下一步。`
           : '当前步骤由页面本地流程处理。',
       stepId: next.id,
       unitId: next.unitId,
       blockers,
     };
+  }
+
+  function taskIdsFromProgress(content, label) {
+    const line = new RegExp(`^-\\s*${label}：\\s*(.+)$`, 'm').exec(String(content || ''));
+    return new Set(line ? [...line[1].matchAll(/\bT\d{3,}\b/gi)].map((item) => item[0].toUpperCase()) : []);
   }
   
   async function getWorkspaceStatus(workspacePathValue) {
@@ -126,6 +134,15 @@ function createWorkspaceStatusRuntime(deps) {
     const visibleArtifactFiles = allArtifactFiles.filter((item) => !/(^|\/)(process|approvals|templates)\//.test(item.path));
     const hasExternalPrdSource = Array.isArray(config.feishuDocs) && config.feishuDocs.some((item) => String(item || '').trim());
     const hasParsedPrd = await pathExistsInWorkspace(workspacePath, 'prd/document.md');
+    const taskListContent = await readWorkspaceTextFileIfExists(workspacePath, 'tasks/task-list.md');
+    const taskProgressContent = await readWorkspaceTextFileIfExists(workspacePath, 'tasks/process/task-progress.md');
+    const taskConfirmationContent = await readWorkspaceTextFileIfExists(workspacePath, 'tasks/process/task-confirmation.md');
+    const tasks = taskListContent ? parseTaskList(taskListContent) : [];
+    const allowedTaskIds = taskIdsFromProgress(taskConfirmationContent, '本轮允许 AI 实施任务');
+    const completedTaskIds = taskIdsFromProgress(taskProgressContent, '已完成任务');
+    const requiredTaskIds = allowedTaskIds.size
+      ? [...allowedTaskIds]
+      : tasks.filter((task) => /允许\s*AI\s*实施|允许实施/i.test(task.aiImplementable || '')).map((task) => task.id);
   
     const steps = {};
     for (const [stepId, definition] of Object.entries(workflow.steps)) {
@@ -149,6 +166,10 @@ function createWorkspaceStatusRuntime(deps) {
           path: 'prd/document.md',
           exists: hasParsedPrd,
         });
+      }
+      if (stepId === '06-implement-task' && requiredTaskIds.length) {
+        const executionArtifactsReady = outputStatuses.every((item) => item.exists);
+        done = executionArtifactsReady && requiredTaskIds.every((taskId) => completedTaskIds.has(taskId));
       }
       const requirementStatuses = [];
       for (const requirement of definition.requires || []) {
@@ -181,8 +202,6 @@ function createWorkspaceStatusRuntime(deps) {
       }
       return { ...unit, status, doneCount, stepCount: unitSteps.length };
     });
-    const taskListContent = await readWorkspaceTextFileIfExists(workspacePath, 'tasks/task-list.md');
-    const tasks = taskListContent ? parseTaskList(taskListContent) : [];
     const nextRecommendation = buildNextRecommendation(workflow, steps, config, appAccessStates, tasks);
     const handoffDone = await readJsonFileIfExists(workspacePath, HANDOFF_DONE_FILE);
     const handoffDonePath = path.join(workspacePath, HANDOFF_DONE_FILE);
@@ -215,6 +234,11 @@ function createWorkspaceStatusRuntime(deps) {
       allArtifactFiles,
       appAccessStates,
       tasks,
+      implementation: {
+        requiredTaskIds,
+        completedTaskIds: [...completedTaskIds],
+        pendingTaskIds: requiredTaskIds.filter((taskId) => !completedTaskIds.has(taskId)),
+      },
       handoffState,
       agentSessions,
       nextRecommendation,

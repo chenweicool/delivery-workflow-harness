@@ -69,7 +69,7 @@ function createAgentPromptRuntime(deps) {
           '- 集成测试只生成计划；只有检测到项目已有集成测试入口时才执行。',
         ]
       : [
-          '- 按 `design/smoke-test-design.md` 执行或记录每个场景。',
+          '- 按研发在提测前提供的 `review/evidence/smoke-test-case.md` 执行或记录每个场景；缺失时明确阻塞。',
           '- 初版只允许记录 manual 执行证据；未执行必须标识 `not-run` 或 `blocked`。',
           '- 禁止把 planned 或 not-run 写成通过。',
         ];

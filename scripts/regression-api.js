@@ -87,10 +87,25 @@ async function createDomainHarnessFixture(root) {
   ]);
 }
 
+function createMinimalDocxBuffer() {
+  const name = Buffer.from('word/document.xml', 'utf8');
+  const xml = Buffer.from('<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="urn:test"><w:body><w:p><w:r><w:t>Word PRD 正文</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>字段</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>说明</w:t></w:r></w:p></w:tc></w:tr><w:tr><w:tc><w:p><w:r><w:t>状态</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>必填</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>', 'utf8');
+  const local = Buffer.alloc(30);
+  local.writeUInt32LE(0x04034b50, 0); local.writeUInt16LE(20, 4); local.writeUInt32LE(xml.length, 18); local.writeUInt32LE(xml.length, 22); local.writeUInt16LE(name.length, 26);
+  const central = Buffer.alloc(46);
+  central.writeUInt32LE(0x02014b50, 0); central.writeUInt16LE(20, 4); central.writeUInt16LE(20, 6); central.writeUInt32LE(xml.length, 20); central.writeUInt32LE(xml.length, 24); central.writeUInt16LE(name.length, 28);
+  const centralOffset = local.length + name.length + xml.length;
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0); end.writeUInt16LE(1, 8); end.writeUInt16LE(1, 10); end.writeUInt32LE(central.length + name.length, 12); end.writeUInt32LE(centralOffset, 16);
+  return Buffer.concat([local, name, xml, central, name, end]);
+}
+
 async function main() {
   await fsp.mkdir(tempRoot, { recursive: true });
   const domainRoot = path.join(tempRoot, 'settlement-domain');
+  const referenceDomainRoot = path.join(tempRoot, 'settlement-reference-domain');
   await createDomainHarnessFixture(domainRoot);
+  await createDomainHarnessFixture(referenceDomainRoot);
   const runtime = await startServer({ port: 0 });
 
   try {
@@ -121,7 +136,7 @@ async function main() {
       body: JSON.stringify({
         demandName: 'api-regression',
         outputRoot: workspaceRoot,
-        domainRoot,
+        domainRoots: [domainRoot, referenceDomainRoot],
         perspective: 'qa',
         demand: {
           url: 'https://example.internal/demand/api-regression',
@@ -132,6 +147,7 @@ async function main() {
     assert.equal(initResponse.status, 200);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'AGENTS.md')), true);
     assert.equal(initData.domain.manifest.name, 'settlement-domain');
+    assert.equal(initData.domain.domains.length, 2);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'domain.lock.json')), true);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'context', 'domain-summary.md')), true);
     const domainSummary = await fsp.readFile(path.join(initData.workspacePath, 'context', 'domain-summary.md'), 'utf8');
@@ -208,16 +224,18 @@ async function main() {
     const localMarkdown = path.join(tempRoot, 'local-prd.md');
     const localDocx = path.join(tempRoot, 'local-prd.docx');
     await fsp.writeFile(localMarkdown, '# 本地 PRD\n\n正文内容。\n', 'utf8');
-    await fsp.writeFile(localDocx, 'not-a-real-docx', 'utf8');
+    await fsp.writeFile(localDocx, createMinimalDocxBuffer());
     const { response: localImportResponse, data: localImportData } = await requestJson(runtime.url, '/api/workspace/import-local-prd', {
       method: 'POST',
       body: JSON.stringify({ workspacePath: initData.workspacePath, sourcePaths: [localMarkdown, localDocx] }),
     });
     assert.equal(localImportResponse.status, 200);
     assert.equal(localImportData.ingestion.document.status, 'generated');
-    assert.equal(localImportData.ingestion.records.some((item) => item.kind === 'docx' && item.status === 'needs-parser'), true);
+    assert.equal(localImportData.ingestion.records.some((item) => item.kind === 'docx' && item.adapter === 'builtin-docx' && item.status === 'normalized'), true);
     const normalizedPrd = await fsp.readFile(path.join(initData.workspacePath, 'prd', 'document.md'), 'utf8');
     assert.match(normalizedPrd, /本地 PRD/);
+    assert.match(normalizedPrd, /Word PRD 正文/);
+    assert.match(normalizedPrd, /\| 字段 \| 说明 \|/);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'prd', 'metadata', 'ingestion.json')), true);
 
     const { response: domainInspectResponse, data: domainInspectData } = await requestJson(
@@ -294,7 +312,6 @@ async function main() {
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'unit-test-result.md'), '# Unit Test Result\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'technical-design.md'), '# Technical Design\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'process', 'technical-confirmation.md'), '# Technical Confirmation\n\n## 确认结果\n\n无阻塞项。\n', 'utf8');
-    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'smoke-test-design.md'), '# Smoke Test Design\n', 'utf8');
     const { response: checkpointResponse, data: checkpointData } = await requestJson(runtime.url, '/api/checkpoint/approve', {
       method: 'POST',
       body: JSON.stringify({
@@ -335,6 +352,7 @@ async function main() {
     assert.equal(approveGateResponse.status, 200);
     assert.equal(approveGateData.gates['design-ready'].status, 'approved');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'traceability-matrix.md'), '# Traceability\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'smoke-test-case.md'), '# 研发提供的冒烟用例\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'smoke-test-result.md'), '# Smoke Result\n', 'utf8');
     const { response: qualityResponse, data: qualityData } = await requestJson(runtime.url, '/api/workspace/quality-summary/refresh', {
       method: 'POST',

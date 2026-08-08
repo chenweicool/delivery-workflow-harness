@@ -295,7 +295,47 @@ function createDomainHarnessRuntime(deps) {
     ].join('\n');
   }
 
-  async function attachDomainHarness({ workspacePath: workspacePathValue, domainRoot }) {
+  function domainConfigFromContext(context, attachedAt) {
+    return {
+      id: context.manifest.name || path.basename(context.root),
+      name: context.manifest.name || path.basename(context.root),
+      root: context.root,
+      revision: context.revision,
+      manifestPath: '.module-manifest.yaml',
+      manifest: context.manifest,
+      attachedAt,
+      productDocuments: context.productDocuments,
+      memoryDocuments: context.memoryDocuments,
+      catalogDocuments: context.catalogDocuments,
+      graph: context.graph,
+      codeRepositories: context.codeRepositories,
+      skills: context.skills.map((item) => item.relativePath),
+      rules: context.rules,
+    };
+  }
+
+  function multipleDomainContextMarkdown(domains, primaryRoot) {
+    const primary = domains.find((item) => item.root === primaryRoot) || domains[0];
+    const sections = domains.map((item) => domainContextMarkdown({
+      ...item,
+      manifest: { name: item.name || item.id || path.basename(item.root) },
+    }).replace('# Domain Harness Context Snapshot', `## ${item.root === primary.root ? '主' : '参考'} Harness：${item.name || item.id}`));
+    return [
+      '# Domain Harness Context Snapshot',
+      '',
+      `primary_domain: ${primary && primary.name || ''}`,
+      `attached_domains: ${domains.length}`,
+      '',
+      '## 使用规则',
+      '',
+      '- 主 Harness 定义当前需求的主要领域边界；参考 Harness 只作为交叉影响和复用依据。',
+      '- PRD、人工确认与当前代码优先于任意 Harness 快照；冲突必须记录并转人工确认。',
+      '',
+      ...sections,
+    ].join('\n');
+  }
+
+  async function attachDomainHarness({ workspacePath: workspacePathValue, domainRoot, primary = false, source = '' }) {
     const workspacePath = normalizeUserPath(workspacePathValue || '');
     if (!workspacePath || !(await exists(path.join(workspacePath, 'AGENTS.md')))) {
       throw new Error('请选择有效的 Delivery Workflow workspace');
@@ -305,10 +345,19 @@ function createDomainHarnessRuntime(deps) {
       throw new Error(context.reason || '领域 Harness 不可用');
     }
     const current = await readWorkspaceConfig(workspacePath);
-    if (current.domain && current.domain.root && path.resolve(current.domain.root).toLowerCase() !== context.root.toLowerCase()) {
-      throw new Error('一个 Workspace 只能挂载一个领域 Harness；如需跨领域，请拆分需求');
-    }
-    const localApps = (context.codeRepositories || [])
+    const attachedAt = new Date().toISOString();
+    const previousDomains = Array.isArray(current.domains) && current.domains.length
+      ? current.domains
+      : current.domainContext && current.domainContext.root
+        ? [{ ...current.domainContext, ...current.domain, root: current.domainContext.root }]
+        : [];
+    const nextDomain = domainConfigFromContext(context, attachedAt);
+    nextDomain.source = String(source || context.root).trim();
+    const domains = Array.from(new Map([...previousDomains, nextDomain].map((item) => [String(item.root || '').toLowerCase(), item])).values());
+    const primaryDomain = primary || !current.domain || !current.domain.root
+      ? nextDomain
+      : domains.find((item) => String(item.root || '').toLowerCase() === String(current.domain.root || '').toLowerCase()) || nextDomain;
+    const localApps = domains.flatMap((domainItem) => (domainItem.codeRepositories || []))
       .filter((item) => item.sourceExists && item.sourcePath)
       .map((item) => ({
         name: item.name || item.id,
@@ -323,46 +372,38 @@ function createDomainHarnessRuntime(deps) {
     ])).values());
     const skills = uniquePaths([
       ...(current.skills || []).map((item) => ({ path: item })),
-      ...(context.skills || []).filter((item) => item.exists).map((item) => ({ path: item.path })),
+      ...domains.flatMap((domainItem) => (domainItem.skills || []).map((relativePath) => ({
+        path: path.resolve(domainItem.root, relativePath),
+      }))),
     ]).map((item) => item.path);
     const rules = uniquePaths([
       ...(current.rules || []).map((item) => ({ path: item })),
-      ...(context.rules || []).map((item) => ({ path: path.resolve(context.root, item) })),
+      ...domains.flatMap((domainItem) => (domainItem.rules || []).map((item) => ({ path: path.resolve(domainItem.root, item) }))),
     ]).map((item) => item.path);
-    const domain = {
-      id: context.manifest.name || path.basename(context.root),
-      name: context.manifest.name || path.basename(context.root),
-      root: context.root,
-      revision: context.revision,
-      manifestPath: '.module-manifest.yaml',
-      attachedAt: new Date().toISOString(),
-    };
     const config = await writeWorkspaceConfig(workspacePath, {
       apps,
       skills,
       rules,
-      domain,
-      domainContext: {
-        root: context.root,
-        revision: context.revision,
-        manifestPath: '.module-manifest.yaml',
-        productDocuments: context.productDocuments,
-        memoryDocuments: context.memoryDocuments,
-        catalogDocuments: context.catalogDocuments,
-        graph: context.graph,
-        codeRepositories: context.codeRepositories,
-        skills: context.skills.map((item) => item.relativePath),
-        rules: context.rules,
+      domains,
+      domain: {
+        id: primaryDomain.id,
+        name: primaryDomain.name,
+        root: primaryDomain.root,
+        revision: primaryDomain.revision,
+        manifestPath: primaryDomain.manifestPath,
+        attachedAt: primaryDomain.attachedAt,
       },
+      domainContext: primaryDomain,
     });
     const lock = {
-      schemaVersion: 1,
-      ...context,
-      attachedAt: domain.attachedAt,
+      schemaVersion: 2,
+      primaryDomainRoot: primaryDomain.root,
+      domains,
+      attachedAt,
     };
     await writeWorkspaceJsonFile(workspacePath, DOMAIN_LOCK_FILE, lock);
-    await writeWorkspaceTextFile(workspacePath, DOMAIN_SUMMARY_FILE, domainContextMarkdown(lock));
-    return { context: lock, config };
+    await writeWorkspaceTextFile(workspacePath, DOMAIN_SUMMARY_FILE, multipleDomainContextMarkdown(domains, primaryDomain.root));
+    return { context: { ...primaryDomain, domains, primaryDomainRoot: primaryDomain.root }, config };
   }
 
   return {

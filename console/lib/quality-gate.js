@@ -19,10 +19,8 @@ const DEFAULT_QUALITY_POLICY = {
       requires: [
         'design/technical-design.md',
         'design/unit-test-design.md',
-        'design/smoke-test-design.md',
         '.workflow/baselines/technical-design.lock.json',
         '.workflow/baselines/unit-test-design.lock.json',
-        '.workflow/baselines/smoke-test-design.lock.json',
       ],
     },
     'delivery-verified': {
@@ -33,6 +31,7 @@ const DEFAULT_QUALITY_POLICY = {
         'review/evidence/risk-list.md',
         'review/evidence/unit-test-result.md',
         'review/evidence/traceability-matrix.md',
+        'review/evidence/smoke-test-case.md',
         'review/evidence/smoke-test-result.md',
       ],
     },

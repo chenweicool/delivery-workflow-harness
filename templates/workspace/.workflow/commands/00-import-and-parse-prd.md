@@ -7,7 +7,8 @@
 ## Skill 使用策略
 
 - 先读取 `prd/metadata/ingestion.json`（若存在），确认哪些原件已由内置适配器标准化、哪些仍需要解析；已生成 `prd/document.md` 时不得无故覆盖。
-- 如果当前步骤已路由到可用的 Word PRD 转 Markdown、文档抽取或飞书文档解析能力，优先使用。
+- `.docx` 先使用内置解析器提取正文和表格；检查 `prd/metadata/ingestion.json` 中的 `parse-failed` 记录，并把具体失败原因列入低置信度内容。
+- 当前步骤已路由到可用的 Word PRD 转 Markdown、文档抽取或飞书文档解析能力时，可用于补充图片、复杂图示或内置解析失败内容，但不得覆盖已确认的原始文本。
 - 如果没有可用 skill，直接读取可访问文件并保留原始文件、图片和表格；不得因能力缺失暂停。
 - 使用已路由的“PRD 文档解析能力”时，输出根目录必须指定为 workspace 根目录，让能力自行生成 `prd/document.md`、`prd/assets/`、`prd/tables/`、`prd/metadata/` 等目录；不得假设或写死具体 Skill 名称。
 - 如果当前只记录了飞书或外部文档链接，且本机无法直接读取链接内容，需要在输出中明确标记“待人工导出或授权读取”。

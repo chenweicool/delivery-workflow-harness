@@ -134,6 +134,7 @@ function normalizeWorkspaceConfig(config, workspacePath) {
     capabilities: normalizeCapabilityList(config.capabilities),
     domain: config.domain && typeof config.domain === 'object' ? config.domain : {},
     domainContext: config.domainContext && typeof config.domainContext === 'object' ? config.domainContext : {},
+    domains: Array.isArray(config.domains) ? config.domains.filter((item) => item && typeof item === 'object') : [],
     perspective: ['backend', 'frontend', 'qa', 'ops'].includes(String(config.perspective || '').trim())
       ? String(config.perspective).trim()
       : 'backend',

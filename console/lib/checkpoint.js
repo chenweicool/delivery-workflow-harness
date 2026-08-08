@@ -93,7 +93,6 @@ function createCheckpointRuntime(deps) {
     const locks = [
       '.workflow/baselines/technical-design.lock.json',
       '.workflow/baselines/unit-test-design.lock.json',
-      '.workflow/baselines/smoke-test-design.lock.json',
     ];
     const appLines = Array.isArray(workspace.apps) && workspace.apps.length
       ? workspace.apps.map((app) => `- ${app.name || app.sourcePath || '未命名应用'}：${app.worktreePath || app.sourcePath || '待确认'}`).join('\n')
@@ -112,7 +111,7 @@ function createCheckpointRuntime(deps) {
       '',
       '1. `AGENTS.md`、`CLAUDE.md`、`.workflow/progress.md`。',
       '2. 本文件。',
-      '3. `design/technical-design.md`、`design/unit-test-design.md`、`design/smoke-test-design.md`。',
+      '3. `design/technical-design.md`、`design/unit-test-design.md`。',
       `4. ${requirementPath}、${technicalConfirmationPath}。`,
       '5. 按当前阶段再读取 `tasks/task-list.md`、Review 证据或代码 worktree。',
       '',
@@ -120,7 +119,6 @@ function createCheckpointRuntime(deps) {
       '',
       '- `design/technical-design.md`',
       '- `design/unit-test-design.md`',
-      '- `design/smoke-test-design.md`',
       '- 冻结证据：',
       ...locks.map((item) => `  - \`${item}\``),
       '',

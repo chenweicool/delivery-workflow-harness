@@ -33,7 +33,7 @@ dw status
 dw logs
 dw domain inspect --root <domain-harness-path>
 dw domain attach --workspace <path> --root <domain-harness-path>
-dw init <demand-name> --domain <domain-harness-path>
+dw init <demand-name> --domain <local-path-or-git-url> [--domain <source-2>]
 dw prd import <file-or-directory> --workspace <path>
 dw status --workspace <path>
 dw next --workspace <path>
@@ -87,14 +87,15 @@ The npm package should contain only generic workflow mechanics and examples. Tea
 
 ## Domain Harness Mount
 
-A workspace may mount exactly one local Domain Harness. The mount is read-only:
-the workflow records its manifest revision, exposes the Harness root to the AI
-tool, writes `context/domain-summary.md`, and keeps a lock at
-`.workflow/domain.lock.json`. It never changes `docs/domain/` or pulls source
-repositories.
+A workspace may mount one primary Domain Harness and multiple read-only
+reference Harnesses. Each source can be a local directory or a Git URL. Remote
+sources are cloned only into `context/domain-sources/` of the current workspace;
+the workflow records each manifest revision, code entry point and source in
+`context/domain-summary.md` and `.workflow/domain.lock.json`. It never changes
+the original local Harness or its source repositories.
 
 ```bash
-dw init <demand-name> --domain <domain-harness-path>
+dw init <demand-name> --domain <local-harness> --domain <reference-harness-git-url>
 # or attach after initialization
 dw domain attach --workspace <workspace-path> --root <domain-harness-path>
 ```
@@ -110,9 +111,10 @@ evidence for demand confirmation, technical-design readiness, and delivery
 verification. `dw gate check` writes the auditable state to
 `.workflow/gates.json`; only an evidence-ready gate can be approved.
 
-Technical design must freeze `design/unit-test-design.md` and
-`design/smoke-test-design.md`. Later implementation is verified against those
-baselines rather than adding tests only at the end.
+Technical design freezes `design/unit-test-design.md`. Its test cases must be
+recorded in a table. Smoke cases are not designed by the workflow: development
+provides `review/evidence/smoke-test-case.md` before test submission, and QA
+records execution in `review/evidence/smoke-test-result.md`.
 
 ## Workspace Artifact Layout
 
@@ -143,12 +145,12 @@ Skill implementations.
 ## PRD Ingestion
 
 Local PRD imports are first copied to `prd/source/`. The built-in ingestion
-adapter immediately normalizes Markdown and plain-text files into
-`prd/document.md`, and records every source plus its parser status in
-`prd/metadata/ingestion.json`. DOCX, PDF, and legacy DOC sources remain safely
-archived and are marked `needs-parser` until a later parser adapter or an Agent
-produces the normalized Markdown; this does not require a team Skill to be
-installed.
+adapter immediately normalizes Markdown, plain-text and DOCX files into
+`prd/document.md`, including readable Word tables. Every source and parser
+result is recorded in `prd/metadata/ingestion.json`; a failed DOCX parse is
+explicitly recorded as `parse-failed` together with its reason. PDF and legacy
+DOC files remain safely archived and are marked `needs-parser` until a later
+adapter or an Agent produces normalized Markdown.
 
 The detailed architecture and connector model are in
 [docs/control-plane-refactor-plan.md](docs/control-plane-refactor-plan.md).

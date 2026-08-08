@@ -1,0 +1,80 @@
+console/lib/agents.js
+  s_3357a37c6d07d3::t_c122b4ccf7e32b 14
+console/lib/workspace-status.js
+  s_3357a37c6d07d3::t_833589476ca34e 98-102,137-145,170-173,237-241
+  s_3357a37c6d07d3::t_67eb15ca487fd5 25-27,34,45,77-78,89,91
+templates/workspace/.workflow/commands/03-design-tests.md
+  s_3357a37c6d07d3::t_79f6ba185ef68a 5,20,24,26-27,29
+docs/quick-start.md
+  s_3357a37c6d07d3::t_80bd57e30c9e2b 157,161-165,168
+  s_3357a37c6d07d3::t_ada88b251891ac 160,166-167
+console/server.js
+  s_3357a37c6d07d3::t_d47b38df157470 1518-1563,2693-2697,2702-2706,2708,3181
+  s_3357a37c6d07d3::t_d26a2bde431c8f 1459-1460
+console/lib/prd-ingestion.js
+  s_3357a37c6d07d3::t_0d947600f576ad 3,36-127,171-187
+console/lib/domain-harness.js
+  s_3357a37c6d07d3::t_fd71a467992895 305
+  s_3357a37c6d07d3::t_d47b38df157470 338,355
+  s_3357a37c6d07d3::t_7eb7b489f1f757 298-304,306-334,348-354,356-360,375-377,381,387-394,396,399-402,405-406
+console/public/index.html
+  s_3357a37c6d07d3::t_32ab5715ea45bf 52,55
+  s_3357a37c6d07d3::t_fe4d4cb66d47be 53-54
+  s_3357a37c6d07d3::t_89ed647432c56d 200
+templates/workspace/.workflow/commands/README.md
+  s_3357a37c6d07d3::t_79f6ba185ef68a 20,33,47
+console/lib/workspace-runtime.js
+  s_3357a37c6d07d3::t_7eb7b489f1f757 137
+console/lib/quality-evidence.js
+  s_3357a37c6d07d3::t_c122b4ccf7e32b 34,66
+templates/workspace/.workflow/commands/06-implement-task.md
+  s_3357a37c6d07d3::t_5af3660f67bdc0 98-99
+templates/workspace/.workflow/commands/00-import-and-parse-prd.md
+  s_3357a37c6d07d3::t_5af3660f67bdc0 10-11
+console/lib/agent-prompt.js
+  s_3357a37c6d07d3::t_bcf4e6ec5c499c 72
+console/lib/quality-gate.js
+  s_3357a37c6d07d3::t_c122b4ccf7e32b 34
+README.md
+  s_3357a37c6d07d3::t_ada88b251891ac 36,98
+  s_3357a37c6d07d3::t_80bd57e30c9e2b 90-95,114-117,148-153
+console/lib/workflow.js
+  s_3357a37c6d07d3::t_c122b4ccf7e32b 39,41,125,131,140,145,199
+templates/workspace/.workflow/commands/09-run-smoke.md
+  s_3357a37c6d07d3::t_79f6ba185ef68a 5,9
+scripts/regression-api.js
+  s_3357a37c6d07d3::t_c7f130f9faaa57 90-101,227,234,237-238
+  s_3357a37c6d07d3::t_6d260878c573b3 102,106,108,139,150,355
+console/public/control-plane.css
+  s_3357a37c6d07d3::t_32ab5715ea45bf 5
+console/public/control-plane.js
+  s_3357a37c6d07d3::t_32ab5715ea45bf 2,6,19-21,27,74
+  s_3357a37c6d07d3::t_c3dbc01d340545 45
+  s_3357a37c6d07d3::t_3b915fa18a9943 44
+  s_3357a37c6d07d3::t_de570948d24f4d 47,59-60
+  s_3357a37c6d07d3::t_d26a2bde431c8f 34,41
+bin/delivery-workflow.js
+  s_3357a37c6d07d3::t_f69871e4828a6a 43,486-487,502-507,510-513
+  s_3357a37c6d07d3::t_32ab5715ea45bf 66,109-113,266-267,485
+  s_3357a37c6d07d3::t_3891613bf26dd4 85
+templates/workspace/.workflow/quality-policy.yaml
+  s_3357a37c6d07d3::t_79f6ba185ef68a 25
+console/lib/checkpoint.js
+  s_3357a37c6d07d3::t_bcf4e6ec5c499c 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "7a46f9aca4e2f095a97b0f55a3e91c1462d54c43",
+  "prompts": {},
+  "sessions": {
+    "s_3357a37c6d07d3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fe06e-f72a-7611-b465-b3220d248e6a",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

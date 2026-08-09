@@ -34,7 +34,7 @@ jobs:
       - name: Verify release tag matches package version
         shell: bash
         run: |
-          package_version="$(node --print \"require('./package.json').version\")"
+          package_version="$(node --print 'require("./package.json").version')"
           tag_version="${GITHUB_REF_NAME#v}"
           if [ "$package_version" != "$tag_version" ]; then
             echo "Tag $GITHUB_REF_NAME does not match package.json version $package_version."
@@ -48,7 +48,7 @@ jobs:
         id: npm_tag
         shell: bash
         run: |
-          package_version="$(node --print \"require('./package.json').version\")"
+          package_version="$(node --print 'require("./package.json").version')"
           if [[ "$package_version" == *-* ]]; then
             echo "value=beta" >> "$GITHUB_OUTPUT"
           else

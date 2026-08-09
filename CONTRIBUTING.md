@@ -1,15 +1,13 @@
-# Contributing
+# 贡献指南
 
-## Scope
+## 范围
 
-This repository contains the generic Delivery Workflow Harness. Keep company
-whitepapers, real application indexes, credentials, production links, and
-customer demand artifacts out of contributions.
+本仓库只包含通用的 Delivery Workflow Harness。请勿将公司白皮书、真实应用索引、凭据、生产链接和客户需求产物提交到贡献内容中。
 
-## Before Opening a Pull Request
+## 提交 Pull Request 前
 
-1. Keep behavior changes focused and document any workflow contract change.
-2. Run the local checks:
+1. 保持行为变更聚焦，并记录所有流程契约变更。
+2. 运行本地检查：
 
    ```bash
    npm run check
@@ -17,11 +15,10 @@ customer demand artifacts out of contributions.
    npm pack --dry-run
    ```
 
-3. Do not commit `.npmrc`, tokens, generated local workspaces, or terminal
-   logs containing private information.
+3. 不要提交 `.npmrc`、token、生成的本地 Workspace 或包含敏感信息的终端日志。
 
-## Pull Request Expectations
+## Pull Request 要求
 
-- Explain the user-facing workflow impact.
-- Add or update regression coverage for runtime behavior changes.
-- Keep whitepaper and team capability examples synthetic.
+- 说明对用户流程的影响。
+- 为运行时行为变更补充或更新回归覆盖。
+- 白皮书和团队能力示例必须使用虚构数据。

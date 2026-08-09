@@ -137,6 +137,8 @@ dw stop
 dw restart
 dw status
 dw logs
+dw update --check
+dw update
 dw open
 ```
 

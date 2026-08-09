@@ -1,7 +1,11 @@
 # Changelog
 
-## Unreleased
+## V0.2.0
 
+- Added opt-in client update discovery in the console and the `dw update --check` /
+  `dw update` commands. Updates require explicit confirmation and a subsequent
+  `dw restart`.
+- Added weekly Dependabot checks for npm dependencies and GitHub Actions.
 - Fixed CI branch filters to run on the public `main` branch.
 - Included the API regression script in the npm package and made
   `prepublishOnly` run the full regression suite.

@@ -7,6 +7,7 @@ const os = require('os');
 const path = require('path');
 const { ingestPrdSources } = require('../console/lib/prd-ingestion');
 const { validateDemand } = require('../console/lib/delivery-report');
+const { getPackageUpdateStatus, installPackageUpdate } = require('../console/lib/package-update');
 const { spawn } = require('child_process');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -63,6 +64,8 @@ function usage() {
     '  dw restart [--port 3040] [--no-open]',
     '  dw status',
     '  dw logs [--lines 80]',
+    '  dw update --check',
+    '  dw update',
     '  dw init <demand-name> --domain <local-path-or-git-url> [--domain <source-2>] --owner <name> --demand-url <url> [--owner-id <id>] [--output-root <path>]',
     '  dw prd import <file-or-directory> --workspace <path>',
     '  dw domain inspect --root <domain-harness-path>',
@@ -988,6 +991,23 @@ async function commandDoctor() {
   console.log(`Config data: ${process.env.DELIVERY_WORKFLOW_DATA_DIR}`);
 }
 
+async function commandUpdate(args = {}) {
+  const status = await getPackageUpdateStatus(ROOT_DIR);
+  console.log(`installed: ${status.currentVersion}`);
+  console.log(`channel: ${status.channel}`);
+  console.log(`available: ${status.latestVersion}`);
+  if (!status.updateAvailable) {
+    console.log(status.status === 'local-newer' ? 'Local version is newer than the published version.' : 'Already up to date.');
+    return;
+  }
+  if (args.check) {
+    console.log('Update available. Run `dw update` to install it.');
+    return;
+  }
+  const result = await installPackageUpdate(ROOT_DIR);
+  if (result.updated) console.log('Update installed. Run `dw restart` to load the new version.');
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const command = args._[0] || 'start';
@@ -1081,6 +1101,10 @@ async function main() {
   }
   if (command === 'doctor') {
     await commandDoctor(args);
+    return;
+  }
+  if (command === 'update') {
+    await commandUpdate(args);
     return;
   }
   console.error(`Unknown command: ${command}`);

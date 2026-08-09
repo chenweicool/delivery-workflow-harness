@@ -1,29 +1,40 @@
 # Delivery Workflow
 
-Delivery Workflow is a directory-native, model-agnostic delivery control plane for AI-assisted software delivery.
+Delivery Workflow 是一个目录原生、模型无关的 AI 辅助软件交付控制台。它围绕 PRD、Domain Harness 上下文、交付证据、质量门禁和人工确认组织需求 Workspace。
 
-It is not an AI IDE or an AI chat manager. It organizes a demand Workspace around PRD, Domain Harness context, evidence, quality gates and human approval. Developers enter that directory with their own Codex, Claude Code, IDE or another AI tool.
+它不是 AI IDE，也不是聊天管理器。研发人员仍可在 Workspace 中使用自己的 Codex、Claude Code、IDE 或其他 AI 工具推进交付。
 
-## Install And Run
+## 安装、运行与卸载
+
+无需安装即可试用：
 
 ```bash
 npx delivery-workflow-harness start
 ```
 
-Or install globally:
+推荐全局安装，以使用简短的 `dw` 命令：
 
 ```bash
-npm i -g delivery-workflow-harness
+npm install -g delivery-workflow-harness
 dw start
 ```
 
-The command starts a local console in the background, usually at:
+该命令默认在后台启动本地控制台，通常访问地址为：
 
 ```text
 http://127.0.0.1:3040
 ```
 
-## CLI
+卸载前请先停止本地控制台，然后执行 npm 的全局卸载命令：
+
+```bash
+dw stop
+npm uninstall -g delivery-workflow-harness
+```
+
+如果通过 `npx` 使用，则无需卸载；它不会安装为全局命令。
+
+## 常用命令
 
 ```bash
 dw start
@@ -31,6 +42,8 @@ dw stop
 dw restart
 dw status
 dw logs
+dw update --check
+dw update
 dw domain inspect --root <domain-harness-path>
 dw domain attach --workspace <path> --root <domain-harness-path>
 dw init <demand-name> --domain <local-path-or-git-url> [--domain <source-2>]
@@ -42,17 +55,35 @@ dw gate approve <gate-id> --workspace <path> --note "..."
 dw gate reject <gate-id> --workspace <path> --note "..."
 ```
 
-`delivery-workflow` remains available as the full command name. `dw` is the short daily alias.
+`delivery-workflow` 是完整命令名，`dw` 是日常使用的简写。
 
-Use foreground mode for local development:
+本地开发时可使用前台模式：
 
 ```bash
 dw start --foreground
 ```
 
-For a step-by-step trial guide, see [docs/quick-start.md](docs/quick-start.md).
+新用户可参阅[快速开始](docs/quick-start.md)。
 
-## Local Development
+## 更新
+
+控制台启动后会检查新版本；发现更新时，左下角“检查更新”会显示红点。点击后仍需确认，安装完成后执行：
+
+```bash
+dw restart
+```
+
+也可在命令行完成同一操作：
+
+```bash
+dw update --check
+dw update
+dw restart
+```
+
+请勿将更新设为静默后台计划任务，以免运行中的本地控制台被替换。
+
+## 本地开发
 
 ```bash
 cd delivery-workflow-harness
@@ -61,153 +92,93 @@ npm run test:regression
 npm run start
 ```
 
-The local console source lives in:
+本地控制台源代码位于 `console/`，Workspace 模板位于 `templates/`。
+
+## 产品模型
 
 ```text
-console/
+Domain Harness + 团队策略
+  -> 需求 Workspace
+  -> 研发人员使用 Codex / Claude / IDE 实施
+  -> 交付证据 + 人工质量门禁
+  -> 交付总结与知识更新提案
 ```
 
-The workflow templates live in:
+npm 包仅包含通用的流程机制和示例。团队专属资产应存放在独立的私有 Git 仓库中。
 
-```text
-templates/
-```
+## Domain Harness 挂载
 
-## Product Model
-
-```text
-Domain Harness + team policy
-  -> demand Workspace
-  -> developer uses Codex / Claude / IDE in that directory
-  -> evidence files + human quality gates
-  -> delivery and knowledge-update proposal
-```
-
-The npm package should contain only generic workflow mechanics and examples. Team-specific assets should live in a separate private Git repository.
-
-## Domain Harness Mount
-
-A workspace may mount one primary Domain Harness and multiple read-only
-reference Harnesses. Each source can be a local directory or a Git URL. Remote
-sources are cloned only into `context/domain-sources/` of the current workspace;
-the workflow records each manifest revision, code entry point and source in
-`context/domain-summary.md` and `.workflow/domain.lock.json`. It never changes
-the original local Harness or its source repositories.
+一个 Workspace 可挂载一个主 Domain Harness 和多个只读参考 Harness。每个来源可以是本地目录或 Git 地址。远程来源只会被克隆到当前 Workspace 的 `context/domain-sources/`；Workflow 会把版本、代码入口和来源记录到 `context/domain-summary.md` 和 `.workflow/domain.lock.json`，不会修改原始 Harness 或其源仓库。
 
 ```bash
 dw init <demand-name> --domain <local-harness> --domain <reference-harness-git-url>
-# or attach after initialization
+# 也可在初始化后挂载
 dw domain attach --workspace <workspace-path> --root <domain-harness-path>
 ```
 
-The agent must treat PRD and human confirmation as the target behavior, current
-code as the source of current behavior, and Domain Harness material as domain
-background and risk evidence. Conflicts are recorded for human confirmation.
+Agent 应将 PRD 和人工确认视为目标行为，将当前代码视为当前行为来源，将 Domain Harness 材料视为领域背景和风险证据；有冲突时必须记录并交由人工确认。
 
-## Quality Gates
+## 质量门禁
 
-Each Workspace contains `.workflow/quality-policy.yaml`. It defines required
-evidence for demand confirmation, technical-design readiness, and delivery
-verification. `dw gate check` writes the auditable state to
-`.workflow/gates.json`; only an evidence-ready gate can be approved.
+每个 Workspace 都包含 `.workflow/quality-policy.yaml`，用于定义需求确认、技术方案就绪和交付验证所需的证据。`dw gate check` 会将可审计状态写入 `.workflow/gates.json`；仅证据齐备的门禁才能被批准。
 
-Technical design freezes `design/unit-test-design.md`. Its test cases must be
-recorded in a table. Smoke cases are not designed by the workflow: development
-provides `review/evidence/smoke-test-case.md` before test submission, and QA
-records execution in `review/evidence/smoke-test-result.md`.
+技术方案阶段会冻结 `design/unit-test-design.md`，测试用例必须以表格记录。冒烟用例不由 Workflow 设计：研发需在提测前提供 `review/evidence/smoke-test-case.md`，QA 将执行结果记录到 `review/evidence/smoke-test-result.md`。
 
-## Workspace Artifact Layout
-
-New Workspaces keep final artifacts separate from process records:
+## Workspace 产物结构
 
 ```text
-prd/document.md                    parsed PRD
-prd/source/                        original PRD material
-design/*.md                        approved design and test baselines
-design/process/                    context, confirmations and revision history
-design/approvals/                  checkpoint records
-tasks/task-list.md                 approved task plan
-tasks/process/                     task confirmation and execution progress
-review/quality-report.md           independent review conclusion
-review/evidence/                   test, smoke, risk and traceability evidence
-review/process/                    change log and self-check
-archive/                           knowledge proposal and case card
-.workflow/                         commands, locks and runtime state
+prd/document.md                    解析后的 PRD
+prd/source/                        原始 PRD 材料
+design/*.md                        已确认的设计与测试基线
+design/process/                    上下文、确认与修订记录
+design/approvals/                  检查点记录
+tasks/task-list.md                 已确认的任务计划
+tasks/process/                     任务确认与执行进度
+review/quality-report.md           独立评审结论
+review/evidence/                   测试、冒烟、风险和追溯证据
+review/process/                    变更日志与自检
+archive/                           知识提案和案例卡片
+.workflow/                         命令、锁文件与运行状态
 ```
 
-After the technical-design checkpoint is approved, Workflow generates
-`context/current-context.md`. A new Codex or Claude session reads it through
-the Workspace instructions, then follows its links to the approved design and
-test baselines. Skills remain external capabilities: the Workflow routes and
-locks selected skills, but does not hard-code team or integration-specific
-Skill implementations.
+技术方案检查点获批后，Workflow 会生成 `context/current-context.md`。新的 Codex 或 Claude 会话通过 Workspace 指引读取它，再按链接读取已确认的设计和测试基线。Skill 保持为外部能力：Workflow 负责路由和锁定选中的 Skill，但不会硬编码团队或集成专属实现。
 
-## PRD Ingestion
+## PRD 导入
 
-Local PRD imports are first copied to `prd/source/`. The built-in ingestion
-adapter immediately normalizes Markdown, plain-text and DOCX files into
-`prd/document.md`, including readable Word tables. Every source and parser
-result is recorded in `prd/metadata/ingestion.json`; a failed DOCX parse is
-explicitly recorded as `parse-failed` together with its reason. PDF and legacy
-DOC files remain safely archived and are marked `needs-parser` until a later
-adapter or an Agent produces normalized Markdown.
+本地 PRD 会先复制到 `prd/source/`。内置导入器会将 Markdown、纯文本和 DOCX 规范化到 `prd/document.md`，并保留可读的 Word 表格。每个来源和解析结果都会记录到 `prd/metadata/ingestion.json`；DOCX 解析失败会以 `parse-failed` 及原因明确记录。PDF 和旧版 DOC 会被安全归档并标记为 `needs-parser`，直至后续适配器或 Agent 产出规范化 Markdown。
 
-The detailed architecture and connector model are in
-[docs/control-plane-refactor-plan.md](docs/control-plane-refactor-plan.md).
+详细架构和连接器模型见[控制台重构方案](docs/control-plane-refactor-plan.md)。
 
-## Public npm Publishing
+## 公开 npm 发布
 
-The package is published to the public npm registry. Users do not need an npm
-account; they can run the released `latest` package directly:
+该包发布到公开 npm registry。用户无需 npm 账号，可直接运行已发布的 `latest` 版本：
 
 ```bash
 npx -y delivery-workflow-harness@latest start
 ```
 
-The repository maintains two automated release paths:
+仓库有两条自动化发布相关流程：
 
-- Dependabot opens weekly pull requests for npm dependencies and GitHub
-  Actions updates. It never merges or publishes automatically.
-- Pushing a Git tag named `v<package-version>` runs checks and publishes the
-  package. Stable versions use the npm `latest` tag; prerelease versions use
-  `beta`.
+- Dependabot 每周为 npm 依赖和 GitHub Actions 更新创建 PR；它不会自动合并或发布。
+- 推送名为 `v<package-version>` 的 Git tag 后，将运行检查并发布 npm 包；稳定版使用 `latest`，预发布版使用 `beta`。
 
-For current publishing restrictions, repository maintenance locations, and
-the activation checklist, see [npm release and maintenance](docs/npm-release-and-maintenance.md).
+发布限制、仓库维护位置与启用清单见[npm 发布与维护](docs/npm-release-and-maintenance.md)。
 
-Before enabling the release workflow, configure npm **Trusted Publishing** for
-this GitHub repository and the `Publish npm package` workflow. This lets npm
-verify GitHub's short-lived OIDC identity; do not add an npm token or `.npmrc`
-credential to this repository.
+启用发布工作流前，请为该 GitHub 仓库和 `Publish npm package` 工作流配置 npm **Trusted Publishing**。它使用 GitHub 的短期 OIDC 身份验证；请勿将 npm token 或 `.npmrc` 凭据提交到仓库。
 
-To release, first commit the intended package version, then create and push a
-matching annotated tag:
+发布时先提交目标版本，然后创建并推送同版本的注释 tag：
 
 ```bash
 npm version prerelease --preid beta
 git push origin main --follow-tags
 
-# After beta verification:
+# beta 验证通过后：
 npm version 0.2.0
 git push origin main --follow-tags
 ```
 
-Published npm versions are immutable. If the workflow fails, fix the issue,
-create a new version, and tag that version; never try to republish the same
-version.
+npm 已发布版本不可覆盖。若工作流失败，请修复问题、创建新版本并为新版本打 tag；不要尝试重新发布同一版本。
 
-Globally installed users can upgrade after a release with:
+## 当前状态
 
-```bash
-npm update -g delivery-workflow-harness
-```
-
-Do not schedule this command as a silent background update: it may interrupt a
-running local console. Prefer showing an update notice and letting the user
-restart when ready.
-
-## Status
-
-This project is in v1 trial stage. It is suitable for a real small demand with
-an existing code and test baseline; the first completed demand should become a
-whitepaper case and a Knowledge Owner-reviewed Git update.
+项目处于 v1 试运行阶段，适用于已有代码与测试基线的小型真实需求。首个完整交付的需求应成为白皮书案例，并经知识 Owner 审核后更新到 Git。

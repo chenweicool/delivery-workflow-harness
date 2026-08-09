@@ -90,6 +90,10 @@ const {
   createAgentAdjustmentRuntime,
 } = require('./lib/agent-adjustment');
 const {
+  getPackageUpdateStatus,
+  installPackageUpdate,
+} = require('./lib/package-update');
+const {
   WORKFLOW_PROGRESS_FILE,
   createWorkflowProgressRuntime,
 } = require('./lib/workflow-progress');
@@ -2564,6 +2568,18 @@ async function route(req, res) {
 
     if (req.method === 'GET' && url.pathname === '/api/state') {
       sendJson(res, 200, await readState());
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/system/update-status') {
+      sendJson(res, 200, await getPackageUpdateStatus(ROOT_DIR));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/system/update') {
+      const body = await readJson(req);
+      if (body.confirm !== true) throw new Error('更新客户端需要显式确认');
+      sendJson(res, 200, await installPackageUpdate(ROOT_DIR));
       return;
     }
 

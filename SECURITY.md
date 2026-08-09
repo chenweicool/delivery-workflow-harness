@@ -1,15 +1,11 @@
-# Security Policy
+# 安全策略
 
-## Supported Versions
+## 支持的版本
 
-Security fixes are applied to the latest published release and the `master`
-branch.
+安全修复会应用到最新已发布版本和 `main` 分支。
 
-## Reporting a Vulnerability
+## 报告漏洞
 
-Do not open a public issue for a suspected vulnerability or a leaked secret.
-Use GitHub's private vulnerability reporting for this repository. Include the
-affected version, reproduction steps, impact, and any suggested mitigation.
+对于疑似漏洞或泄露的密钥，请勿创建公开 Issue。请使用本仓库 GitHub 的私密漏洞报告，并提供受影响版本、复现步骤、影响范围和可行的缓解建议。
 
-Do not include production credentials, personal access tokens, recovery codes,
-or customer data in a report.
+报告中不得包含生产凭据、个人访问令牌、恢复码或客户数据。

@@ -16,7 +16,7 @@
 | --- | --- | --- | --- |
 | 依赖巡检 | `.github/dependabot.yml` | 每周一北京时间 02:00 / 02:15 | 创建依赖升级 PR，不自动合并 |
 | 发布 npm 包 | `.github/workflows/publish-npm.yml` | 推送 `v<package-version>` 标签 | 检查通过后发布；稳定版为 `latest`，预发布为 `beta` |
-| 用户升级 | 用户电脑 | 用户主动执行 | `npm update -g delivery-workflow-harness` 后重启 |
+| 用户升级 | 用户电脑 | 用户主动执行 | `dw update --check` 检查、`dw update` 安装后重启 |
 
 定时任务只负责发现和提交升级建议。它们不自动合并 PR、不自动创建版本、不自动推送发布标签，也不自动发布 npm。
 
@@ -66,7 +66,8 @@ npx -y delivery-workflow-harness@latest start
 已全局安装的用户可在完成当前工作后升级：
 
 ```bash
-npm update -g delivery-workflow-harness
+dw update --check
+dw update
 dw restart
 ```
 

@@ -2,13 +2,32 @@
 
 ## 当前状态
 
-仓库已经包含发布和定时维护配置，但**当前公司电脑不具备 npm 发布权限**。
+仓库已配置发布和定时维护。npm 包通过 GitHub Actions 的 Trusted Publisher 发布；本机不保存 npm 写入凭据。
+
+## 发布版本记录
+
+- npm 当前 `latest`：`0.2.2`。
+- `0.2.0`、`0.2.1` 的 Git tag 已创建，但发布工作流分别因版本检查脚本和 Trusted Publisher 配置问题失败，未发布到 npm。
+- 后续每次发布后，更新 `CHANGELOG.md`；当前线上版本以 `npm view delivery-workflow-harness version` 的输出为准。
+
+发布成功后的维护验证：
+
+```bash
+npm view delivery-workflow-harness version
+npx -y delivery-workflow-harness@latest --help
+```
+
+## 客户端支持策略
+
+- 仅维护 npm `latest` 指向的版本；当前为 `0.2.2`。
+- `0.2.0` 及以上版本会在启动时检查 `latest`，由用户确认后更新并重启。
+- `0.1.x` 不含应用内更新入口，属于不再支持的旧版；应使用 `npm install -g delivery-workflow-harness@latest` 或 `npx -y delivery-workflow-harness@latest start` 升级。
 
 - 不在公司电脑执行 `npm login`、`npm publish` 或配置 npm 写入令牌。
 - 不提交 `.npmrc`、npm token、2FA 恢复码或任何发布凭据。
-- 在 npm Trusted Publisher 尚未配置完成前，不推送 `v*` 发布标签；标签会触发发布工作流，但发布步骤会因没有授权而失败。
+- Trusted Publisher 已配置；发布 tag 会触发 GitHub Actions 进行 npm 发布。
 
-因此，目前可安全使用的能力只有本地开发、CI 校验和 npm 包消费；正式发布需要由拥有 npm 包管理权限的负责人完成一次外部配置后才启用。
+因此，本机可安全进行本地开发、CI 校验和 npm 包消费；正式发布由推送匹配版本 tag 的 GitHub Actions 自动完成。
 
 ## 仓库内维护点
 
@@ -20,9 +39,9 @@
 
 定时任务只负责发现和提交升级建议。它们不自动合并 PR、不自动创建版本、不自动推送发布标签，也不自动发布 npm。
 
-## 后续启用发布的前置条件
+## Trusted Publisher 配置记录
 
-由 npm 包的 Owner 在 npmjs.com 的包设置中配置 Trusted Publisher：
+由 npm 包的 Owner 在 npmjs.com 的包设置中配置 Trusted Publisher；当前配置已完成，字段如下：
 
 1. 选择 **GitHub Actions**。
 2. 填写 GitHub 用户/组织 `chenweicool`。

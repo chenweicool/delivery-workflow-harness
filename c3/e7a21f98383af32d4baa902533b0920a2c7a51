@@ -1,0 +1,27 @@
+console/lib/harness-client.js
+  s_6a56ad3303bd1c::t_d7277b7137f062 60-89,194,289
+console/public/index.html
+  s_6a56ad3303bd1c::t_d7277b7137f062 180-182
+scripts/check-harness-client.js
+  s_6a56ad3303bd1c::t_d7277b7137f062 8,26-34
+scripts/regression-api.js
+  s_6a56ad3303bd1c::t_d7277b7137f062 13,104-106
+console/server.js
+  s_6a56ad3303bd1c::t_d7277b7137f062 668-677,680-681,3205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "c3e7a21f98383af32d4baa902533b0920a2c7a51",
+  "prompts": {},
+  "sessions": {
+    "s_6a56ad3303bd1c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fe9ca-566b-7343-b4f2-04dcd41770a4",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

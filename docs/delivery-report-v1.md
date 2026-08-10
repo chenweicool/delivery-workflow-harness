@@ -15,7 +15,14 @@
     "owner": { "name": "张三", "id": "zhangsan" },
     "url": "https://example.internal/demand/123"
   },
-  "extensions": {}
+  "extensions": {
+    "applicationScope": {
+      "version": "1.0",
+      "applications": [
+        { "projectId": "12345", "name": "settlement-service" }
+      ]
+    }
+  }
 }
 ```
 
@@ -25,6 +32,7 @@
 - `reportId`：报告的全局唯一标识，供后续 HTTP 或 Kafka 上报去重使用。
 - `owner.id`：负责人域账号或工号；一期允许为空字符串。
 - `extensions`：后续版本新增统计字段的唯一扩展入口；v1 必须为对象。
+- `extensions.applicationScope`：生成报告时对 Workspace 已关联应用的快照；只记录应用名称和可选的内部代码平台 `projectId`，不包含本机路径、分支、代码差异或文档内容。
 
 报告一旦生成即不覆盖，重复执行完成操作只返回原报告，保证后续上报可安全重试。完整机器校验规则见 `schemas/delivery-report.schema.json`。
 

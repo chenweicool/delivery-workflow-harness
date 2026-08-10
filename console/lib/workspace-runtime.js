@@ -234,6 +234,7 @@ async function getAppAccessStates(workspacePath, config) {
       worktreePath,
       worktreeRelativePath: path.relative(workspacePath, worktreePath).replace(/\\/g, '/'),
       worktreeExists: await exists(worktreePath),
+      projectId: app.projectId || '',
       baseBranch: app.baseBranch || '',
       featureBranch: app.featureBranch || '',
       suggestedFeatureBranch: app.suggestedFeatureBranch || '',

@@ -161,6 +161,17 @@ async function main() {
     assert.equal(initializedWorkspaceConfig.perspective, 'qa');
     assert.equal(initializedWorkspaceConfig.demand.owner.name, 'API 回归');
     assert.equal(initializedWorkspaceConfig.demand.url, 'https://example.internal/demand/api-regression');
+    const appSourcePath = path.join(tempRoot, 'repositories', 'settlement-service');
+    await fsp.mkdir(appSourcePath, { recursive: true });
+    const { response: applicationScopeConfigResponse, data: applicationScopeConfigData } = await requestJson(runtime.url, '/api/workspace/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        apps: [{ name: 'settlement-service', projectId: '12345', sourcePath: appSourcePath }],
+      }),
+    });
+    assert.equal(applicationScopeConfigResponse.status, 200);
+    assert.equal(applicationScopeConfigData.config.apps[0].projectId, '12345');
     const capabilitySnapshot = await fsp.readFile(path.join(initData.workspacePath, 'context', 'capabilities.md'), 'utf8');
     assert.match(capabilitySnapshot, /当前需求能力快照/);
     const workspaceQuery = encodeURIComponent(initData.workspacePath);
@@ -173,6 +184,10 @@ async function main() {
     assert.equal(reportData.report.schemaVersion, '1.0');
     assert.equal(reportData.report.demand.owner.id, 'api-regression');
     assert.equal(reportData.report.demand.url, 'https://example.internal/demand/api-regression');
+    assert.deepEqual(reportData.report.extensions.applicationScope, {
+      version: '1.0',
+      applications: [{ projectId: '12345', name: 'settlement-service' }],
+    });
     assert.equal(reportData.submission.status, 'not-configured');
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'delivery', 'delivery-report.json')), true);
     const { response: repeatedReportResponse, data: repeatedReportData } = await requestJson(runtime.url, '/api/workspace/delivery-report/complete', {

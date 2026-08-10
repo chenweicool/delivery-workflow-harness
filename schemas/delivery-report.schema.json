@@ -28,6 +28,31 @@
         "url": { "type": "string", "format": "uri", "pattern": "^https?://" }
       }
     },
-    "extensions": { "type": "object" }
+    "extensions": {
+      "type": "object",
+      "properties": {
+        "applicationScope": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["version", "applications"],
+          "properties": {
+            "version": { "const": "1.0" },
+            "applications": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["projectId", "name"],
+                "properties": {
+                  "projectId": { "type": "string" },
+                  "name": { "type": "string", "minLength": 1 }
+                }
+              }
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    }
   }
 }

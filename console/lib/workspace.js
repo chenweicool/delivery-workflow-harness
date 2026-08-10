@@ -7,6 +7,7 @@ function defaultAppConfig(app) {
   const safeName = name || 'app';
   return {
     name: safeName,
+    projectId: String(app.projectId || '').trim(),
     sourcePath,
     worktreePath: app.worktreePath || `apps/${safeName}`,
     baseBranch: app.baseBranch || '',

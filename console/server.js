@@ -961,6 +961,7 @@ function resolveProfileApps(profileApps, appIndex, tools, demandName, branchPatt
       const vars = { ...varsBase, app: name };
       return {
         name,
+        projectId: String(app.projectId || '').trim(),
         sourcePath,
         worktreePath: app.worktreePath || `apps/${name}`,
         baseBranch: app.baseBranch || '',
@@ -994,6 +995,7 @@ async function listAvailableApps(tools) {
     if (!byName.has(key)) {
       byName.set(key, {
         name,
+        projectId: String(app.projectId || '').trim(),
         path: sourcePath,
         repoKey: app.repoKey || '',
         type: app.type || '',
@@ -1083,6 +1085,7 @@ async function resolveWhitepaperWorkspaceContext(body) {
     .filter((app) => app.sourceState === 'local' && app.sourcePath)
     .map((app) => ({
       name: app.name,
+      projectId: app.projectId || '',
       sourcePath: app.sourcePath,
       baseBranch: app.baseBranch || '',
       type: app.type || 'java-backend',
@@ -1124,6 +1127,7 @@ async function persistResolvedWhitepaperApplication(workspacePath, current, upda
   const candidateApps = updatedApplication.sourcePath
     ? [...existingApps, {
       name: updatedApplication.name,
+      projectId: updatedApplication.projectId || '',
       sourcePath: updatedApplication.sourcePath,
       baseBranch: updatedApplication.baseBranch || '',
       type: updatedApplication.type || 'java-backend',

@@ -42,6 +42,21 @@ function validateDemand(value, { requireStartedAt = false } = {}) {
   return demand;
 }
 
+function applicationScope(config = {}) {
+  const seen = new Set();
+  const applications = [];
+  for (const app of Array.isArray(config.apps) ? config.apps : []) {
+    const name = String(app && app.name || '').trim();
+    if (!name) continue;
+    const projectId = String(app.projectId || '').trim();
+    const key = `${projectId.toLowerCase()}|${name.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    applications.push({ projectId, name });
+  }
+  return { version: '1.0', applications };
+}
+
 function createDeliveryReportRuntime(deps) {
   const {
     normalizeUserPath,
@@ -74,7 +89,9 @@ function createDeliveryReportRuntime(deps) {
         owner: demand.owner,
         url: demand.url,
       },
-      extensions: {},
+      extensions: {
+        applicationScope: applicationScope(config),
+      },
     };
     await writeWorkspaceJsonFile(workspacePath, DELIVERY_REPORT_FILE, report);
     return { report, reportFile: DELIVERY_REPORT_FILE, created: true };
@@ -90,5 +107,6 @@ module.exports = {
   DELIVERY_REPORT_SCHEMA_VERSION,
   normalizeDemand,
   validateDemand,
+  applicationScope,
   createDeliveryReportRuntime,
 };

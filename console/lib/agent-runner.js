@@ -6,6 +6,7 @@ function createAgentRunnerRuntime(deps) {
     writeRunMeta,
     appendRunLog,
     nowIso,
+    spawnImpl = spawn,
   } = deps;
 
   async function launchAgentProcess({
@@ -23,7 +24,7 @@ function createAgentRunnerRuntime(deps) {
     await writeRunMeta(runFile, meta);
     await appendRunLog(logFile, initialLog);
 
-    const child = spawn(commandSpec.command, commandSpec.args, {
+    const child = spawnImpl(commandSpec.command, commandSpec.args, {
       cwd: workspacePath,
       windowsHide: true,
       shell: process.platform === 'win32',
@@ -31,8 +32,6 @@ function createAgentRunnerRuntime(deps) {
     });
 
     meta.pid = child.pid || null;
-    await writeRunMeta(runFile, meta);
-    child.stdin.end(prompt);
     child.stdout.on('data', (chunk) => {
       appendRunLog(logFile, chunk.toString('utf8')).catch(() => {});
     });
@@ -46,6 +45,7 @@ function createAgentRunnerRuntime(deps) {
         endedAt: nowIso(),
         error: error.message,
       };
+      await runningMetaWrite.catch(() => {});
       await appendRunLog(logFile, `\n[process error] ${error.message}\n`).catch(() => {});
       await writeRunMeta(runFile, failed).catch(() => {});
     });
@@ -56,9 +56,14 @@ function createAgentRunnerRuntime(deps) {
         endedAt: nowIso(),
         exitCode: code,
       };
+      await runningMetaWrite.catch(() => {});
       await appendRunLog(logFile, `\n---\nendedAt: ${ended.endedAt}\nexitCode: ${code}\n`).catch(() => {});
       await writeRunMeta(runFile, ended).catch(() => {});
     });
+
+    const runningMetaWrite = writeRunMeta(runFile, meta);
+    child.stdin.end(prompt);
+    await runningMetaWrite;
 
     return { runId, status: 'running' };
   }

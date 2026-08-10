@@ -1,5 +1,10 @@
 # Changelog
 
+## V0.2.5
+
+- Fixed a cross-platform race in the agent-runner: commands that exit
+  immediately now persist their completion status instead of remaining running.
+
 ## V0.2.4
 
 - Fixed Windows "打开目录" actions: Explorer windows are now created visibly and

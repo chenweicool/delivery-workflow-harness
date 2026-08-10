@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 const assert = require('assert/strict');
+const { EventEmitter } = require('events');
 const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
@@ -444,6 +445,46 @@ async function main() {
       appendRunLog: (filePath, text) => fsp.appendFile(filePath, text, 'utf8'),
       nowIso: () => new Date().toISOString(),
     });
+    const immediateRunId = 'api-regression-immediate-run';
+    const immediateRunFile = path.join(runsDir, `${immediateRunId}.json`);
+    const immediateLogFile = path.join(runsDir, `${immediateRunId}.log`);
+    const immediateRunner = createAgentRunnerRuntime({
+      assertWithin,
+      writeRunMeta: (filePath, runMeta) => fsp.writeFile(filePath, JSON.stringify(runMeta, null, 2), 'utf8'),
+      appendRunLog: (filePath, text) => fsp.appendFile(filePath, text, 'utf8'),
+      nowIso: () => new Date().toISOString(),
+      spawnImpl: () => {
+        const child = new EventEmitter();
+        child.pid = 4242;
+        child.stdin = { end() {} };
+        child.stdout = new EventEmitter();
+        child.stderr = new EventEmitter();
+        queueMicrotask(() => child.emit('close', 0));
+        return child;
+      },
+    });
+    await immediateRunner.launchAgentProcess({
+      workspacePath: initData.workspacePath,
+      runId: immediateRunId,
+      prompt: 'immediate simulated prompt',
+      commandSpec: { command: 'immediate-simulated-agent', args: [] },
+      runFile: immediateRunFile,
+      logFile: immediateLogFile,
+      meta: {
+        runId: immediateRunId,
+        stepId: 'import-prd',
+        executor: 'simulated',
+        status: 'running',
+        workspacePath: initData.workspacePath,
+        startedAt: new Date().toISOString(),
+        endedAt: '',
+        exitCode: null,
+        error: '',
+      },
+      initialLog: '# Immediate regression run\n',
+    });
+    await waitFor(async () => JSON.parse(await fsp.readFile(immediateRunFile, 'utf8')).status !== 'running');
+    assert.equal(JSON.parse(await fsp.readFile(immediateRunFile, 'utf8')).status, 'success');
     await runner.launchAgentProcess({
       workspacePath: initData.workspacePath,
       runId,

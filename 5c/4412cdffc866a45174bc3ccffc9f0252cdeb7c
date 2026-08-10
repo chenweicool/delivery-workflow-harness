@@ -1,0 +1,33 @@
+scripts/regression-api.js
+  s_6a56ad3303bd1c::t_7e4ccf605ce379 164-174,187-190
+console/lib/delivery-report.js
+  s_6a56ad3303bd1c::t_7e4ccf605ce379 45-59,92-94,110
+console/lib/workspace.js
+  s_6a56ad3303bd1c::t_7e4ccf605ce379 10
+schemas/delivery-report.schema.json
+  s_6a56ad3303bd1c::t_7e4ccf605ce379 31-56
+console/public/control-plane.js
+  s_6a56ad3303bd1c::t_7e4ccf605ce379 61-62
+console/lib/workspace-runtime.js
+  s_6a56ad3303bd1c::t_7e4ccf605ce379 237
+docs/delivery-report-v1.md
+  s_6a56ad3303bd1c::t_7e4ccf605ce379 18-25,35
+console/server.js
+  s_6a56ad3303bd1c::t_7e4ccf605ce379 964,998,1088,1130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "5c4412cdffc866a45174bc3ccffc9f0252cdeb7c",
+  "prompts": {},
+  "sessions": {
+    "s_6a56ad3303bd1c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fe9ca-566b-7343-b4f2-04dcd41770a4",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

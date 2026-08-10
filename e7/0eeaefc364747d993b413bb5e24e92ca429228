@@ -1,0 +1,25 @@
+package.json
+  s_29d6702d551c17::t_22ebc14aed1484 3
+CHANGELOG.md
+  s_29d6702d551c17::t_22ebc14aed1484 3-6
+console/server.js
+  s_29d6702d551c17::t_2238a999480b67 1478,1485-1489,1493-1503
+  s_29d6702d551c17::t_442f78bef2ba69 1479-1484
+  s_29d6702d551c17::t_921df35bc8c4ac 1490-1492
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "e70eeaefc364747d993b413bb5e24e92ca429228",
+  "prompts": {},
+  "sessions": {
+    "s_29d6702d551c17": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019feb72-4d53-7f02-b05e-a89251171cb4",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

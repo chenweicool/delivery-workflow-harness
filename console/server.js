@@ -1475,10 +1475,35 @@ async function readWorkspaceDiff(body) {
 function openWithSystem(targetPath) {
   return new Promise((resolve, reject) => {
     const isWindows = process.platform === 'win32';
+    if (isWindows) {
+      const explorer = spawn('explorer.exe', [targetPath], {
+        detached: true,
+        stdio: 'ignore',
+      });
+      explorer.on('error', reject);
+      explorer.unref();
+      const encodedTargetPath = Buffer.from(targetPath, 'utf8').toString('base64');
+      const script = [
+        `$targetPath = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${encodedTargetPath}'))`,
+        '$shell = New-Object -ComObject Shell.Application',
+        '$targetUrl = ([System.Uri]$targetPath).AbsoluteUri',
+        "Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class DeliveryWorkflowWindowFocus { [DllImport(\"user32.dll\")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow); [DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr hWnd); [DllImport(\"user32.dll\")] public static extern bool BringWindowToTop(IntPtr hWnd); [DllImport(\"user32.dll\")] public static extern IntPtr GetForegroundWindow(); [DllImport(\"user32.dll\")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId); [DllImport(\"kernel32.dll\")] public static extern uint GetCurrentThreadId(); [DllImport(\"user32.dll\")] public static extern bool AttachThreadInput(uint idAttach, uint idAttachTo, bool fAttach); }'",
+        '$foregroundProcess = [uint32]0; $foregroundThread = [DeliveryWorkflowWindowFocus]::GetWindowThreadProcessId([DeliveryWorkflowWindowFocus]::GetForegroundWindow(), [ref]$foregroundProcess); $currentThread = [DeliveryWorkflowWindowFocus]::GetCurrentThreadId(); $attached = $foregroundThread -ne 0 -and $foregroundThread -ne $currentThread -and [DeliveryWorkflowWindowFocus]::AttachThreadInput($currentThread, $foregroundThread, $true)',
+        'try { for ($attempt = 0; $attempt -lt 20; $attempt += 1) { $window = @($shell.Windows() | Where-Object { $_.LocationURL -eq $targetUrl } | Select-Object -Last 1)[0]; if ($null -ne $window) { $handle = [IntPtr]$window.HWND; [DeliveryWorkflowWindowFocus]::ShowWindow($handle, 9) | Out-Null; [DeliveryWorkflowWindowFocus]::BringWindowToTop($handle) | Out-Null; if ([DeliveryWorkflowWindowFocus]::SetForegroundWindow($handle)) { break } }; Start-Sleep -Milliseconds 100 } } finally { if ($attached) { [DeliveryWorkflowWindowFocus]::AttachThreadInput($currentThread, $foregroundThread, $false) | Out-Null } }',
+      ].join('; ');
+      const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+        windowsHide: true,
+        detached: true,
+        stdio: 'ignore',
+      });
+      child.on('error', reject);
+      child.unref();
+      resolve();
+      return;
+    }
     const command = isWindows ? 'explorer.exe' : process.platform === 'darwin' ? 'open' : 'xdg-open';
     const args = [targetPath];
     const child = spawn(command, args, {
-      windowsHide: true,
       detached: true,
       stdio: 'ignore',
     });

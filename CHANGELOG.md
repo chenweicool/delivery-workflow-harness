@@ -1,5 +1,10 @@
 # Changelog
 
+## V0.2.4
+
+- Fixed Windows "打开目录" actions: Explorer windows are now created visibly and
+  brought to the foreground instead of only appearing on the taskbar.
+
 ## V0.2.0
 
 - Added opt-in client update discovery in the console and the `dw update --check` /

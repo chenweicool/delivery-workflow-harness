@@ -1,0 +1,26 @@
+scripts/regression-api.js
+  s_29d6702d551c17::t_4f8d29876ac31b 4
+  s_29d6702d551c17::t_2e5eefd597f22d 448-487
+console/lib/agent-runner.js
+  s_29d6702d551c17::t_55ffd55ebd99f1 9,27,48,59,64-66
+CHANGELOG.md
+  s_29d6702d551c17::t_4ec0e84ce62ee5 3-7
+package.json
+  s_29d6702d551c17::t_4ec0e84ce62ee5 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "fc530f471fb03c8a689e0ddaa6066b016031672b",
+  "prompts": {},
+  "sessions": {
+    "s_29d6702d551c17": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019feb72-4d53-7f02-b05e-a89251171cb4",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

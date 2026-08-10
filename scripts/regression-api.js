@@ -10,7 +10,7 @@ const rootDir = path.resolve(__dirname, '..');
 const tempRoot = path.join(os.tmpdir(), 'delivery-workflow-api-regression', `run-${Date.now()}`);
 process.env.DELIVERY_WORKFLOW_DATA_DIR = path.join(tempRoot, '.data');
 
-const { startServer } = require(path.join(rootDir, 'console', 'server.js'));
+const { startServer, buildWindowsPickerScript } = require(path.join(rootDir, 'console', 'server.js'));
 const { assertWithin } = require(path.join(rootDir, 'console', 'lib', 'fs-utils.js'));
 const { createAgentRunnerRuntime } = require(path.join(rootDir, 'console', 'lib', 'agent-runner.js'));
 
@@ -101,6 +101,9 @@ function createMinimalDocxBuffer() {
 }
 
 async function main() {
+  const windowsPickerScript = buildWindowsPickerScript("Write-Output '中文目录'");
+  assert.match(windowsPickerScript, /\$OutputEncoding = \[Console\]::OutputEncoding = \[System\.Text\.UTF8Encoding\]::new\(\)/);
+
   await fsp.mkdir(tempRoot, { recursive: true });
   const domainRoot = path.join(tempRoot, 'settlement-domain');
   const referenceDomainRoot = path.join(tempRoot, 'settlement-reference-domain');

@@ -57,6 +57,36 @@ function buildWindowsOpenArgs(url) {
   return [String(url)];
 }
 
+async function ensureAuthorizationUrlReachable(authorizeUrl, options = {}) {
+  const fetchImpl = options.fetchImpl || global.fetch;
+  const timeoutMs = options.timeoutMs || DEFAULT_TIMEOUT_MS;
+  let target;
+  try {
+    target = new URL(authorizeUrl);
+  } catch {
+    throw new Error('Harness 授权页地址必须是有效的 HTTP 或 HTTPS 地址。');
+  }
+  if (!['http:', 'https:'].includes(target.protocol)) {
+    throw new Error('Harness 授权页地址必须是有效的 HTTP 或 HTTPS 地址。');
+  }
+  if (typeof fetchImpl !== 'function') {
+    throw new Error('当前 Node 运行环境无法验证 Harness 授权页地址。');
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    // A reachable authorization page may respond with a redirect or an auth error;
+    // either is sufficient here. We only block navigation for transport failures.
+    await fetchImpl(target.toString(), { method: 'GET', redirect: 'manual', signal: controller.signal });
+  } catch (error) {
+    const endpoint = `${target.protocol}//${target.host}`;
+    throw new Error(`无法访问 Harness 授权页 ${endpoint}。请检查授权页地址的协议和端口；若平台仅开放 HTTP，请将 https 改为 http 后重试。`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function createHarnessClientRuntime(deps) {
   const {
     normalizeUserPath,
@@ -161,6 +191,7 @@ function createHarnessClientRuntime(deps) {
     if (!config.serverUrl || !config.authorizeUrl || !config.clientId) {
       throw new Error('Harness Client 尚未配置浏览器授权地址。');
     }
+    await ensureAuthorizationUrlReachable(config.authorizeUrl, { fetchImpl });
     const verifier = crypto.randomBytes(48).toString('base64url');
     const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
     const state = crypto.randomBytes(24).toString('base64url');
@@ -255,5 +286,6 @@ module.exports = {
   validateServerUrl,
   buildAuthorizationUrl,
   buildWindowsOpenArgs,
+  ensureAuthorizationUrlReachable,
   createHarnessClientRuntime,
 };

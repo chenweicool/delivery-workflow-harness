@@ -5,7 +5,7 @@ const fs = require('fs/promises');
 const http = require('http');
 const os = require('os');
 const path = require('path');
-const { buildAuthorizationUrl, buildWindowsOpenArgs, createHarnessClientRuntime } = require('../console/lib/harness-client');
+const { buildAuthorizationUrl, buildWindowsOpenArgs, ensureAuthorizationUrlReachable, createHarnessClientRuntime } = require('../console/lib/harness-client');
 
 async function main() {
   const authorizationUrl = new URL(buildAuthorizationUrl('https://harness.example.internal/#/harness/authorize', {
@@ -23,6 +23,15 @@ async function main() {
   assert.equal(authorizationParams.get('code_challenge'), 'test-challenge');
   const windowsArgs = buildWindowsOpenArgs(authorizationUrl.toString());
   assert.deepEqual(windowsArgs, [authorizationUrl.toString()]);
+  await ensureAuthorizationUrlReachable('http://harness.example.internal/#/harness/authorize', {
+    fetchImpl: async () => ({ status: 200 }),
+  });
+  await assert.rejects(
+    () => ensureAuthorizationUrlReachable('https://harness.example.internal/#/harness/authorize', {
+      fetchImpl: async () => { throw new TypeError('fetch failed'); },
+    }),
+    /无法访问 Harness 授权页 https:\/\/harness\.example\.internal。请检查授权页地址的协议和端口/,
+  );
   const workspacePath = await fs.mkdtemp(path.join(os.tmpdir(), 'delivery-workflow-harness-client-'));
   const report = {
     schemaVersion: '1.0',

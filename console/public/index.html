@@ -177,9 +177,9 @@
                 </section>
                 <section class="settings-panel hidden" data-settings-panel="harness">
                   <h2>Harness Client</h2>
-                  <p>配置交付报告接收地址后，通过浏览器登录智审平台完成授权。访问令牌只保存在本机，不会在页面中显示。</p>
-                  <label><span>报告接收地址</span><input id="harnessServerUrl" placeholder="https://harness.example.com/api/v1/harness/delivery-reports" /></label>
-                  <label><span>授权页地址（可选）</span><input id="harnessAuthorizeUrl" placeholder="https://harness.example.com/#/harness/authorize" /></label>
+                  <p>配置交付报告接收地址后，通过浏览器登录智审平台完成授权。报告接收地址和授权页必须使用平台实际开放的协议和端口；访问令牌只保存在本机，不会在页面中显示。</p>
+                  <label><span>报告接收地址</span><input id="harnessServerUrl" placeholder="http://harness.example.com/api/v1/harness/delivery-reports" /></label>
+                  <label><span>授权页地址（可选）</span><input id="harnessAuthorizeUrl" placeholder="http://harness.example.com/#/harness/authorize" /></label>
                   <label><span>Client ID</span><input id="harnessClientId" value="delivery-workflow-desktop" /></label>
                   <div id="harnessClientStatus" class="config-note">正在读取授权状态…</div>
                   <div class="card-actions">

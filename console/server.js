@@ -669,9 +669,20 @@ function configuredCommand(configuredPath, fallback) {
   return value || fallback;
 }
 
+function buildWindowsPickerScript(script) {
+  // execFile decodes stdout as UTF-8. Windows PowerShell may otherwise emit the
+  // selected path using the active console code page, corrupting non-ASCII names.
+  return [
+    '[Console]::InputEncoding = [System.Text.UTF8Encoding]::new()',
+    '$OutputEncoding = [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new()',
+    script,
+  ].join('; ');
+}
+
 async function runWindowsPicker(script, pickerName) {
   try {
-    return await execFileAsync('powershell.exe', ['-NoProfile', '-STA', '-Command', script], {
+    return await execFileAsync('powershell.exe', ['-NoProfile', '-STA', '-Command', buildWindowsPickerScript(script)], {
+      encoding: 'utf8',
       windowsHide: true,
       timeout: 120000,
     });
@@ -3207,4 +3218,5 @@ module.exports = {
   evaluateQualityGates,
   submitQualityGate,
   createKnowledgeUpdateProposal,
+  buildWindowsPickerScript,
 };

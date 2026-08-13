@@ -1,5 +1,10 @@
 const { execFile } = require('child_process');
 const { promisify } = require('util');
+const {
+  resolveMcpServer,
+  callMcpTool,
+  extractMcpDocument,
+} = require('./mcp-client');
 
 const execFileAsync = promisify(execFile);
 
@@ -12,6 +17,8 @@ function normalizeFeishuConfig(integration = {}) {
     mode: String(raw.mode || raw.authMode || 'disabled').trim() || 'disabled',
     baseUrl: String(raw.baseUrl || 'https://open.feishu.cn').replace(/\/+$/, ''),
     proxyBaseUrl: String(raw.proxyBaseUrl || '').replace(/\/+$/, ''),
+    mcpServer: String(raw.mcpServer || raw.mcpServerUrl || '').trim(),
+    mcpToolName: String(raw.mcpToolName || 'Feishu-GetDocument').trim(),
     tokenRef: String(raw.userAccessTokenRef || raw.tenantAccessTokenRef || raw.tokenRef || '').trim(),
     cliCommand: String(raw.cliCommand || '').trim(),
     cliArgs: Array.isArray(raw.cliArgs) ? raw.cliArgs.map(String) : [],
@@ -102,6 +109,8 @@ async function importFeishuDocument(link, integration = {}, options = {}) {
   let result;
   if (config.mode === 'proxy') {
     result = await importViaProxy(parsed, config);
+  } else if (config.mode === 'mcp') {
+    result = await importViaMcp(parsed, config, options);
   } else if (config.mode === 'cli') {
     result = await importViaCli(parsed, config);
   } else if (config.mode === 'tokenRef') {
@@ -109,7 +118,7 @@ async function importFeishuDocument(link, integration = {}, options = {}) {
   } else if (config.mode === 'mock') {
     result = await importViaMock(parsed, config, options);
   } else {
-    throw new Error('飞书集成未配置，请在全局配置中选择 proxy、cli 或 tokenRef 模式');
+    throw new Error('飞书集成未配置，请在全局配置中选择 mcp、proxy、cli 或 tokenRef 模式');
   }
   return {
     ...parsed,
@@ -119,6 +128,27 @@ async function importFeishuDocument(link, integration = {}, options = {}) {
     title: result.title || '',
     markdown: ensureMarkdown(result.markdown, parsed),
     raw: result.raw || null,
+  };
+}
+
+async function importViaMcp(parsed, config, options = {}) {
+  const server = resolveMcpServer(options.mcpServers || [], config.mcpServer);
+  const toolResult = await callMcpTool(server.url, config.mcpToolName, {
+    documentUrlOrToken: parsed.url,
+  }, {
+    fetchImpl: options.fetchImpl,
+    timeoutMs: options.timeoutMs,
+  });
+  const document = extractMcpDocument(toolResult);
+  return {
+    title: document.title,
+    markdown: document.content,
+    raw: {
+      mcpServer: server.name || server.url,
+      mcpToolName: config.mcpToolName,
+      documentType: document.documentType,
+      documentUrl: document.url,
+    },
   };
 }
 

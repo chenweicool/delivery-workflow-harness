@@ -2,6 +2,7 @@
 
 const assert = require('assert');
 const fsp = require('fs/promises');
+const http = require('http');
 const os = require('os');
 const path = require('path');
 
@@ -18,6 +19,74 @@ const {
   saveToolsConfig,
   importFeishuPrd,
 } = require('../console/server');
+
+async function startMockMcpServer() {
+  const requests = [];
+  const server = http.createServer(async (req, res) => {
+    if (req.method === 'DELETE') {
+      requests.push({ method: req.method, sessionId: req.headers['mcp-session-id'] || '' });
+      res.writeHead(200).end();
+      return;
+    }
+    let raw = '';
+    for await (const chunk of req) {
+      raw += chunk;
+    }
+    const payload = raw ? JSON.parse(raw) : {};
+    requests.push({ method: req.method, payload, sessionId: req.headers['mcp-session-id'] || '' });
+    if (payload.method === 'notifications/initialized') {
+      res.writeHead(202).end();
+      return;
+    }
+    if (payload.method === 'initialize') {
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Mcp-Session-Id': 'test-session',
+      });
+      res.end(JSON.stringify({
+        jsonrpc: '2.0',
+        id: payload.id,
+        result: {
+          protocolVersion: '2025-03-26',
+          capabilities: { tools: {} },
+          serverInfo: { name: 'mock-feishu', version: '1.0.0' },
+        },
+      }));
+      return;
+    }
+    if (payload.method === 'tools/call') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        jsonrpc: '2.0',
+        id: payload.id,
+        result: {
+          isError: false,
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              title: '公司飞书 PRD',
+              content: '# 公司飞书 PRD\n\n## 需求\n\n- MCP 正常读取并解析',
+              documentType: 'wiki',
+              url: payload.params.arguments.documentUrlOrToken,
+            }),
+          }],
+        },
+      }));
+      return;
+    }
+    res.writeHead(404).end();
+  });
+  await new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(0, '127.0.0.1', resolve);
+  });
+  const address = server.address();
+  return {
+    requests,
+    url: `http://127.0.0.1:${address.port}/mcp`,
+    close: () => new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())),
+  };
+}
 
 async function main() {
   const parsed = parseFeishuLink('https://acme.feishu.cn/docx/AbCdEfGh123?from=from_copylink');
@@ -44,29 +113,55 @@ async function main() {
   assert(imported.markdown.includes('source: feishu'));
   assert(imported.markdown.includes('# PRD'));
 
-  await fsp.rm(tmpRoot, { recursive: true, force: true });
-  await fsp.mkdir(tmpRoot, { recursive: true });
-  const workspacePath = await initWorkspace('feishu-import-check', tmpRoot);
-  await saveToolsConfig({
-    tools: {
-      workspaceRoot: tmpRoot,
-      integrations: {
-        feishu: {
-          mode: 'mock',
-          mockMarkdown: '# 公司飞书 PRD\n\n## 需求\n\n- 正常读取并解析',
+  const mockMcp = await startMockMcpServer();
+  try {
+    const mcpImported = await importFeishuDocument(
+      'https://acme.feishu.cn/wiki/MockTokenForMcpImport',
+      {
+        mode: 'mcp',
+        mcpServer: 'spm-feishu',
+      },
+      {
+        mcpServers: [`spm-feishu=${mockMcp.url}`],
+      }
+    );
+    assert.strictEqual(mcpImported.status, 'imported');
+    assert.strictEqual(mcpImported.mode, 'mcp');
+    assert.strictEqual(mcpImported.title, '公司飞书 PRD');
+    assert(mcpImported.markdown.includes('MCP 正常读取并解析'));
+    assert(mockMcp.requests.some((item) => item.payload && item.payload.method === 'initialize'));
+    assert(mockMcp.requests.some((item) => item.payload && item.payload.method === 'tools/call'));
+    assert(mockMcp.requests.some((item) => item.method === 'DELETE' && item.sessionId === 'test-session'));
+
+    await fsp.rm(tmpRoot, { recursive: true, force: true });
+    await fsp.mkdir(tmpRoot, { recursive: true });
+    const workspacePath = await initWorkspace('feishu-import-check', tmpRoot);
+    await saveToolsConfig({
+      tools: {
+        workspaceRoot: tmpRoot,
+        integrations: {
+          mcp: {
+            servers: [`spm-feishu=${mockMcp.url}`],
+          },
+          feishu: {
+            mode: 'mcp',
+            mcpServer: 'spm-feishu',
+          },
         },
       },
-    },
-  });
-  const workspaceImport = await importFeishuPrd({
-    workspacePath,
-    links: ['https://acme.feishu.cn/docx/MockTokenForWorkspaceImport'],
-  });
-  assert.strictEqual(workspaceImport.imported.length, 1);
-  const document = await fsp.readFile(path.join(workspacePath, 'prd', 'document.md'), 'utf8');
-  const source = JSON.parse(await fsp.readFile(path.join(workspacePath, 'prd', 'source-feishu.json'), 'utf8'));
-  assert(document.includes('公司飞书 PRD'));
-  assert.strictEqual(source.records[0].status, 'imported');
+    });
+    const workspaceImport = await importFeishuPrd({
+      workspacePath,
+      links: ['https://acme.feishu.cn/docx/MockTokenForWorkspaceImport'],
+    });
+    assert.strictEqual(workspaceImport.imported.length, 1);
+    const document = await fsp.readFile(path.join(workspacePath, 'prd', 'document.md'), 'utf8');
+    const source = JSON.parse(await fsp.readFile(path.join(workspacePath, 'prd', 'source', 'feishu.json'), 'utf8'));
+    assert(document.includes('公司飞书 PRD'));
+    assert.strictEqual(source.records[0].status, 'imported');
+  } finally {
+    await mockMcp.close();
+  }
 
   console.log('Feishu connector check passed');
 }

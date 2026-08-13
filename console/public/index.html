@@ -163,14 +163,15 @@
                 <section class="settings-panel hidden" data-settings-panel="mcp">
                   <h2>MCP 服务</h2>
                   <p>统一登记可供需求流程使用的 MCP 服务。服务连接与授权信息仅在本机配置中保存。</p>
-                  <label><span>服务配置</span><textarea id="mcpServers" rows="9" placeholder="每行一个服务名称或本机配置路径"></textarea></label>
-                  <div class="config-note">当前版本保存服务登记信息；连接校验与运行态管理将在后续集成能力中提供。</div>
+                  <label><span>服务配置</span><textarea id="mcpServers" rows="9" placeholder="每行一个 HTTP MCP 地址，例如：spm-feishu=http://host/context/mcp/external"></textarea></label>
+                  <div class="config-note">HTTP MCP 服务可被飞书文档导入直接调用；推荐使用仅暴露只读工具的 external 地址。每行支持“名称=地址”或直接填写地址。</div>
                 </section>
                 <section class="settings-panel hidden" data-settings-panel="feishu">
                   <h2>飞书</h2>
                   <p>配置飞书文档导入所使用的连接方式。令牌仅引用环境变量或外部密钥，不在此处录入明文。</p>
                   <label class="checkbox-field"><input id="feishuEnabled" type="checkbox" /><span>启用飞书集成</span></label>
-                  <label><span>接入方式</span><select id="feishuMode"><option value="disabled">未启用</option><option value="proxy">代理服务</option><option value="cli">本机 CLI</option><option value="tokenRef">令牌引用</option><option value="mock">模拟数据</option></select></label>
+                  <label><span>接入方式</span><select id="feishuMode"><option value="disabled">未启用</option><option value="mcp">MCP 服务</option><option value="proxy">代理服务</option><option value="cli">本机 CLI</option><option value="tokenRef">令牌引用</option><option value="mock">模拟数据</option></select></label>
+                  <label><span>MCP 服务名称（可选）</span><input id="feishuMcpServer" placeholder="例如：spm-feishu；留空时使用首个 HTTP MCP 服务" /></label>
                   <label><span>代理服务地址</span><input id="feishuProxyBaseUrl" placeholder="https://example.internal" /></label>
                   <label><span>本机 CLI 命令</span><input id="feishuCliCommand" placeholder="例如：lark-mcp" /></label>
                   <label><span>令牌环境变量名</span><input id="feishuTokenRef" placeholder="例如：FEISHU_USER_ACCESS_TOKEN" /></label>

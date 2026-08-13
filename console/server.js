@@ -1851,12 +1851,16 @@ async function importFeishuPrd(body) {
   const feishuIntegration = tools.integrations && tools.integrations.feishu
     ? tools.integrations.feishu
     : {};
+  const mcpIntegration = tools.integrations && tools.integrations.mcp
+    ? tools.integrations.mcp
+    : {};
   const imported = [];
   const failed = [];
   for (const link of links) {
     try {
       const item = await importFeishuDocument(link, feishuIntegration, {
         mockMarkdown: body.mockMarkdown,
+        mcpServers: mcpIntegration.servers || [],
       });
       imported.push(item);
     } catch (error) {

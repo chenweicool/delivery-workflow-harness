@@ -1,0 +1,32 @@
+console/lib/feishu.js
+  s_8f907b37751c24::t_68a3c0f7ecaa96 3-7,20-21,112-113,121,134-154
+package.json
+  s_8f907b37751c24::t_b0ec5b40458504 30,36
+scripts/check-feishu.js
+  s_8f907b37751c24::t_2147d812315d01 5,23-90,116-149,152-164
+console/public/control-plane.js
+  s_8f907b37751c24::t_2100a1185b1ea5 9,27-28,52,72,74
+  s_8f907b37751c24::t_5bad01c2764bac 29,51
+console/public/index.html
+  s_8f907b37751c24::t_2100a1185b1ea5 166-167,173-174
+console/lib/mcp-client.js
+  s_8f907b37751c24::t_68a3c0f7ecaa96 1-287
+console/server.js
+  s_8f907b37751c24::t_68a3c0f7ecaa96 1854-1856,1863
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "e8acff5acbfa9d0ee2efe25618d0b34bf544ca2c",
+  "prompts": {},
+  "sessions": {
+    "s_8f907b37751c24": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ff90b-3ddf-7152-aee4-317c8d836f63",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

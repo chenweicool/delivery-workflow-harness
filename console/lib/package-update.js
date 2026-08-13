@@ -55,9 +55,18 @@ async function installPackageUpdate(rootDir, options = {}) {
   if (!status.updateAvailable) return { ...status, updated: false };
   const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
   await new Promise((resolve, reject) => {
-    const child = spawn(npmCommand, ['install', '--global', `${status.packageName}@${status.channel}`], { stdio: 'inherit', windowsHide: true });
-    child.on('error', reject);
-    child.on('exit', (code) => code === 0 ? resolve() : reject(new Error(`npm update failed with exit code ${code}`)));
+    // The console runs detached on Windows and has no usable terminal handles.
+    // `stdio: 'inherit'` therefore makes CreateProcess fail with spawn EINVAL.
+    const child = spawn(npmCommand, ['install', '--global', `${status.packageName}@${status.channel}`], {
+      stdio: 'pipe',
+      windowsHide: true,
+    });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => { stderr += chunk; });
+    child.on('error', (error) => reject(new Error(`无法启动 npm 更新：${error.message}`)));
+    child.on('exit', (code) => code === 0
+      ? resolve()
+      : reject(new Error(`npm 更新失败（退出码 ${code}）${stderr.trim() ? `：${stderr.trim()}` : ''}`)));
   });
   return { ...status, updated: true, restartRequired: true };
 }

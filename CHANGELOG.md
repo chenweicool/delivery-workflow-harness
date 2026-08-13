@@ -1,5 +1,10 @@
 # Changelog
 
+## V0.2.7
+
+- Fixed Windows console client updates failing with `spawn EINVAL` when npm is
+  launched from the detached local server process.
+
 ## V0.2.5
 
 - Fixed a cross-platform race in the agent-runner: commands that exit

@@ -1,0 +1,51 @@
+console/lib/feishu.js
+  s_a9ad4aa73620a3::t_bbc6891493f5bb 159-160
+  s_a9ad4aa73620a3::t_1fdd5b6cf7ca86 130,147,153-158,161-166
+  s_a9ad4aa73620a3::t_373ef281180d09 137
+console/README.md
+  s_a9ad4aa73620a3::t_0560a7a9a02842 57
+console/public/control-plane.css
+  s_a9ad4aa73620a3::t_83874bf5a9fa2b 21-49
+console/public/index.html
+  s_a9ad4aa73620a3::t_13ba2eec9c9843 62,71-75
+  s_a9ad4aa73620a3::t_cdd6eccf10bf4d 7,76,169-177,184,211-234
+  s_a9ad4aa73620a3::t_7ab5b388f736c5 236
+console/lib/mcp-client.js
+  s_a9ad4aa73620a3::t_43bd7d0076f0c7 253-255,265-268,272,308-313,316-321,333-361,371
+  s_a9ad4aa73620a3::t_bbc6891493f5bb 314-315
+  s_a9ad4aa73620a3::t_a857a790afb212 8-23,40,49,88-106,110,132,139,149,153,163,243,368
+console/server.js
+  s_a9ad4aa73620a3::t_678f37dd0c85cf 1841-1891,1916-1920,1934
+docs/external-capabilities-plan.md
+  s_a9ad4aa73620a3::t_0560a7a9a02842 33-34,64-65
+console/public/control-plane.js
+  s_a9ad4aa73620a3::t_39d60246ae420c 2,9
+  s_a9ad4aa73620a3::t_3361c1d9448968 173
+  s_a9ad4aa73620a3::t_e567c85eb8ea7d 14-100,107,111
+  s_a9ad4aa73620a3::t_16964b35fab65f 127
+  s_a9ad4aa73620a3::t_c364cea456ce1a 171
+  s_a9ad4aa73620a3::t_e699f504912867 149-151
+  s_a9ad4aa73620a3::t_905eea61a3c6a3 6,101-106,108-110,185-186
+  s_a9ad4aa73620a3::t_5fc827bf633517 178-184
+scripts/check-feishu.js
+  s_a9ad4aa73620a3::t_8c23f9294ec18e 68,71-77,80,82-90,195,197-198,200,202
+  s_a9ad4aa73620a3::t_7245298708eebf 27,36,136-144,153,162,178,206
+  s_a9ad4aa73620a3::t_a93615f8a95d21 78-79,201
+  s_a9ad4aa73620a3::t_97c913a0d550e6 167-172,189,194,203-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "a3852ab6f870d7da608ebd6af70a186265f7a331",
+  "prompts": {},
+  "sessions": {
+    "s_a9ad4aa73620a3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a00edc-d42a-7952-81c3-dba29b854feb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

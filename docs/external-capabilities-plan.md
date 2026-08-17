@@ -30,6 +30,8 @@ The first usable Feishu intake path has been implemented through the approved CL
 Implemented:
 
 - Global Feishu/Lark config under `tools.integrations.feishu`.
+- MCP intake consumes Block-tree Markdown plus native `ImageContent`; it saves media by `_meta.localPath` under `prd/assets/`, so `prd/document.md` keeps images and whiteboards at their original Block positions.
+- Import metadata records `contentSource`, `contentStatus`, unsupported Blocks, unresolved assets, and per-image failures instead of silently treating partial content as complete.
 - Official `@larksuite/cli` adapter mode using `npm exec --yes --package=@larksuite/cli`.
 - Self-owned Feishu app initialization flow through terminal, with App Secret entered only in the terminal prompt.
 - CLI login flow through Feishu device authorization / QR login.
@@ -58,6 +60,8 @@ Operational notes:
 - Raw App Secret must not be stored in workspace files or UI fields. It should only be pasted into the terminal when the CLI initialization command asks for it.
 
 Open follow-up:
+
+- Native Diagram/UML and other Blocks for which Feishu OpenAPI exposes no exportable content remain visible as unsupported markers. DOCX export fallback is intentionally not enabled in the current path.
 
 - Reduce the default requested CLI permissions. The current `--recommend` login requests a broad recommended set; next iteration should prefer explicit `--scope` and/or `--exclude` values for the minimum document read/export capability.
 - Show more precise per-link import states in the material modal instead of a single aggregate status.

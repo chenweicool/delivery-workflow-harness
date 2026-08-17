@@ -127,13 +127,14 @@ async function importFeishuDocument(link, integration = {}, options = {}) {
     mode: config.mode,
     title: result.title || '',
     markdown: ensureMarkdown(result.markdown, parsed),
+    assetFiles: Array.isArray(result.assetFiles) ? result.assetFiles : [],
     raw: result.raw || null,
   };
 }
 
 async function importViaMcp(parsed, config, options = {}) {
   const server = resolveMcpServer(options.mcpServers || [], config.mcpServer);
-  const toolResult = await callMcpTool(server.url, config.mcpToolName, {
+  const toolResult = await callMcpTool(server, config.mcpToolName, {
     documentUrlOrToken: parsed.url,
   }, {
     fetchImpl: options.fetchImpl,
@@ -143,11 +144,26 @@ async function importViaMcp(parsed, config, options = {}) {
   return {
     title: document.title,
     markdown: document.content,
+    assetFiles: document.media,
     raw: {
       mcpServer: server.name || server.url,
       mcpToolName: config.mcpToolName,
       documentType: document.documentType,
       documentUrl: document.url,
+      contentSource: document.contentSource,
+      blockCount: document.blockCount,
+      unsupportedBlocks: document.unsupportedBlocks,
+      assets: document.assets,
+      assetStatus: document.assetStatus,
+      assetError: document.assetError,
+      contentStatus: document.contentStatus,
+      unresolvedAssets: document.unresolvedAssets,
+      imageCount: document.imageCount,
+      boardCount: document.boardCount,
+      downloadedImageCount: document.downloadedImageCount,
+      downloadedImageBytes: document.downloadedImageBytes,
+      failedImages: document.failedImages,
+      skippedImages: document.skippedImages,
     },
   };
 }

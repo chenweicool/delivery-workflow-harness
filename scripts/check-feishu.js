@@ -24,7 +24,7 @@ async function startMockMcpServer() {
   const requests = [];
   const server = http.createServer(async (req, res) => {
     if (req.method === 'DELETE') {
-      requests.push({ method: req.method, sessionId: req.headers['mcp-session-id'] || '' });
+      requests.push({ method: req.method, headers: req.headers, sessionId: req.headers['mcp-session-id'] || '' });
       res.writeHead(200).end();
       return;
     }
@@ -33,7 +33,7 @@ async function startMockMcpServer() {
       raw += chunk;
     }
     const payload = raw ? JSON.parse(raw) : {};
-    requests.push({ method: req.method, payload, sessionId: req.headers['mcp-session-id'] || '' });
+    requests.push({ method: req.method, payload, headers: req.headers, sessionId: req.headers['mcp-session-id'] || '' });
     if (payload.method === 'notifications/initialized') {
       res.writeHead(202).end();
       return;
@@ -65,10 +65,29 @@ async function startMockMcpServer() {
             type: 'text',
             text: JSON.stringify({
               title: '公司飞书 PRD',
-              content: '# 公司飞书 PRD\n\n## 需求\n\n- MCP 正常读取并解析',
+              content: '# 公司飞书 PRD\n\n## 需求\n\n- MCP 正常读取并解析\n\n![流程图](assets/mock-image.png)',
               documentType: 'wiki',
               url: payload.params.arguments.documentUrlOrToken,
+              contentSource: 'block-tree',
+              blockCount: 5,
+              assets: [{
+                type: 'image',
+                token: 'mock-image',
+                localPath: 'assets/mock-image.png',
+              }],
+              contentStatus: 'complete',
+              unresolvedAssets: [],
+              downloadedImageCount: 1,
             }),
+          }, {
+            type: 'image',
+            data: 'AQID',
+            mimeType: 'image/png',
+            _meta: {
+              token: 'mock-image',
+              localPath: 'assets/mock-image.png',
+              fileName: 'mock-image.png',
+            },
           }],
         },
       }));
@@ -114,6 +133,15 @@ async function main() {
   assert(imported.markdown.includes('# PRD'));
 
   const mockMcp = await startMockMcpServer();
+  process.env.DELIVERY_WORKFLOW_TEST_MCP_TOKEN = 'test-only-bearer-token';
+  const authenticatedMcpServer = {
+    name: 'spm-feishu',
+    url: mockMcp.url,
+    auth: {
+      type: 'bearerEnv',
+      tokenRef: 'DELIVERY_WORKFLOW_TEST_MCP_TOKEN',
+    },
+  };
   try {
     const mcpImported = await importFeishuDocument(
       'https://acme.feishu.cn/wiki/MockTokenForMcpImport',
@@ -122,7 +150,7 @@ async function main() {
         mcpServer: 'spm-feishu',
       },
       {
-        mcpServers: [`spm-feishu=${mockMcp.url}`],
+        mcpServers: [authenticatedMcpServer],
       }
     );
     assert.strictEqual(mcpImported.status, 'imported');
@@ -131,17 +159,23 @@ async function main() {
     assert(mcpImported.markdown.includes('MCP 正常读取并解析'));
     assert(mockMcp.requests.some((item) => item.payload && item.payload.method === 'initialize'));
     assert(mockMcp.requests.some((item) => item.payload && item.payload.method === 'tools/call'));
+    assert(mockMcp.requests.filter((item) => item.payload).every((item) => item.headers.authorization === 'Bearer test-only-bearer-token'));
     assert(mockMcp.requests.some((item) => item.method === 'DELETE' && item.sessionId === 'test-session'));
 
     await fsp.rm(tmpRoot, { recursive: true, force: true });
     await fsp.mkdir(tmpRoot, { recursive: true });
-    const workspacePath = await initWorkspace('feishu-import-check', tmpRoot);
+    const demandTrackingUrl = 'https://example.internal/demand/FEISHU-IMPORT-CHECK';
+    const feishuPrdUrl = 'https://acme.feishu.cn/docx/MockTokenForWorkspaceImport';
+    const workspacePath = await initWorkspace('feishu-import-check', tmpRoot, undefined, {
+      url: demandTrackingUrl,
+      owner: { name: '测试用户', id: 'tester' },
+    });
     await saveToolsConfig({
       tools: {
         workspaceRoot: tmpRoot,
         integrations: {
           mcp: {
-            servers: [`spm-feishu=${mockMcp.url}`],
+            servers: [authenticatedMcpServer],
           },
           feishu: {
             mode: 'mcp',
@@ -152,14 +186,24 @@ async function main() {
     });
     const workspaceImport = await importFeishuPrd({
       workspacePath,
-      links: ['https://acme.feishu.cn/docx/MockTokenForWorkspaceImport'],
+      links: [feishuPrdUrl],
     });
     assert.strictEqual(workspaceImport.imported.length, 1);
     const document = await fsp.readFile(path.join(workspacePath, 'prd', 'document.md'), 'utf8');
     const source = JSON.parse(await fsp.readFile(path.join(workspacePath, 'prd', 'source', 'feishu.json'), 'utf8'));
+    const workspaceConfig = JSON.parse(await fsp.readFile(path.join(workspacePath, '.workflow', 'workspace.json'), 'utf8'));
+    const savedImage = await fsp.readFile(path.join(workspacePath, 'prd', 'assets', 'mock-image.png'));
     assert(document.includes('公司飞书 PRD'));
+    assert(document.includes('![流程图](assets/mock-image.png)'));
+    assert.deepStrictEqual([...savedImage], [1, 2, 3]);
     assert.strictEqual(source.records[0].status, 'imported');
+    assert.strictEqual(source.records[0].raw.contentSource, 'block-tree');
+    assert.strictEqual(source.records[0].raw.contentStatus, 'complete');
+    assert.strictEqual(source.records[0].raw.savedAssets[0].localPath, 'prd/assets/mock-image.png');
+    assert.strictEqual(workspaceConfig.demand.url, demandTrackingUrl);
+    assert.deepStrictEqual(workspaceConfig.feishuDocs, [feishuPrdUrl]);
   } finally {
+    delete process.env.DELIVERY_WORKFLOW_TEST_MCP_TOKEN;
     await mockMcp.close();
   }
 

@@ -5,7 +5,22 @@ function parseMcpServerEntry(entry) {
   if (entry && typeof entry === 'object' && !Array.isArray(entry)) {
     const name = String(entry.name || entry.id || '').trim();
     const url = normalizeHttpUrl(entry.url || entry.endpoint || entry.value || '');
-    return url ? { name, url } : null;
+    if (!url) {
+      return null;
+    }
+    const rawAuth = entry.auth && typeof entry.auth === 'object' && !Array.isArray(entry.auth)
+      ? entry.auth
+      : {};
+    const tokenRef = String(entry.tokenRef || rawAuth.tokenRef || '').trim();
+    const authType = String(entry.authType || rawAuth.type || (tokenRef ? 'bearerEnv' : 'none')).trim() || 'none';
+    return {
+      name,
+      url,
+      auth: {
+        type: authType,
+        tokenRef,
+      },
+    };
   }
 
   const value = String(entry || '').trim();
@@ -22,7 +37,7 @@ function parseMcpServerEntry(entry) {
 
   const directUrl = normalizeHttpUrl(value);
   if (directUrl) {
-    return { name: '', url: directUrl };
+    return { name: '', url: directUrl, auth: { type: 'none', tokenRef: '' } };
   }
 
   const named = value.match(/^([^=\s]+)\s*=\s*(https?:\/\/\S+)$/i)
@@ -31,7 +46,7 @@ function parseMcpServerEntry(entry) {
     return null;
   }
   const url = normalizeHttpUrl(named[2]);
-  return url ? { name: named[1].trim(), url } : null;
+  return url ? { name: named[1].trim(), url, auth: { type: 'none', tokenRef: '' } } : null;
 }
 
 function normalizeHttpUrl(value) {
@@ -70,11 +85,29 @@ function resolveMcpServer(servers, preferred = '') {
   return entries[0];
 }
 
-async function callMcpTool(serverUrl, toolName, args = {}, options = {}) {
-  const endpoint = normalizeHttpUrl(serverUrl);
+function resolveMcpHeaders(server) {
+  const auth = server && server.auth && typeof server.auth === 'object' ? server.auth : {};
+  if (auth.type !== 'bearerEnv') {
+    return {};
+  }
+  const tokenRef = String(auth.tokenRef || '').replace(/^env:/, '').trim();
+  if (!tokenRef) {
+    throw new Error('MCP Bearer Token 环境变量名未配置');
+  }
+  const token = String(process.env[tokenRef] || '').trim();
+  if (!token) {
+    throw new Error(`MCP Bearer Token 环境变量为空：${tokenRef}`);
+  }
+  return { Authorization: `Bearer ${token}` };
+}
+
+async function callMcpTool(serverValue, toolName, args = {}, options = {}) {
+  const server = parseMcpServerEntry(serverValue);
+  const endpoint = server ? server.url : '';
   if (!endpoint) {
     throw new Error('MCP 服务地址不是合法的 HTTP/HTTPS URL');
   }
+  const authHeaders = resolveMcpHeaders(server);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== 'function') {
     throw new Error('当前 Node.js 运行时不支持 fetch，无法连接 MCP 服务');
@@ -96,14 +129,14 @@ async function callMcpTool(serverUrl, toolName, args = {}, options = {}) {
           version: '0.2.5',
         },
       },
-    }, { fetchImpl, timeoutMs, protocolVersion });
+    }, { fetchImpl, timeoutMs, protocolVersion, headers: authHeaders });
     sessionId = initialized.response.headers.get('mcp-session-id') || '';
 
     await postJsonRpc(endpoint, {
       jsonrpc: '2.0',
       method: 'notifications/initialized',
       params: {},
-    }, { fetchImpl, timeoutMs, protocolVersion, sessionId, allowEmpty: true });
+    }, { fetchImpl, timeoutMs, protocolVersion, sessionId, allowEmpty: true, headers: authHeaders });
 
     const called = await postJsonRpc(endpoint, {
       jsonrpc: '2.0',
@@ -113,11 +146,11 @@ async function callMcpTool(serverUrl, toolName, args = {}, options = {}) {
         name: String(toolName || '').trim(),
         arguments: args && typeof args === 'object' ? args : {},
       },
-    }, { fetchImpl, timeoutMs, protocolVersion, sessionId });
+    }, { fetchImpl, timeoutMs, protocolVersion, sessionId, headers: authHeaders });
     return called.payload.result;
   } finally {
     if (sessionId) {
-      await closeMcpSession(endpoint, sessionId, { fetchImpl, timeoutMs, protocolVersion });
+      await closeMcpSession(endpoint, sessionId, { fetchImpl, timeoutMs, protocolVersion, headers: authHeaders });
     }
   }
 }
@@ -127,6 +160,7 @@ async function postJsonRpc(endpoint, body, options) {
     Accept: 'application/json, text/event-stream',
     'Content-Type': 'application/json',
     'MCP-Protocol-Version': options.protocolVersion,
+    ...(options.headers || {}),
   };
   if (options.sessionId) {
     headers['Mcp-Session-Id'] = options.sessionId;
@@ -206,6 +240,7 @@ async function closeMcpSession(endpoint, sessionId, options) {
         Accept: 'application/json, text/event-stream',
         'MCP-Protocol-Version': options.protocolVersion,
         'Mcp-Session-Id': sessionId,
+        ...(options.headers || {}),
       },
     }, options.timeoutMs);
   } catch {
@@ -215,9 +250,9 @@ async function closeMcpSession(endpoint, sessionId, options) {
 
 function extractMcpDocument(toolResult) {
   const result = toolResult && typeof toolResult === 'object' ? toolResult : {};
-  const textBlocks = Array.isArray(result.content)
-    ? result.content.filter((item) => item && item.type === 'text' && typeof item.text === 'string')
-    : [];
+  const contentBlocks = Array.isArray(result.content) ? result.content : [];
+  const textBlocks = contentBlocks
+    .filter((item) => item && item.type === 'text' && typeof item.text === 'string');
   const errorText = textBlocks.map((item) => item.text).join('\n').trim();
   if (result.isError) {
     throw new Error(errorText || 'MCP 工具调用失败');
@@ -227,11 +262,14 @@ function extractMcpDocument(toolResult) {
   for (const candidate of candidates) {
     const document = findDocument(candidate);
     if (document) {
-      return document;
+      return {
+        ...document,
+        media: extractMcpMedia(contentBlocks, document.assets),
+      };
     }
   }
   if (errorText) {
-    return { title: '', content: errorText, documentType: '', url: '' };
+    return { title: '', content: errorText, documentType: '', url: '', media: [] };
   }
   throw new Error('MCP 工具未返回可读取的文档内容');
 }
@@ -267,6 +305,20 @@ function findDocument(value) {
       content: content.trim(),
       documentType: String(value.documentType || value.docType || '').trim(),
       url: String(value.url || value.documentUrl || '').trim(),
+      contentSource: String(value.contentSource || '').trim(),
+      blockCount: Number(value.blockCount) || 0,
+      unsupportedBlocks: Array.isArray(value.unsupportedBlocks) ? value.unsupportedBlocks : [],
+      assets: Array.isArray(value.assets) ? value.assets : [],
+      assetStatus: String(value.assetStatus || '').trim(),
+      assetError: String(value.assetError || '').trim(),
+      contentStatus: String(value.contentStatus || '').trim(),
+      unresolvedAssets: Array.isArray(value.unresolvedAssets) ? value.unresolvedAssets : [],
+      imageCount: Number(value.imageCount) || 0,
+      boardCount: Number(value.boardCount) || 0,
+      downloadedImageCount: Number(value.downloadedImageCount) || 0,
+      downloadedImageBytes: Number(value.downloadedImageBytes) || 0,
+      failedImages: Array.isArray(value.failedImages) ? value.failedImages : [],
+      skippedImages: Array.isArray(value.skippedImages) ? value.skippedImages : [],
     };
   }
   for (const key of ['data', 'result', 'document']) {
@@ -278,10 +330,43 @@ function findDocument(value) {
   return null;
 }
 
+function extractMcpMedia(contentBlocks, assets = []) {
+  const assetsByToken = new Map((Array.isArray(assets) ? assets : [])
+    .filter((asset) => asset && typeof asset === 'object' && asset.token)
+    .map((asset) => [String(asset.token), asset]));
+  const media = [];
+  const seenPaths = new Set();
+
+  for (const item of Array.isArray(contentBlocks) ? contentBlocks : []) {
+    if (!item || item.type !== 'image' || typeof item.data !== 'string' || !item.data.trim()) {
+      continue;
+    }
+    const metadata = [item._meta, item.meta, item.metadata]
+      .find((value) => value && typeof value === 'object' && !Array.isArray(value)) || {};
+    const token = String(metadata.token || '').trim();
+    const asset = token ? assetsByToken.get(token) || {} : {};
+    const localPath = String(metadata.localPath || asset.localPath || '').trim().replace(/\\/g, '/');
+    if (!localPath || seenPaths.has(localPath)) {
+      continue;
+    }
+    seenPaths.add(localPath);
+    media.push({
+      token,
+      localPath,
+      fileName: String(metadata.fileName || asset.fileName || '').trim(),
+      mimeType: String(item.mimeType || metadata.mimeType || '').trim(),
+      data: item.data.trim(),
+    });
+  }
+  return media;
+}
+
 module.exports = {
   DEFAULT_PROTOCOL_VERSION,
   parseMcpServerEntry,
   resolveMcpServer,
+  resolveMcpHeaders,
   callMcpTool,
   extractMcpDocument,
+  extractMcpMedia,
 };

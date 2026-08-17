@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>需求交付 Harness</title>
-    <link rel="stylesheet" href="/control-plane.css?v=20260804-delivery-layout" />
+    <link rel="stylesheet" href="/control-plane.css?v=20260817-mcp-dialog" />
   </head>
   <body>
     <div class="app-layout">
@@ -59,7 +59,7 @@
                 <h3>输入需求</h3>
                 <p>需求名称用于创建独立 Workspace；项目目录由工作台设置提供，也可在创建时临时调整。</p>
                 <label><span>需求名称</span><input id="demandName" placeholder="例如：negative-bill-export" /></label>
-                <label><span>需求链接</span><input id="demandUrl" type="url" placeholder="例如：https://xxx.feishu.cn/wiki/..." /></label>
+                <label><span>需求链接</span><input id="demandUrl" type="url" placeholder="例如：https://ones.example.com/project/demand/123" /></label>
                 <label><span>需求负责人</span><input id="demandOwnerName" placeholder="默认读取 Git 用户名，例如：张三" /></label>
                 <label><span>负责人账号（可选）</span><input id="demandOwnerId" placeholder="默认读取 Git 用户名，例如：zhangsan" /></label>
                 <label><span>项目目录</span><div class="picker-row"><input id="outputRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseOutputRootBtn" type="button">选择目录</button></div></label>
@@ -68,7 +68,12 @@
               <section class="setup-step optional">
                 <span class="step-number">3</span>
                 <h3>导入 PRD</h3>
-                <p>可选。先带入本地需求材料；飞书、内部文档等会作为统一连接器接入。</p>
+                <p>可选。可上传本地材料，也可填写独立的飞书 PRD 链接自动读取。</p>
+                <label><span>飞书 PRD 链接（可选）</span><input id="feishuPrdUrl" type="url" placeholder="例如：https://xxx.feishu.cn/wiki/..." /></label>
+                <div id="feishuPrdHint" class="source-hint">
+                  <strong>独立的 PRD 来源</strong>
+                  <span>这里只填写飞书 docx/wiki 文档地址，不会覆盖第 2 步的需求追溯链接。</span>
+                </div>
                 <label><span>本地 PRD</span><input id="initialPrdFiles" type="file" multiple /></label>
               </section>
             </div>
@@ -161,17 +166,22 @@
                   <label><span>团队补充约束（可选）</span><textarea id="globalNotes" rows="4" placeholder="例如：涉及数据库变更时，技术方案须明确表结构影响和回退方案。"></textarea></label>
                 </section>
                 <section class="settings-panel hidden" data-settings-panel="mcp">
-                  <h2>MCP 服务</h2>
-                  <p>统一登记可供需求流程使用的 MCP 服务。服务连接与授权信息仅在本机配置中保存。</p>
-                  <label><span>服务配置</span><textarea id="mcpServers" rows="9" placeholder="每行一个 HTTP MCP 地址，例如：spm-feishu=http://host/context/mcp/external"></textarea></label>
-                  <div class="config-note">HTTP MCP 服务可被飞书文档导入直接调用；推荐使用仅暴露只读工具的 external 地址。每行支持“名称=地址”或直接填写地址。</div>
+                  <div class="settings-panel-heading">
+                    <div>
+                      <h2>MCP 服务</h2>
+                      <p>按服务管理需求流程使用的 MCP 连接，不再手写“名称=地址”。</p>
+                    </div>
+                    <button id="addMcpServerBtn" class="primary" type="button">添加 MCP 服务</button>
+                  </div>
+                  <div id="mcpServerList" class="mcp-server-list"></div>
+                  <div class="config-note">MCP 不是创建 Workspace 的必填项。只有飞书自动导入等能力需要它；Bearer Token 请填写环境变量名，不保存明文 Token。</div>
                 </section>
                 <section class="settings-panel hidden" data-settings-panel="feishu">
                   <h2>飞书</h2>
                   <p>配置飞书文档导入所使用的连接方式。令牌仅引用环境变量或外部密钥，不在此处录入明文。</p>
                   <label class="checkbox-field"><input id="feishuEnabled" type="checkbox" /><span>启用飞书集成</span></label>
                   <label><span>接入方式</span><select id="feishuMode"><option value="disabled">未启用</option><option value="mcp">MCP 服务</option><option value="proxy">代理服务</option><option value="cli">本机 CLI</option><option value="tokenRef">令牌引用</option><option value="mock">模拟数据</option></select></label>
-                  <label><span>MCP 服务名称（可选）</span><input id="feishuMcpServer" placeholder="例如：spm-feishu；留空时使用首个 HTTP MCP 服务" /></label>
+                  <label><span>用于读取飞书的 MCP 服务</span><select id="feishuMcpServer"><option value="">自动选择首个 MCP 服务</option></select></label>
                   <label><span>代理服务地址</span><input id="feishuProxyBaseUrl" placeholder="https://example.internal" /></label>
                   <label><span>本机 CLI 命令</span><input id="feishuCliCommand" placeholder="例如：lark-mcp" /></label>
                   <label><span>令牌环境变量名</span><input id="feishuTokenRef" placeholder="例如：FEISHU_USER_ACCESS_TOKEN" /></label>
@@ -198,6 +208,31 @@
       </main>
     </div>
 
-    <script src="/control-plane.js?v=20260808-multi-harness-flow"></script>
+    <dialog id="mcpServerDialog" class="dialog mcp-server-dialog">
+      <form id="mcpServerForm" class="dialog-card" method="dialog">
+        <div class="dialog-heading">
+          <div>
+            <h2 id="mcpServerDialogTitle">添加 MCP 服务</h2>
+            <p>配置 HTTP MCP 地址和可选的本机 Token 引用。</p>
+          </div>
+          <button id="closeMcpServerDialogBtn" class="icon-button" type="button" aria-label="关闭">×</button>
+        </div>
+        <div class="mcp-form-grid">
+          <label><span>服务名称</span><input id="mcpServerName" placeholder="例如：spm-feishu" autocomplete="off" required /></label>
+          <label class="wide-field"><span>MCP 地址</span><input id="mcpServerUrl" type="url" placeholder="http://host/context/mcp/external" autocomplete="off" required /></label>
+          <label><span>授权方式</span><select id="mcpServerAuthType"><option value="none">无需授权</option><option value="bearerEnv">Bearer Token（环境变量）</option></select></label>
+          <label id="mcpServerTokenRefField"><span>Token 环境变量名</span><input id="mcpServerTokenRef" placeholder="例如：SPM_MCP_TOKEN" autocomplete="off" /></label>
+        </div>
+        <div class="config-note">这里只保存环境变量名。请在启动 Delivery Workflow 的系统环境中设置真实 Token。</div>
+        <div class="dialog-footer mcp-dialog-footer">
+          <button id="deleteMcpServerBtn" class="danger-button hidden" type="button">删除服务</button>
+          <span class="dialog-footer-spacer"></span>
+          <button id="cancelMcpServerBtn" type="button">取消</button>
+          <button id="saveMcpServerBtn" class="primary" type="submit">保存服务</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="/control-plane.js?v=20260817-separate-feishu-prd"></script>
   </body>
 </html>

@@ -18,3 +18,32 @@
 .delivery-card .card-actions button,.context-card .card-actions button,.delivery-app-row button { min-height:30px; padding:0 9px; font-size:12px; white-space:nowrap; }
 .delivery-app-row { grid-template-columns:minmax(220px,1.4fr) minmax(150px,1fr) minmax(180px,1fr) auto; }
 @media (max-width:960px) { .delivery-app-row { grid-template-columns:1fr; } }
+
+/* Structured MCP connection management. */
+select { width:100%; min-height:38px; padding:8px 10px; color:var(--ink); border:1px solid var(--line); border-radius:7px; background:#fff; font:inherit; }
+.source-hint { display:grid; gap:3px; padding:10px 11px; border:1px solid #d9e5dd; border-radius:8px; background:#f5faf6; }
+.source-hint strong { color:var(--green); font-size:12px; }
+.source-hint span { color:var(--muted); font-size:11px; line-height:1.45; }
+.source-hint.detected { border-color:#9fcab0; background:#edf8f1; }
+.settings-panel-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:18px; }
+.settings-panel-heading>div { display:grid; gap:4px; }
+.settings-panel-heading p { color:var(--muted); }
+.settings-panel-heading button { flex:none; }
+.mcp-server-list { display:grid; gap:9px; }
+.mcp-server-empty { display:grid; place-items:center; min-height:132px; padding:22px; border:1px dashed #bdc9c1; border-radius:9px; background:#fafcfa; color:var(--muted); text-align:center; }
+.mcp-server-empty strong { color:var(--ink); font-size:14px; }
+.mcp-server-card { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:14px; align-items:center; padding:13px 14px; border:1px solid var(--line); border-radius:9px; background:#fff; }
+.mcp-server-card:hover { border-color:#9db6a5; box-shadow:0 5px 14px rgba(35,52,43,.06); }
+.mcp-server-card>div { display:grid; gap:4px; min-width:0; }
+.mcp-server-card-header { display:flex; align-items:center; flex-wrap:wrap; gap:7px; }
+.mcp-server-card code { overflow:hidden; color:#496158; font-size:11px; text-overflow:ellipsis; white-space:nowrap; }
+.mcp-auth-badge { display:inline-flex; align-items:center; min-height:20px; padding:1px 7px; border-radius:999px; background:#eff3f0; color:#627169; font-size:10px; font-weight:700; }
+.mcp-auth-badge.secured { background:#e7f2ec; color:#276646; }
+.mcp-server-dialog { width:min(640px,calc(100vw - 32px)); }
+.mcp-form-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.mcp-form-grid .wide-field { grid-column:1 / -1; }
+.icon-button { width:34px; min-height:34px; padding:0; border:0; background:transparent; color:var(--muted); font-size:22px; line-height:1; }
+.danger-button { border-color:#e4bbb7; color:var(--red); background:#fff7f6; }
+.mcp-dialog-footer { width:100%; }
+.dialog-footer-spacer { flex:1; }
+@media (max-width:720px) { .settings-panel-heading { align-items:stretch; flex-direction:column; }.mcp-form-grid { grid-template-columns:1fr; }.mcp-form-grid .wide-field { grid-column:auto; }.mcp-server-card { grid-template-columns:1fr; }.mcp-server-card button { justify-self:start; } }

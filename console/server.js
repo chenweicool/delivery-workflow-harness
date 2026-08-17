@@ -1838,6 +1838,57 @@ async function refreshWorkspaceCapabilities(workspacePathValue) {
   return snapshot;
 }
 
+function normalizeFeishuAssetPath(value) {
+  const relativePath = String(value || '').trim().replace(/\\/g, '/');
+  const segments = relativePath.split('/');
+  if (segments[0] !== 'assets'
+      || segments.length < 2
+      || segments.some((segment) => !segment || segment === '.' || segment === '..')
+      || path.posix.isAbsolute(relativePath)
+      || /^[A-Za-z]:/.test(relativePath)) {
+    throw new Error(`MCP 返回了不安全的飞书素材路径：${relativePath || '(empty)'}`);
+  }
+  return segments.join('/');
+}
+
+function decodeMcpBase64(value, localPath) {
+  const encoded = String(value || '').replace(/\s+/g, '');
+  if (!encoded || encoded.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(encoded)) {
+    throw new Error(`MCP 返回的飞书素材不是合法 Base64：${localPath}`);
+  }
+  const data = Buffer.from(encoded, 'base64');
+  if (!data.length) {
+    throw new Error(`MCP 返回了空的飞书素材：${localPath}`);
+  }
+  return data;
+}
+
+async function saveFeishuAssetFiles(workspacePath, assetFiles) {
+  const prepared = (Array.isArray(assetFiles) ? assetFiles : []).map((asset) => {
+    const localPath = normalizeFeishuAssetPath(asset && asset.localPath);
+    return {
+      localPath,
+      token: String(asset && asset.token || '').trim(),
+      mimeType: String(asset && asset.mimeType || '').trim(),
+      data: decodeMcpBase64(asset && asset.data, localPath),
+    };
+  });
+  const saved = [];
+  for (const asset of prepared) {
+    const destination = path.join(workspacePath, 'prd', ...asset.localPath.split('/'));
+    assertWithin(workspacePath, destination);
+    await ensureDir(path.dirname(destination));
+    await fsp.writeFile(destination, asset.data);
+    saved.push({
+      localPath: `prd/${asset.localPath}`,
+      token: asset.token,
+      mimeType: asset.mimeType,
+      size: asset.data.length,
+    });
+  }
+  return saved;
+}
+
 async function importFeishuPrd(body) {
   const workspacePath = normalizeUserPath(body.workspacePath);
   if (!(await exists(path.join(workspacePath, 'AGENTS.md')))) {
@@ -1862,6 +1913,11 @@ async function importFeishuPrd(body) {
         mockMarkdown: body.mockMarkdown,
         mcpServers: mcpIntegration.servers || [],
       });
+      const savedAssets = await saveFeishuAssetFiles(workspacePath, item.assetFiles);
+      item.raw = {
+        ...(item.raw && typeof item.raw === 'object' ? item.raw : {}),
+        savedAssets,
+      };
       imported.push(item);
     } catch (error) {
       failed.push({
@@ -1875,7 +1931,7 @@ async function importFeishuPrd(body) {
   }
 
   const records = [...imported, ...failed].map((item) => {
-    const { markdown, ...meta } = item;
+    const { markdown, assetFiles, ...meta } = item;
     return meta;
   });
   await writeWorkspaceJsonFile(workspacePath, 'prd/source/feishu.json', {

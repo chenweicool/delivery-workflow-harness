@@ -54,7 +54,7 @@ delivery-workflow start
 ## 当前能力
 
 - 创建标准 delivery workflow workspace。
-- 上传或复制本机 PRD 文件到 `prd/`。
+- 上传或复制本机 PRD 文件到 `prd/`；通过 MCP 导入飞书时，Block 树 Markdown 写入 `prd/document.md`，普通图片和画板按原位置引用并保存到 `prd/assets/`。
 - 记录本地应用目录、飞书文档来源和备注到 `.workflow/workspace.json`。
 - 以 Unit / Step 方式展示可组合流程。
 - 根据脚手架命令文件生成 Codex / Claude Code 执行提示词。

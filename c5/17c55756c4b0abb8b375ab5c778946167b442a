@@ -1,0 +1,54 @@
+templates/workspace/AGENTS.md
+  s_a9ad4aa73620a3::t_228e2cd04b815f 16
+README.md
+  s_a9ad4aa73620a3::t_c283e5d7ddbe6f 100,111,114-117,136-137
+  s_a9ad4aa73620a3::t_1b939757dc6550 49,118
+console/public/index.html
+  s_a9ad4aa73620a3::t_181d21d05fa887 45,51-52,63,81
+bin/delivery-workflow.js
+  s_a9ad4aa73620a3::t_25cb72d01e906c 69,88-89,501,504,509-513
+docs/quick-start.md
+  s_a9ad4aa73620a3::t_c283e5d7ddbe6f 159-165,175
+docs/control-plane-refactor-plan.md
+  s_a9ad4aa73620a3::t_c283e5d7ddbe6f 14,158
+console/server.js
+  s_a9ad4aa73620a3::t_ad5994df859753 2819
+  s_a9ad4aa73620a3::t_69c359f57e6a83 1812
+  s_a9ad4aa73620a3::t_3b4183dcd88f14 2981-2988
+  s_a9ad4aa73620a3::t_25cb72d01e906c 2825
+  s_a9ad4aa73620a3::t_228e2cd04b815f 2323,2327
+console/lib/delivery-report.js
+  s_a9ad4aa73620a3::t_7b15acbd28fcf7 6,17,44-45
+templates/workspace/.workflow/commands/00-load-context.md
+  s_a9ad4aa73620a3::t_228e2cd04b815f 5,21-22,45
+scripts/regression-api.js
+  s_a9ad4aa73620a3::t_caf96aae0f8f2f 138-170
+console/lib/agent-prompt.js
+  s_a9ad4aa73620a3::t_228e2cd04b815f 234-239,254
+console/public/control-plane.js
+  s_a9ad4aa73620a3::t_181d21d05fa887 6,127,143,145,147,178
+  s_a9ad4aa73620a3::t_1b939757dc6550 151
+  s_a9ad4aa73620a3::t_33c3dbd905e7f6 159
+templates/workspace/CLAUDE.md
+  s_a9ad4aa73620a3::t_228e2cd04b815f 23
+console/lib/workspace-runtime.js
+  s_a9ad4aa73620a3::t_4f13685790dfd2 200,202,204,206-207
+  s_a9ad4aa73620a3::t_7b15acbd28fcf7 44,48-73,130,143-149,155
+  s_a9ad4aa73620a3::t_3b4183dcd88f14 75-82,196-198,319-325
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "c517c55756c4b0abb8b375ab5c778946167b442a",
+  "prompts": {},
+  "sessions": {
+    "s_a9ad4aa73620a3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a00edc-d42a-7952-81c3-dba29b854feb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

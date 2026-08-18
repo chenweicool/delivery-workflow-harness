@@ -1,0 +1,28 @@
+console/server.js
+  s_a9ad4aa73620a3::t_f829f267e8a5e6 82,3233-3238
+package.json
+  s_a9ad4aa73620a3::t_9e3848439027e7 3
+scripts/regression-api.js
+  s_a9ad4aa73620a3::t_bc69b952e92f36 17,527-528,554,557
+  s_a9ad4aa73620a3::t_b017ef2a4ecd25 464
+  s_a9ad4aa73620a3::t_ee155a3261969d 465-470,485,494
+console/lib/run-store.js
+  s_a9ad4aa73620a3::t_9e3848439027e7 3-4,37-43,46,91,231
+  s_a9ad4aa73620a3::t_bc69b952e92f36 5-36,44,47-62,106-111,130,232
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "8987348b254a6c617abaec1d5b1f6385b009fd01",
+  "prompts": {},
+  "sessions": {
+    "s_a9ad4aa73620a3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a00edc-d42a-7952-81c3-dba29b854feb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

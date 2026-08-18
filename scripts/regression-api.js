@@ -135,6 +135,39 @@ async function main() {
     });
     assert.equal(toolsResponse.status, 200);
 
+    const demandContext = '当前需求只调整国内结算流程；先核对历史口径，不修改共享知识库。';
+    const { response: contextOnlyInitResponse, data: contextOnlyInitData } = await requestJson(runtime.url, '/api/workspaces/init', {
+      method: 'POST',
+      body: JSON.stringify({
+        demandName: 'context-only-regression',
+        outputRoot: workspaceRoot,
+        domainRoots: [],
+        perspective: 'backend',
+        demand: {
+          url: 'https://example.internal/demand/context-only-regression',
+          context: demandContext,
+          owner: { name: '上下文回归', id: 'context-regression' },
+        },
+      }),
+    });
+    assert.equal(contextOnlyInitResponse.status, 200);
+    assert.equal(contextOnlyInitData.domain, null);
+    assert.deepEqual(contextOnlyInitData.domains, []);
+    const contextOnlyWorkspaceConfig = JSON.parse(await fsp.readFile(path.join(contextOnlyInitData.workspacePath, '.workflow', 'workspace.json'), 'utf8'));
+    assert.equal(contextOnlyWorkspaceConfig.demand.context, demandContext);
+    const demandContextSnapshot = await fsp.readFile(path.join(contextOnlyInitData.workspacePath, 'context', 'demand-context.md'), 'utf8');
+    assert.match(demandContextSnapshot, /当前需求只调整国内结算流程/);
+    const emptyDomainSummary = await fsp.readFile(path.join(contextOnlyInitData.workspacePath, 'context', 'domain-summary.md'), 'utf8');
+    assert.match(emptyDomainSummary, /未挂载领域 Harness；这不是流程阻塞项/);
+    const emptyDomainLock = JSON.parse(await fsp.readFile(path.join(contextOnlyInitData.workspacePath, '.workflow', 'domain.lock.json'), 'utf8'));
+    assert.equal(emptyDomainLock.primaryDomainRoot, '');
+    assert.deepEqual(emptyDomainLock.domains, []);
+    const contextOnlyQuery = encodeURIComponent(contextOnlyInitData.workspacePath);
+    const { response: contextOnlyPromptResponse, data: contextOnlyPromptData } = await requestJson(runtime.url, `/api/prompt?workspacePath=${contextOnlyQuery}&stepId=00-load-context`);
+    assert.equal(contextOnlyPromptResponse.status, 200);
+    assert.match(contextOnlyPromptData.prompt, /context\/demand-context\.md/);
+    assert.match(contextOnlyPromptData.prompt, /未挂载领域 Harness 时继续/);
+
     const { response: initResponse, data: initData } = await requestJson(runtime.url, '/api/workspaces/init', {
       method: 'POST',
       body: JSON.stringify({

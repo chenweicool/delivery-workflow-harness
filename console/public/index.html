@@ -42,14 +42,14 @@
             <div class="card-heading">
               <div>
                 <h2>三步创建需求 Workspace</h2>
-                <p>领域 Harness 提供背景和约束；PRD 是需求范围和验收依据。创建后，可直接在 Workspace 中使用 Codex、Claude 或任意 IDE 推进交付。</p>
+                <p>PRD、补充上下文和当前代码是需求交付的主要依据；领域 Harness 可按需增强背景和约束。创建后，可直接在 Workspace 中使用 Codex、Claude 或任意 IDE 推进交付。</p>
               </div>
             </div>
             <div class="step-grid">
               <section class="setup-step">
                 <span class="step-number">1</span>
-                <h3>绑定领域 Harness</h3>
-                <p>支持本地目录和 Git 地址。第一个添加的是主 Harness，其余作为只读参考上下文。</p>
+                <h3>绑定领域 Harness（可选）</h3>
+                <p>用于补充领域白皮书、代码入口和执行约束。可以暂不添加，后续再按需挂载。</p>
                 <label><span>Git 地址或本地目录</span><input id="domainRoot" placeholder="粘贴 Git 地址，或输入本地目录" /></label>
                 <div class="picker-row"><button id="chooseDomainBtn" type="button">浏览并添加本地目录</button><button id="addDomainSourceBtn" class="primary" type="button">添加输入的地址</button></div>
                 <div id="domainSourceList" class="domain-source-list"><span class="domain-source-empty">尚未添加 Harness</span></div>
@@ -60,6 +60,7 @@
                 <p>需求名称用于创建独立 Workspace；项目目录由工作台设置提供，也可在创建时临时调整。</p>
                 <label><span>需求名称</span><input id="demandName" placeholder="例如：negative-bill-export" /></label>
                 <label><span>需求链接</span><input id="demandUrl" type="url" placeholder="例如：https://ones.example.com/project/demand/123" /></label>
+                <label><span>补充上下文（可选）</span><textarea id="demandContext" rows="5" maxlength="20000" placeholder="例如：业务背景、当前痛点、相关系统、明确约束、历史决定或需要重点关注的风险。"></textarea></label>
                 <label><span>需求负责人</span><input id="demandOwnerName" placeholder="默认读取 Git 用户名，例如：张三" /></label>
                 <label><span>负责人账号（可选）</span><input id="demandOwnerId" placeholder="默认读取 Git 用户名，例如：zhangsan" /></label>
                 <label><span>项目目录</span><div class="picker-row"><input id="outputRoot" placeholder="F:\code\ai-workspaces" /><button id="chooseOutputRootBtn" type="button">选择目录</button></div></label>
@@ -77,7 +78,7 @@
                 <label><span>本地 PRD</span><input id="initialPrdFiles" type="file" multiple /></label>
               </section>
             </div>
-            <div class="start-footer"><p>领域和团队级能力会形成当前需求的“生效能力清单”；不会把公共知识库写回或修改。</p><button id="createWorkspaceBtn" class="primary" type="button">创建需求 Workspace</button></div>
+            <div class="start-footer"><p>无需知识库也可创建；如挂载 Harness，领域和团队级能力会叠加形成当前需求的“生效能力清单”。</p><button id="createWorkspaceBtn" class="primary" type="button">创建需求 Workspace</button></div>
           </section>
 
           <section id="workspaceScreen" class="hidden">

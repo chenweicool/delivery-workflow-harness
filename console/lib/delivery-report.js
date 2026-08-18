@@ -3,6 +3,7 @@ const path = require('path');
 
 const DELIVERY_REPORT_FILE = 'delivery/delivery-report.json';
 const DELIVERY_REPORT_SCHEMA_VERSION = '1.0';
+const MAX_DEMAND_CONTEXT_LENGTH = 20000;
 
 function normalizeDemand(value = {}) {
   const owner = value.owner && typeof value.owner === 'object' ? value.owner : {};
@@ -13,6 +14,7 @@ function normalizeDemand(value = {}) {
       id: String(owner.id || '').trim(),
     },
     url: String(value.url || '').trim(),
+    context: String(value.context || '').trim(),
   };
 }
 
@@ -38,6 +40,9 @@ function validateDemand(value, { requireStartedAt = false } = {}) {
   }
   if (demand.startedAt && Number.isNaN(Date.parse(demand.startedAt))) {
     throw new Error('需求开始时间格式无效。');
+  }
+  if (demand.context.length > MAX_DEMAND_CONTEXT_LENGTH) {
+    throw new Error(`补充上下文不能超过 ${MAX_DEMAND_CONTEXT_LENGTH} 个字符。`);
   }
   return demand;
 }

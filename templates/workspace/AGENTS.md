@@ -13,7 +13,7 @@
 - 本需求相关过程文件必须保存在当前 workspace 内。
 - 必须维护贯穿全流程的进度文件：`.workflow/progress.md` 和 `.workflow/progress.json`。
 - 禁止把需求过程文件写回共享公共 AI 仓库。
-- 开始工作前必须阅读 `context/domain-summary.md` 与 `context/capabilities.md`。实施、Review、测试和交付阶段还必须先阅读 `context/current-context.md`（若存在），再读取其指向的已批准方案、测试基线和确认记录。只读取其中标记为“本步骤启用 / available”的 skills / rules；未挂载或 unavailable 的能力不是前置条件，按当前命令的降级流程继续。
+- 开始工作前必须阅读 `context/demand-context.md`、`context/domain-summary.md` 与 `context/capabilities.md`。`domain-summary.md` 可能明确当前未挂载领域 Harness，这不是阻塞项。实施、Review、测试和交付阶段还必须先阅读 `context/current-context.md`（若存在），再读取其指向的已批准方案、测试基线和确认记录。只读取其中标记为“本步骤启用 / available”的 skills / rules；未挂载或 unavailable 的能力不是前置条件，按当前命令的降级流程继续。
 - 挂载能力的只读链接位于 `context/skills/linked` 和 `context/rules/linked`；不得向这些公共源写入需求过程文件。不得因某个推荐能力未安装而停止当前阶段。
 - 所有面向用户的输出和 workspace 文档必须使用中文。
 - 输出保持简洁并聚焦当前阶段；不要添加泛泛免责声明、仪式化总结或对下一步没有帮助的宽泛兜底内容。

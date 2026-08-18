@@ -66,7 +66,7 @@ function usage() {
     '  dw logs [--lines 80]',
     '  dw update --check',
     '  dw update',
-    '  dw init <demand-name> --domain <local-path-or-git-url> [--domain <source-2>] --owner <name> --demand-url <url> [--owner-id <id>] [--output-root <path>]',
+    '  dw init <demand-name> --owner <name> --demand-url <url> [--context <text>] [--domain <local-path-or-git-url>] [--domain <source-2>] [--owner-id <id>] [--output-root <path>]',
     '  dw prd import <file-or-directory> --workspace <path>',
     '  dw domain inspect --root <domain-harness-path>',
     '  dw domain attach --workspace <path> --root <domain-harness-path>',
@@ -85,7 +85,8 @@ function usage() {
     '  npx delivery-workflow-harness start',
     '  dw start',
     '  dw stop',
-    '  dw init negative-bill-export --domain F:\\code\\harness-project\\spm-harness-module-negative --domain https://git.example/harness/reference.git --owner 张三 --demand-url https://example.internal/demand/123',
+    '  dw init negative-bill-export --owner 张三 --demand-url https://example.internal/demand/123 --context "补充业务背景和约束"',
+    '  dw init negative-bill-export --domain F:\\code\\harness-project\\spm-harness-module-negative --owner 张三 --demand-url https://example.internal/demand/123',
     '',
     'The full command name "delivery-workflow" is also supported.',
   ].join('\n');
@@ -486,9 +487,6 @@ async function commandInit(args) {
   }
   const outputRoot = normalizeCliPath(args['output-root'] || args.outputRoot || path.resolve(process.cwd(), '..', 'ai-workspaces'));
   const domainSources = splitList(args.domain || args['domain-root'] || args.domainRoot);
-  if (!domainSources.length) {
-    throw new Error('Missing domain harness. Usage: dw init <demand-name> --domain <local-path-or-git-url>[,<source-2>]');
-  }
   const ownerName = String(args.owner || args.ownerName || '').trim();
   const demandUrl = String(args['demand-url'] || args.demandUrl || '').trim();
   if (!ownerName || !demandUrl) {
@@ -500,14 +498,19 @@ async function commandInit(args) {
       id: String(args['owner-id'] || args.ownerId || '').trim(),
     },
     url: demandUrl,
+    context: String(args.context || '').trim(),
   });
   const workspacePath = await initWorkspace(demandName, outputRoot, '', demand);
-  const domains = await materializeDomainSources(workspacePath, domainSources);
+  const domains = domainSources.length ? await materializeDomainSources(workspacePath, domainSources) : [];
   let result = null;
   for (const [index, domain] of domains.entries()) {
     result = await attachDomainHarness({ workspacePath, domainRoot: domain.root, primary: index === 0, source: domain.source });
   }
-  console.log(`Domain Harness attached: ${result.context.root}（共 ${domains.length} 个，首个为主 Harness）`);
+  if (result) {
+    console.log(`Domain Harness attached: ${result.context.root}（共 ${domains.length} 个，首个为主 Harness）`);
+  } else {
+    console.log('Domain Harness: not attached (optional)');
+  }
   console.log(`Domain snapshot: ${path.join(workspacePath, 'context', 'domain-summary.md')}`);
   console.log(`Workspace created: ${workspacePath}`);
   console.log(`Next: cd "${workspacePath}"`);

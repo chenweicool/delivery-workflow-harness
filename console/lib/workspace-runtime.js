@@ -41,7 +41,43 @@ function normalizeDemandConfig(value = {}, fallbackStartedAt = '') {
       id: String(owner.id || '').trim(),
     },
     url: String(value.url || '').trim(),
+    context: String(value.context || '').trim(),
   };
+}
+
+function demandContextMarkdown(demand) {
+  return [
+    '# 本次需求补充上下文',
+    '',
+    '> 本文件来自创建 Workspace 时的人工输入，是本需求的局部上下文；不会写回共享知识库或领域 Harness。',
+    '',
+    demand.context || '- 创建时未提供补充上下文。',
+    '',
+  ].join('\n');
+}
+
+function emptyDomainContextMarkdown() {
+  return [
+    '# Domain Harness Context Snapshot',
+    '',
+    'primary_domain:',
+    'attached_domains: 0',
+    '',
+    '## 当前状态',
+    '',
+    '- 当前 Workspace 未挂载领域 Harness；这不是流程阻塞项。',
+    '- 需求背景优先读取 `context/demand-context.md`、`prd/**`、人工确认与当前代码。',
+    '- 后续可按需挂载 Harness；挂载后系统会更新本快照。',
+    '',
+  ].join('\n');
+}
+
+async function ensureDemandContextSnapshot(workspacePath, demand) {
+  if (!(await exists(path.join(workspacePath, 'AGENTS.md')))) return;
+  const filePath = path.join(workspacePath, 'context', 'demand-context.md');
+  if (await exists(filePath)) return;
+  await ensureDir(path.dirname(filePath));
+  await fsp.writeFile(filePath, demandContextMarkdown(demand), 'utf8');
 }
 
 async function initWorkspace(demandName, outputRoot, workspacePathValue, demandInput = {}) {
@@ -91,6 +127,7 @@ async function initWorkspace(demandName, outputRoot, workspacePathValue, demandI
   }
 
   const initializedAt = new Date().toISOString();
+  const demand = normalizeDemandConfig(demandInput, initializedAt);
   const sourceCommit = await gitHead(ROOT_DIR);
   const knowledgeVersion = [
     '# Knowledge Snapshot Version',
@@ -103,12 +140,19 @@ async function initWorkspace(demandName, outputRoot, workspacePathValue, demandI
     '',
   ].join('\n');
   await fsp.writeFile(path.join(targetDir, 'context', 'knowledge-version.md'), knowledgeVersion, 'utf8');
+  await fsp.writeFile(path.join(targetDir, 'context', 'demand-context.md'), demandContextMarkdown(demand), 'utf8');
+  await fsp.writeFile(path.join(targetDir, 'context', 'domain-summary.md'), emptyDomainContextMarkdown(), 'utf8');
+  await fsp.writeFile(
+    path.join(targetDir, '.workflow', 'domain.lock.json'),
+    JSON.stringify({ schemaVersion: 2, primaryDomainRoot: '', domains: [], attachedAt: '' }, null, 2),
+    'utf8',
+  );
 
   const tools = await readToolsConfig();
   const inheritedConfig = await resolveTeamDefaultsForWorkspace(tools, safeDemandName);
   await writeWorkspaceConfig(targetDir, {
     demandName: safeDemandName,
-    demand: normalizeDemandConfig(demandInput, initializedAt),
+    demand,
     ...inheritedConfig,
     feishuDocs: [],
     notes: inheritedConfig.notes || '',
@@ -149,13 +193,18 @@ function normalizeWorkspaceConfig(config, workspacePath) {
 async function readWorkspaceConfig(workspacePath) {
   const filePath = path.join(workspacePath, '.workflow', 'workspace.json');
   if (!(await exists(filePath))) {
-    return normalizeWorkspaceConfig({}, workspacePath);
+    const config = normalizeWorkspaceConfig({}, workspacePath);
+    await ensureDemandContextSnapshot(workspacePath, config.demand);
+    return config;
   }
+  let config;
   try {
-    return normalizeWorkspaceConfig(JSON.parse(await fsp.readFile(filePath, 'utf8')), workspacePath);
+    config = normalizeWorkspaceConfig(JSON.parse(await fsp.readFile(filePath, 'utf8')), workspacePath);
   } catch {
-    return normalizeWorkspaceConfig({}, workspacePath);
+    config = normalizeWorkspaceConfig({}, workspacePath);
   }
+  await ensureDemandContextSnapshot(workspacePath, config.demand);
+  return config;
 }
 
 async function ensureImplementationWorktrees(workspacePath, config) {
@@ -267,6 +316,13 @@ async function writeWorkspaceConfig(workspacePath, nextConfig) {
     updatedAt: new Date().toISOString(),
   };
   await fsp.writeFile(path.join(workflowDir, 'workspace.json'), JSON.stringify(config, null, 2), 'utf8');
+  if (Object.prototype.hasOwnProperty.call(nextConfig, 'demand')) {
+    await fsp.writeFile(
+      path.join(workspacePath, 'context', 'demand-context.md'),
+      demandContextMarkdown(normalizeDemandConfig(config.demand)),
+      'utf8',
+    );
+  }
   return config;
 }
 

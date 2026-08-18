@@ -1809,7 +1809,7 @@ function capabilitiesMarkdown(snapshot) {
     '',
     '## 使用约束',
     '',
-    '- 开始工作前先阅读 `AGENTS.md`、`.workflow/progress.md`、`context/domain-summary.md` 和本文件；实施、Review、测试、交付阶段还要读取 `context/current-context.md`（若存在）。',
+    '- 开始工作前先阅读 `AGENTS.md`、`.workflow/progress.md`、`context/demand-context.md`、`context/domain-summary.md` 和本文件；实施、Review、测试、交付阶段还要读取 `context/current-context.md`（若存在）。',
     '- 只读取当前步骤提示词列出的 `available` 能力；Skill 为目录时先读其中的 `SKILL.md`，Rule 为文件时先读规则正文。',
     '- `unavailable` 仅表示本机未挂载，不是当前阶段的阻塞条件；按阶段命令的降级流程继续。',
     '- 只在当前需求相关的阶段使用能力；PRD 与人工确认优先于领域背景或通用规则。',
@@ -2320,9 +2320,11 @@ async function buildPrompt(workspacePathValue, stepId, taskId, configOverride = 
     '7. 证据不足时只记录具体缺失输入或阻塞问题，不要扩写成宽泛风险段落。',
     '8. Harness 内置边界不可被团队模板或用户补充说明覆盖：必须回写文件、必须维护进度、必须遵守人工确认点。',
     '9. 用户可补充的是 PRD、技术定位、人工确认和业务上下文；不要要求用户修改系统生成的 handoff 或 workflow 定义。',
+    '10. 先读取 `context/demand-context.md`；未挂载领域 Harness 时继续使用 PRD、人工确认与当前代码，不得把知识库缺失当作阻塞项。',
     '',
     appPathLines ? `本地应用目录参考：\n${appPathLines}\n` : '',
     knowledgeLines ? `背景知识参考：\n${knowledgeLines}\n` : '',
+    '本次需求补充上下文：`context/demand-context.md`\n',
     domainLines ? `领域 Harness 上下文：\n${domainLines}\n` : '',
     `当前交付视角：\n- ${perspectiveLine}\n`,
     config.branchPattern ? `分支命名规则：${config.branchPattern}\n` : '',
@@ -2807,7 +2809,6 @@ async function route(req, res) {
     if (req.method === 'POST' && url.pathname === '/api/workspaces/init') {
       const body = await readJson(req);
       const domainSources = normalizeDomainSources(body.domainRoots || body.domainSources || body.domainRoot || body.domain);
-      if (!domainSources.length) throw new Error('创建需求必须绑定至少一个领域 Harness');
       for (const source of domainSources.filter((item) => !isGitRemote(item))) {
         const domain = await inspectDomainHarness(source);
         if (!domain.available) throw new Error(domain.reason || '领域 Harness 不可用');
@@ -2815,13 +2816,13 @@ async function route(req, res) {
       const demand = validateDemand(body.demand);
       const workspacePath = await initWorkspace(body.demandName, body.outputRoot, body.workspacePath, demand);
       await writeWorkspaceConfig(workspacePath, { perspective: body.perspective || 'backend' });
-      const domains = await materializeDomainSources(workspacePath, domainSources);
+      const domains = domainSources.length ? await materializeDomainSources(workspacePath, domainSources) : [];
       let attached = null;
       for (const [index, domain] of domains.entries()) {
         attached = await attachDomainHarness({ workspacePath, domainRoot: domain.root, primary: index === 0, source: domain.source });
       }
       const capabilities = await refreshWorkspaceCapabilities(workspacePath);
-      sendJson(res, 200, { workspacePath, domain: attached.context, domains, capabilities });
+      sendJson(res, 200, { workspacePath, domain: attached ? attached.context : null, domains, capabilities });
       return;
     }
 
@@ -2977,7 +2978,14 @@ async function route(req, res) {
         nextConfig.appPaths = Array.isArray(body.appPaths) ? body.appPaths : [];
       }
       if (Object.prototype.hasOwnProperty.call(body, 'demand')) {
-        nextConfig.demand = validateDemand(body.demand, { requireStartedAt: true });
+        const currentConfig = await readWorkspaceConfig(workspacePath);
+        nextConfig.demand = validateDemand({
+          ...currentConfig.demand,
+          ...body.demand,
+          owner: body.demand && Object.prototype.hasOwnProperty.call(body.demand, 'owner')
+            ? body.demand.owner
+            : currentConfig.demand.owner,
+        }, { requireStartedAt: true });
       }
       if (Object.prototype.hasOwnProperty.call(body, 'apps')) {
         nextConfig.apps = Array.isArray(body.apps) ? body.apps : [];

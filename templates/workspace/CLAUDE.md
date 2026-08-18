@@ -20,7 +20,7 @@
 - 禁止自动执行 worktree 设置，除非当前阶段明确要求。
 - 禁止只根据关键词假设应用范围。
 - 禁止把需求过程文件写入共享公共 AI 仓库。
-- 开始工作前读取 `context/domain-summary.md` 与 `context/capabilities.md`；实施、Review、测试和交付阶段还必须读取 `context/current-context.md`（若存在）及其指向的已批准产物。后者是当前需求能力快照。只读取当前步骤标记为 `available` 的能力，未挂载能力按命令文件的降级流程处理，不得阻断阶段。
+- 开始工作前读取 `context/demand-context.md`、`context/domain-summary.md` 与 `context/capabilities.md`；`domain-summary.md` 可能明确当前未挂载领域 Harness，这不是阻塞项。实施、Review、测试和交付阶段还必须读取 `context/current-context.md`（若存在）及其指向的已批准产物。后者是当前需求能力快照。只读取当前步骤标记为 `available` 的能力，未挂载能力按命令文件的降级流程处理，不得阻断阶段。
 - Skill 为目录时先阅读其中的 `SKILL.md`，Rule 为文件时先阅读规则正文；公共源只读，链接位于 `context/skills/linked` 和 `context/rules/linked` 下。
 
 ## 输出纪律

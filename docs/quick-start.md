@@ -156,7 +156,13 @@ dw app fetch --workspace <path> --app <application-id>
 dw archive propose --workspace <path>
 ```
 
-创建时可一次挂载多个 Harness；第一个为主 Harness，其余为只读参考上下文：
+Harness 是可选增强项。不挂载 Harness 时，可以直接提供本次需求的业务背景、约束和关注点：
+
+```bash
+dw init <demand-name> --owner <负责人> --demand-url <需求链接> --context "业务背景、约束和关注点"
+```
+
+需要领域白皮书、代码入口或团队约束时，可在创建时一次挂载多个 Harness；第一个为主 Harness，其余为只读参考上下文：
 
 ```bash
 dw init <demand-name> --domain <本地-harness> --domain <参考-harness-git-url> --owner <负责人> --demand-url <需求链接>
@@ -166,7 +172,7 @@ codex
 
 创建完成后也可运行 `dw next --workspace "."` 查看当前步骤、具体阻塞原因和下一动作。
 
-重复传入 `--domain` 是推荐写法；为兼容简短命令，也支持 `--domain <来源1>,<来源2>` 的逗号分隔写法。
+重复传入 `--domain` 是推荐写法；为兼容简短命令，也支持 `--domain <来源1>,<来源2>` 的逗号分隔写法。未传 `--domain` 不会阻塞流程，人工补充内容会落到 `context/demand-context.md`。
 
 诊断和配置：
 

@@ -46,7 +46,7 @@ dw update --check
 dw update
 dw domain inspect --root <domain-harness-path>
 dw domain attach --workspace <path> --root <domain-harness-path>
-dw init <demand-name> --domain <local-path-or-git-url> [--domain <source-2>]
+dw init <demand-name> --owner <name> --demand-url <url> [--context <text>] [--domain <source>]
 dw prd import <file-or-directory> --workspace <path>
 dw status --workspace <path>
 dw next --workspace <path>
@@ -97,7 +97,7 @@ npm run start
 ## 产品模型
 
 ```text
-Domain Harness + 团队策略
+PRD + 补充上下文 + 当前代码 + 可选 Domain Harness / 团队策略
   -> 需求 Workspace
   -> 研发人员使用 Codex / Claude / IDE 实施
   -> 交付证据 + 人工质量门禁
@@ -108,10 +108,14 @@ npm 包仅包含通用的流程机制和示例。团队专属资产应存放在�
 
 ## Domain Harness 挂载
 
-一个 Workspace 可挂载一个主 Domain Harness 和多个只读参考 Harness。每个来源可以是本地目录或 Git 地址。远程来源只会被克隆到当前 Workspace 的 `context/domain-sources/`；Workflow 会把版本、代码入口和来源记录到 `context/domain-summary.md` 和 `.workflow/domain.lock.json`，不会修改原始 Harness 或其源仓库。
+Domain Harness 不是创建 Workspace 的必选项。没有 Harness 时，Workflow 仍会使用 `context/demand-context.md`、PRD、人工确认和当前代码推进；后续可再挂载一个主 Domain Harness 和多个只读参考 Harness。每个来源可以是本地目录或 Git 地址。远程来源只会被克隆到当前 Workspace 的 `context/domain-sources/`；Workflow 会把版本、代码入口和来源记录到 `context/domain-summary.md` 和 `.workflow/domain.lock.json`，不会修改原始 Harness 或其源仓库。
 
 ```bash
-dw init <demand-name> --domain <local-harness> --domain <reference-harness-git-url>
+# 不依赖 Harness，直接提供需求与补充上下文
+dw init <demand-name> --owner <负责人> --demand-url <需求链接> --context "业务背景、约束和关注点"
+
+# 创建时按需挂载 Harness
+dw init <demand-name> --domain <local-harness> --domain <reference-harness-git-url> --owner <负责人> --demand-url <需求链接>
 # 也可在初始化后挂载
 dw domain attach --workspace <workspace-path> --root <domain-harness-path>
 ```
@@ -129,6 +133,8 @@ Agent 应将 PRD 和人工确认视为目标行为，将当前代码视为当前
 ```text
 prd/document.md                    解析后的 PRD
 prd/source/                        原始 PRD 材料
+context/demand-context.md          创建时填写的本需求补充上下文
+context/domain-summary.md          可选领域 Harness 快照；未挂载时明确降级来源
 design/*.md                        已确认的设计与测试基线
 design/process/                    上下文、确认与修订记录
 design/approvals/                  检查点记录

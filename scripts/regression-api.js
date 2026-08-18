@@ -14,6 +14,7 @@ process.env.DELIVERY_WORKFLOW_DATA_DIR = path.join(tempRoot, '.data');
 const { startServer, buildWindowsPickerScript } = require(path.join(rootDir, 'console', 'server.js'));
 const { assertWithin } = require(path.join(rootDir, 'console', 'lib', 'fs-utils.js'));
 const { createAgentRunnerRuntime } = require(path.join(rootDir, 'console', 'lib', 'agent-runner.js'));
+const { writeJsonAtomically, readJsonWithRetry } = require(path.join(rootDir, 'console', 'lib', 'run-store.js'));
 
 async function requestJson(baseUrl, relativePath, options = {}) {
   const response = await fetch(`${baseUrl}${relativePath}`, {
@@ -460,6 +461,13 @@ async function main() {
 
     const runsDir = path.join(initData.workspacePath, '.workflow', 'runs');
     await fsp.mkdir(runsDir, { recursive: true });
+    const atomicProbeFile = path.join(tempRoot, 'atomic-write-probe.json');
+    await writeJsonAtomically(atomicProbeFile, { sequence: -1, payload: '' });
+    for (let sequence = 0; sequence < 100; sequence += 1) {
+      const pendingWrite = writeJsonAtomically(atomicProbeFile, { sequence, payload: 'x'.repeat(64 * 1024) });
+      assert.doesNotThrow(() => JSON.parse(fs.readFileSync(atomicProbeFile, 'utf8')));
+      await pendingWrite;
+    }
     const runId = 'api-regression-run';
     const runFile = path.join(runsDir, `${runId}.json`);
     const logFile = path.join(runsDir, `${runId}.log`);
@@ -474,7 +482,7 @@ async function main() {
 
     const runner = createAgentRunnerRuntime({
       assertWithin,
-      writeRunMeta: (filePath, meta) => fsp.writeFile(filePath, JSON.stringify(meta, null, 2), 'utf8'),
+      writeRunMeta: writeJsonAtomically,
       appendRunLog: (filePath, text) => fsp.appendFile(filePath, text, 'utf8'),
       nowIso: () => new Date().toISOString(),
     });
@@ -483,7 +491,7 @@ async function main() {
     const immediateLogFile = path.join(runsDir, `${immediateRunId}.log`);
     const immediateRunner = createAgentRunnerRuntime({
       assertWithin,
-      writeRunMeta: (filePath, runMeta) => fsp.writeFile(filePath, JSON.stringify(runMeta, null, 2), 'utf8'),
+      writeRunMeta: writeJsonAtomically,
       appendRunLog: (filePath, text) => fsp.appendFile(filePath, text, 'utf8'),
       nowIso: () => new Date().toISOString(),
       spawnImpl: () => {
@@ -516,8 +524,8 @@ async function main() {
       },
       initialLog: '# Immediate regression run\n',
     });
-    await waitFor(async () => JSON.parse(await fsp.readFile(immediateRunFile, 'utf8')).status !== 'running');
-    assert.equal(JSON.parse(await fsp.readFile(immediateRunFile, 'utf8')).status, 'success');
+    await waitFor(async () => (await readJsonWithRetry(immediateRunFile)).status !== 'running');
+    assert.equal((await readJsonWithRetry(immediateRunFile)).status, 'success');
     await runner.launchAgentProcess({
       workspacePath: initData.workspacePath,
       runId,
@@ -543,10 +551,10 @@ async function main() {
     });
 
     await waitFor(async () => {
-      const meta = JSON.parse(await fsp.readFile(runFile, 'utf8'));
+      const meta = await readJsonWithRetry(runFile);
       return meta.status !== 'running';
     });
-    const completedMeta = JSON.parse(await fsp.readFile(runFile, 'utf8'));
+    const completedMeta = await readJsonWithRetry(runFile);
     assert.equal(completedMeta.status, 'success');
     const logText = await fsp.readFile(logFile, 'utf8');
     assert.match(logText, /runner-ok/);

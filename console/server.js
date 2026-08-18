@@ -79,6 +79,7 @@ const {
 } = require('./lib/harness-client');
 const {
   createRunStoreRuntime,
+  readJsonWithRetry,
 } = require('./lib/run-store');
 const {
   createAgentExecutionRuntime,
@@ -3229,10 +3230,13 @@ async function route(req, res) {
       const logFile = path.join(runsDir, `${runId}.log`);
       assertWithin(workspacePath, runFile);
       assertWithin(workspacePath, logFile);
-      if (!(await exists(runFile))) {
-        throw new Error(`运行记录不存在：${runId}`);
+      let meta;
+      try {
+        meta = await readJsonWithRetry(runFile);
+      } catch (error) {
+        if (error.code === 'ENOENT') throw new Error(`运行记录不存在：${runId}`);
+        throw error;
       }
-      const meta = JSON.parse(await fsp.readFile(runFile, 'utf8'));
       const log = await readLogPreview(logFile);
       sendJson(res, 200, { meta, log });
       return;

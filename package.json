@@ -1,6 +1,6 @@
 {
   "name": "delivery-workflow-harness",
-  "version": "0.2.8",
+  "version": "0.2.9",
   "description": "Local Delivery Workflow Console for AI-assisted team delivery.",
   "homepage": "https://github.com/chenweicool/delivery-workflow-harness#readme",
   "repository": {

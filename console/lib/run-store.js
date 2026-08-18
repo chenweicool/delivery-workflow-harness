@@ -1,5 +1,66 @@
 const fsp = require('fs/promises');
 const path = require('path');
+const crypto = require('crypto');
+
+async function replaceFile(temporaryFile, targetFile) {
+  try {
+    await fsp.rename(temporaryFile, targetFile);
+    return;
+  } catch (error) {
+    if (process.platform !== 'win32' || !['EACCES', 'EEXIST', 'ENOTEMPTY', 'EPERM'].includes(error.code)) {
+      throw error;
+    }
+  }
+
+  const backupFile = `${temporaryFile}.previous`;
+  let hasBackup = false;
+  try {
+    await fsp.rename(targetFile, backupFile);
+    hasBackup = true;
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+
+  try {
+    await fsp.rename(temporaryFile, targetFile);
+  } catch (error) {
+    if (hasBackup) {
+      await fsp.rename(backupFile, targetFile).catch(() => {});
+    }
+    throw error;
+  }
+  if (hasBackup) {
+    await fsp.rm(backupFile, { force: true });
+  }
+}
+
+async function writeJsonAtomically(filePath, value) {
+  const temporaryFile = path.join(
+    path.dirname(filePath),
+    `.${path.basename(filePath)}.${process.pid}.${crypto.randomUUID()}.tmp`,
+  );
+  try {
+    await fsp.writeFile(temporaryFile, JSON.stringify(value, null, 2), 'utf8');
+    await replaceFile(temporaryFile, filePath);
+  } finally {
+    await fsp.rm(temporaryFile, { force: true }).catch(() => {});
+  }
+}
+
+async function readJsonWithRetry(filePath, attempts = 5) {
+  let lastError;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      return JSON.parse(await fsp.readFile(filePath, 'utf8'));
+    } catch (error) {
+      lastError = error;
+      const retryable = error instanceof SyntaxError || ['EBUSY', 'ENOENT', 'EPERM'].includes(error.code);
+      if (!retryable || attempt === attempts - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+  }
+  throw lastError;
+}
 
 function createRunStoreRuntime(deps) {
   const {
@@ -27,7 +88,7 @@ async function getRunsDir(workspacePath) {
 }
 
 async function writeRunMeta(runFile, meta) {
-  await fsp.writeFile(runFile, JSON.stringify(meta, null, 2), 'utf8');
+  await writeJsonAtomically(runFile, meta);
 }
 
 async function appendRunLog(logFile, text) {
@@ -42,10 +103,13 @@ async function readRun(workspacePathValue, runIdValue) {
   const logFile = path.join(runsDir, `${runId}.log`);
   assertWithin(workspacePath, runFile);
   assertWithin(workspacePath, logFile);
-  if (!(await exists(runFile))) {
-    throw new Error(`运行记录不存在：${runId}`);
+  let meta;
+  try {
+    meta = await reconcileRunMeta(workspacePath, runFile);
+  } catch (error) {
+    if (error.code === 'ENOENT') throw new Error(`运行记录不存在：${runId}`);
+    throw error;
   }
-  const meta = await reconcileRunMeta(workspacePath, runFile);
   const log = (await exists(logFile)) ? await fsp.readFile(logFile, 'utf8') : '';
   return { meta, log };
 }
@@ -63,7 +127,7 @@ function isPidAlive(pid) {
 }
 
 async function reconcileRunMeta(workspacePath, runFile) {
-  const meta = JSON.parse(await fsp.readFile(runFile, 'utf8'));
+  const meta = await readJsonWithRetry(runFile);
   if (meta.status !== 'running') {
     return meta;
   }
@@ -164,5 +228,7 @@ async function listRuns(workspacePathValue) {
 }
 
 module.exports = {
+  writeJsonAtomically,
+  readJsonWithRetry,
   createRunStoreRuntime,
 };

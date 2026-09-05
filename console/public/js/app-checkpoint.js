@@ -107,6 +107,7 @@ async function submitCheckpoint(action) {
         stepId: state.selectedStepId,
         note: els.checkpointNote.value,
         checklist: getCheckpointChecklistValues(),
+        expectedRevision: state.status && state.status.progress ? state.status.progress.revision : undefined,
       }),
     });
     await loadStatus();

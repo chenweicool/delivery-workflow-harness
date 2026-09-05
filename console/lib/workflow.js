@@ -81,14 +81,14 @@ const STEP_DEFINITIONS = {
     outputs: ['prd/document.md'],
   },
   '00-load-context': {
-    title: '00 加载上下文',
+    title: '加载上下文',
     kind: 'agent',
     commandFile: '.workflow/commands/00-load-context.md',
     requires: ['prd/document.md'],
     outputs: ['design/process/context-summary.md'],
   },
   '01-clarify-requirement': {
-    title: '01 需求澄清',
+    title: '需求澄清',
     kind: 'agent',
     commandFile: '.workflow/commands/01-clarify-requirement.md',
     outputs: ['design/process/requirement-confirmation.md'],
@@ -111,38 +111,39 @@ const STEP_DEFINITIONS = {
     outputs: ['design/approvals/requirement-confirmation.approved.json'],
   },
   '02-generate-technical-design': {
-    title: '02 生成技术方案',
+    title: '编写技术方案',
     kind: 'agent',
     commandFile: '.workflow/commands/02-generate-technical-design.md',
     requires: ['design/approvals/requirement-confirmation.approved.json'],
     outputs: ['design/technical-design.md', 'design/process/technical-confirmation.md', 'design/process/technical-design.changelog.md'],
   },
   '03-design-tests': {
-    title: '03 设计测试基线',
+    title: '设计测试方案',
     kind: 'agent',
     commandFile: '.workflow/commands/03-design-tests.md',
     requires: ['design/technical-design.md'],
-    outputs: ['design/unit-test-design.md'],
+    outputs: ['design/unit-test-design.md', 'design/smoke-test-design.md'],
   },
   'manual-technical': {
     title: '人工确认技术方案',
     kind: 'manual',
     description: '多轮评审技术方案；可退回写入评审意见，修订完成后再确认终版。',
-    inputs: ['design/technical-design.md', 'design/unit-test-design.md', 'design/process/technical-confirmation.md', 'design/process/technical-review.md'],
+    inputs: ['design/technical-design.md', 'design/unit-test-design.md', 'design/smoke-test-design.md', 'design/process/technical-confirmation.md', 'design/process/technical-review.md'],
     reviewFiles: [
       'design/technical-design.md',
       'design/unit-test-design.md',
+      'design/smoke-test-design.md',
       'design/process/technical-confirmation.md',
       { path: 'design/process/technical-review.md', optional: true },
       { path: 'design/process/technical-design.changelog.md', optional: true },
     ],
     checklist: [
-      { id: 'reviewed-technical-files', label: '已预览研发技术方案、单测设计和确认文档' },
+      { id: 'reviewed-technical-files', label: '已预览研发技术方案、单测设计、冒烟测试设计和确认文档' },
       { id: 'app-scope-confirmed', label: '应用范围、接口边界和数据边界已确认' },
       { id: 'branch-strategy-confirmed', label: '研发已确认每个应用的基准分支、开发分支命名及 worktree 创建方式' },
       { id: 'risk-accepted', label: '权限、资金、结算、兼容性风险已知悉' },
       { id: 'review-comments-resolved', label: '本轮评审意见已处理或已明确保留原因' },
-      { id: 'test-design-approved', label: '已确认单测设计将在批准后冻结为基线；冒烟用例由研发在提测前提供' },
+      { id: 'test-design-approved', label: '已确认单测设计和冒烟测试设计将在批准后冻结为基线；提测前实际冒烟用例须与设计对齐' },
       { id: 'allow-task-split', label: '允许冻结基线并进入实施任务拆分' },
     ],
     approvalFile: 'design/approvals/technical-design.approved.json',
@@ -150,7 +151,7 @@ const STEP_DEFINITIONS = {
     outputs: ['design/approvals/technical-design.approved.json', 'context/current-context.md'],
   },
   '05-split-tasks': {
-    title: '05 拆分实施任务',
+    title: '拆分实施任务',
     kind: 'agent',
     commandFile: '.workflow/commands/05-split-tasks.md',
     requires: ['design/approvals/technical-design.approved.json'],
@@ -174,45 +175,45 @@ const STEP_DEFINITIONS = {
     outputs: ['tasks/approvals/task-list.approved.json'],
   },
   '06-implement-task': {
-    title: '06 单任务实现',
+    title: '开发实现',
     kind: 'agent',
     commandFile: '.workflow/commands/06-implement-task.md',
     requires: ['tasks/approvals/task-list.approved.json'],
     outputs: ['tasks/process/task-progress.md', 'review/process/change-log.md', 'review/process/self-check.md'],
   },
   '07-review-code': {
-    title: '07 AI Review',
+    title: '代码评审',
     kind: 'agent',
     commandFile: '.workflow/commands/07-review-code.md',
     outputs: ['review/quality-report.md', 'review/evidence/risk-list.md'],
   },
   '08-verify-tests': {
-    title: '08 测试反验',
+    title: '测试验证',
     kind: 'agent',
     commandFile: '.workflow/commands/08-verify-tests.md',
     outputs: ['review/evidence/unit-test-result.md', 'review/evidence/traceability-matrix.md'],
   },
   '09-run-smoke': {
-    title: '09 冒烟验证',
+    title: '冒烟验证',
     kind: 'agent',
     commandFile: '.workflow/commands/09-run-smoke.md',
     requires: ['review/evidence/smoke-test-case.md'],
     outputs: ['review/evidence/smoke-test-result.md'],
   },
   '09-release-checklist': {
-    title: '09 上线 Checklist',
+    title: '发布准备',
     kind: 'agent',
     commandFile: '.workflow/commands/09-release-checklist.md',
     outputs: ['delivery/release-checklist.md'],
   },
   '08-delivery-summary': {
-    title: '10 交付总结',
+    title: '交付总结',
     kind: 'agent',
     commandFile: '.workflow/commands/08-delivery-summary.md',
     outputs: ['delivery/delivery-summary.md', 'archive/knowledge-update-proposal.md'],
   },
   '10-archive-knowledge': {
-    title: '11 交付归档',
+    title: '交付归档',
     kind: 'agent',
     commandFile: '.workflow/commands/10-archive-knowledge.md',
     outputs: ['archive/index.md', 'archive/knowledge-card.md', 'archive/process/platform-push-plan.md'],
@@ -274,21 +275,21 @@ async function readWorkflowDefinition(workspacePath = '', options = {}) {
   const templateDir = options.templateDir || '';
   if (workspacePath) {
     const filePath = path.join(workspacePath, workflowDefinitionFile);
-    try {
-      if (await exists(filePath)) {
+    if (await exists(filePath)) {
+      try {
         return normalizeWorkflowDefinition(JSON.parse(await fsp.readFile(filePath, 'utf8')), 'workspace');
+      } catch (error) {
+        throw new Error(`Workflow 定义不是合法 JSON 或结构无效：${workflowDefinitionFile}；${error.message}`);
       }
-    } catch {
-      return defaultWorkflowDefinition();
     }
   }
   const templatePath = templateDir ? path.join(templateDir, workflowDefinitionFile) : '';
-  try {
-    if (templatePath && await exists(templatePath)) {
+  if (templatePath && await exists(templatePath)) {
+    try {
       return normalizeWorkflowDefinition(JSON.parse(await fsp.readFile(templatePath, 'utf8')), 'template');
+    } catch (error) {
+      throw new Error(`Workflow 模板不是合法 JSON 或结构无效：${templatePath}；${error.message}`);
     }
-  } catch {
-    return defaultWorkflowDefinition();
   }
   return defaultWorkflowDefinition();
 }
@@ -362,9 +363,9 @@ function progressMarkdown(workflow, existing = null) {
     '',
     '## AI Update Rule',
     '',
-    '- AI 完成当前步骤后，必须更新本文档和 `.workflow/progress.json`。',
-    '- 如果需要人工确认，将当前步骤标记为 done，并把下一人工步骤标记为 blocked。',
-    '- 如果无法继续，将当前步骤标记为 blocked，并在 Summary 写明具体缺失输入。',
+    '- 不直接手工编辑本文件或 `.workflow/progress.json`。',
+    '- 由 `dw done --step <step-id>` 写入完成状态；阻塞时使用 `--status blocked --summary "具体阻塞原因"`。',
+    '- 产物是否存在只是完成状态的校验条件，不能替代显式状态迁移。',
     '',
   ].join('\n');
 }

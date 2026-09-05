@@ -4,6 +4,7 @@ const BASELINE_DIRECTORY = '.workflow/baselines';
 const BASELINE_SPECS = [
   { id: 'technical-design', path: 'design/technical-design.md', lock: `${BASELINE_DIRECTORY}/technical-design.lock.json` },
   { id: 'unit-test-design', path: 'design/unit-test-design.md', lock: `${BASELINE_DIRECTORY}/unit-test-design.lock.json` },
+  { id: 'smoke-test-design', path: 'design/smoke-test-design.md', lock: `${BASELINE_DIRECTORY}/smoke-test-design.lock.json` },
 ];
 
 function digest(content) {

@@ -106,8 +106,10 @@ async function main() {
   await fsp.writeFile(path.join(workspacePath, 'prd', 'document.md'), '# 解析后的 PRD\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'design', 'technical-design.md'), '# 技术方案\n\n- 修改 Service 分支逻辑\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'design', 'unit-test-design.md'), '# 单测设计\n\n- UT-001 覆盖边界\n', 'utf8');
+  await fsp.writeFile(path.join(workspacePath, 'design', 'smoke-test-design.md'), '# 冒烟测试设计\n\n- ST-001 覆盖主路径\n', 'utf8');
   await lockBaseline('design/technical-design.md', 'technical-design');
   await lockBaseline('design/unit-test-design.md', 'unit-test-design');
+  await lockBaseline('design/smoke-test-design.md', 'smoke-test-design');
   await fsp.writeFile(path.join(workspacePath, 'tasks', 'task-list.md'), '# 任务清单\n\n- T001 覆盖核心改动\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'process', 'change-log.md'), '# 变更记录\n\n- 修改目标代码\n', 'utf8');
   await fsp.writeFile(path.join(workspacePath, 'review', 'process', 'self-check.md'), '# 自检\n\n- 已自检主路径\n', 'utf8');
@@ -115,6 +117,18 @@ async function main() {
   await fsp.writeFile(path.join(workspacePath, 'review', 'evidence', 'risk-list.md'), '# 风险清单\n\n## 测试缺口\n\n- 异常路径\n', 'utf8');
   run(['gate', 'check', '--workspace', workspacePath], { includes: 'design-ready\tready-for-approval' });
   run(['gate', 'approve', 'design-ready', '--workspace', workspacePath, '--note', 'smoke reviewed'], { includes: 'design-ready / approved' });
+
+  const localSkillPath = path.join(tmpRoot, 'local-smoke-skill');
+  await fsp.mkdir(localSkillPath, { recursive: true });
+  await fsp.writeFile(path.join(localSkillPath, 'SKILL.md'), '# Local Smoke Skill\n', 'utf8');
+  run(['skill', 'install', localSkillPath, '--workspace', workspacePath], { includes: 'installed: local-smoke-skill' });
+  run(['skill', 'disable', 'local-smoke-skill', '--workspace', workspacePath], { includes: 'disable: local-smoke-skill' });
+  run(['skill', 'enable', 'local-smoke-skill', '--workspace', workspacePath], { includes: 'enable: local-smoke-skill' });
+  run(['change', 'create', '--type', 'defect', '--reason', 'smoke defect', '--workspace', workspacePath], { includes: 'change: BUG-001' });
+  run(['change', 'impact', 'BUG-001', '--workspace', workspacePath], { includes: 'steps: 06-implement-task' });
+  run(['candidate', 'create', '--change', 'BUG-001', '--workspace', workspacePath], { includes: 'candidate: C-001' });
+  run(['candidate', 'verify', 'C-001', '--workspace', workspacePath], { includes: 'status: valid' });
+  run(['evidence', 'record', '--candidate', 'C-001', '--kind', 'review', '--path', 'review/quality-report.md', '--workspace', workspacePath], { includes: 'candidate: C-001' });
 
   const stateFile = path.join(tmpRoot, '.data', 'state.json');
   await fsp.writeFile(stateFile, JSON.stringify({

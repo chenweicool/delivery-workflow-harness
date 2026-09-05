@@ -124,9 +124,25 @@ Agent 应将 PRD 和人工确认视为目标行为，将当前代码视为当前
 
 ## 质量门禁
 
-每个 Workspace 都包含 `.workflow/quality-policy.yaml`，用于定义需求确认、技术方案就绪和交付验证所需的证据。`dw gate check` 会将可审计状态写入 `.workflow/gates.json`；仅证据齐备的门禁才能被批准。
+每个 Workspace 都包含 `.workflow/quality-policy.yaml`，用于定义需求确认、技术方案就绪和交付验证所需的证据。`dw gate check` 会将可审计状态写入 `.workflow/gates.json`；仅证据齐备且未失效的门禁才能被批准。交付验证还要求 Review、单测、冒烟证据绑定到同一个有效 Candidate；代码、设计或已绑定证据变化后，旧放行自动失效。
 
 技术方案阶段会冻结 `design/unit-test-design.md`，测试用例必须以表格记录。冒烟用例不由 Workflow 设计：研发需在提测前提供 `review/evidence/smoke-test-case.md`，QA 将执行结果记录到 `review/evidence/smoke-test-result.md`。
+
+## ChangeSet 与 Candidate
+
+需求变动、技术调整、缺陷修复、仅验证和 Hotfix 都以 ChangeSet 记录；Candidate 固定本次 PRD、设计 baseline 和应用代码快照。不要以“分支仍在”或“文件还在”代替可验证的交付候选。
+
+```bash
+dw change create --type defect --source uat --reason "UAT 复测失败" --workspace <workspace-path>
+dw change impact BUG-001 --workspace <workspace-path>
+dw candidate create --change BUG-001 --workspace <workspace-path>
+dw evidence record --candidate C-001 --kind uat --path review/evidence/uat-result.md --workspace <workspace-path>
+dw reopen --from 06-implement-task --change BUG-001 --reason "修复 UAT 缺陷" --workspace <workspace-path>
+```
+
+Review、单测和冒烟步骤通过 `dw done` 完成时会自动写入其对应的 Candidate 证据。UAT、容量和发布审批等非标准节点使用 `dw evidence record` 显式绑定。
+
+每次状态提交都会生成递增的 `revision` 和追加事件。控制台会自动携带当前 revision；CLI/Agent 可在 `dw status` 读取后通过 `dw done --revision <n>` 或 `dw reopen --revision <n>` 提交。旧 revision 会被拒绝，使用相同 `--idempotency-key` 的重试不会重复推进状态。
 
 ## Workspace 产物结构
 

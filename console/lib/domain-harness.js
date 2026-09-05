@@ -370,19 +370,13 @@ function createDomainHarnessRuntime(deps) {
       `${String(item.name || '').toLowerCase()}|${String(item.sourcePath || '').toLowerCase()}`,
       item,
     ])).values());
-    const skills = uniquePaths([
-      ...(current.skills || []).map((item) => ({ path: item })),
-      ...domains.flatMap((domainItem) => (domainItem.skills || []).map((relativePath) => ({
-        path: path.resolve(domainItem.root, relativePath),
-      }))),
-    ]).map((item) => item.path);
     const rules = uniquePaths([
       ...(current.rules || []).map((item) => ({ path: item })),
       ...domains.flatMap((domainItem) => (domainItem.rules || []).map((item) => ({ path: path.resolve(domainItem.root, item) }))),
     ]).map((item) => item.path);
     const config = await writeWorkspaceConfig(workspacePath, {
       apps,
-      skills,
+      skills: current.skills || [],
       rules,
       domains,
       domain: {

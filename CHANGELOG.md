@@ -1,5 +1,12 @@
 # Changelog
 
+## V0.2.10
+
+- Added explicit ChangeSet and Candidate lifecycle records so requirement/design changes and defects can reopen only the affected delivery stages while preserving prior approvals and evidence.
+- Bound Review, unit-test, smoke-test, UAT, capacity, and release evidence to immutable Candidate snapshots; delivery verification now requires Review, unit-test, and smoke evidence from the same valid Candidate.
+- Added revisioned, idempotent state transitions for agent completion, manual checkpoints, and workflow reopen. Stale submissions are rejected and interrupted event projections recover on the next state submission.
+- Made Harness Skills opt-in: discovered Skills require explicit installation and enablement before they are routed into an Agent prompt.
+
 ## V0.2.7
 
 - Fixed Windows console client updates failing with `spawn EINVAL` when npm is

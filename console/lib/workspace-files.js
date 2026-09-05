@@ -56,8 +56,8 @@ async function readJsonFileIfExists(workspacePath, relativePath) {
   }
   try {
     return JSON.parse(await fsp.readFile(fullPath, 'utf8'));
-  } catch {
-    return null;
+  } catch (error) {
+    throw new Error(`Workspace JSON 文件不是合法 JSON：${relativePath}；${error.message}`);
   }
 }
 

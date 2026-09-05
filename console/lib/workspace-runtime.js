@@ -190,11 +190,12 @@ function normalizeWorkspaceConfig(config, workspacePath) {
   };
 }
 
-async function readWorkspaceConfig(workspacePath) {
+async function readWorkspaceConfig(workspacePath, options = {}) {
+  const ensureSnapshots = options.ensureSnapshots !== false;
   const filePath = path.join(workspacePath, '.workflow', 'workspace.json');
   if (!(await exists(filePath))) {
     const config = normalizeWorkspaceConfig({}, workspacePath);
-    await ensureDemandContextSnapshot(workspacePath, config.demand);
+    if (ensureSnapshots) await ensureDemandContextSnapshot(workspacePath, config.demand);
     return config;
   }
   let config;
@@ -203,7 +204,7 @@ async function readWorkspaceConfig(workspacePath) {
   } catch {
     config = normalizeWorkspaceConfig({}, workspacePath);
   }
-  await ensureDemandContextSnapshot(workspacePath, config.demand);
+  if (ensureSnapshots) await ensureDemandContextSnapshot(workspacePath, config.demand);
   return config;
 }
 

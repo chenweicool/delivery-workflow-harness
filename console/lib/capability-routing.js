@@ -200,13 +200,7 @@ async function linkConfiguredCapabilities(workspacePath, tools, config) {
   };
   const skills = [];
   const rules = [];
-  for (const item of [
-    ...normalizeTextList(tools.globalSkills),
-    ...normalizeTextList(config.skills),
-  ]) {
-    skills.push(await linkCapabilityEntry(workspacePath, markSelection(asCapabilityEntry(item, 'skill')), 'skills'));
-  }
-  for (const item of (config.capabilities || []).filter((capability) => capability.type === 'skill')) {
+  for (const item of (config.capabilities || []).filter((capability) => capability.type === 'skill' && capability.installed === true && capability.enabled === true)) {
     skills.push(await linkCapabilityEntry(workspacePath, markSelection(asCapabilityEntry(item, 'skill')), 'skills'));
   }
   for (const item of [

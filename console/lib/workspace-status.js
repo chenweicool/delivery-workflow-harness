@@ -7,7 +7,7 @@ function createWorkspaceStatusRuntime(deps) {
     exists,
     readWorkspaceConfig,
     readWorkflowDefinition,
-    ensureWorkflowProgressFiles,
+    readWorkflowProgress,
     getAppAccessStates,
     listFiles,
     pathExistsInWorkspace,
@@ -19,6 +19,8 @@ function createWorkspaceStatusRuntime(deps) {
     workflowStepSequence,
     HANDOFF_FILE,
     HANDOFF_DONE_FILE,
+    verifyDesignBaselines,
+    readIterationStatus,
   } = deps;
 
   function buildNextRecommendation(workflow, steps, config, appAccessStates, tasks) {
@@ -40,6 +42,36 @@ function createWorkspaceStatusRuntime(deps) {
   
     const step = steps[next.id];
     const blockers = [];
+    if (step.validationIssues && step.validationIssues.length) {
+      return {
+        status: 'blocked',
+        title: `状态需要修复：${step.title || next.id}`,
+        summary: '步骤记录为完成，但完成条件已经失效；请补齐产物或重新执行当前步骤。',
+        stepId: next.id,
+        unitId: next.unitId,
+        blockers: step.validationIssues,
+      };
+    }
+    if (['blocked', 'rejected', 'stale'].includes(step.status)) {
+      return {
+        status: 'blocked',
+        title: `当前步骤被阻塞：${step.title || next.id}`,
+        summary: step.summary || '请处理阻塞原因后重新执行当前步骤。',
+        stepId: next.id,
+        unitId: next.unitId,
+        blockers: step.blockedReasons || [],
+      };
+    }
+    if (step.status === 'running') {
+      return {
+        status: 'running',
+        title: `正在执行：${step.title || next.id}`,
+        summary: step.summary || '当前步骤仍在执行中；完成或阻塞后请通过 dw done 回写状态。',
+        stepId: next.id,
+        unitId: next.unitId,
+        blockers: [],
+      };
+    }
     for (const requirement of step.requirementStatuses || []) {
       if (!requirement.exists) {
         blockers.push(blockerForRequirement(requirement));
@@ -119,7 +151,7 @@ function createWorkspaceStatusRuntime(deps) {
   
     const config = await readWorkspaceConfig(workspacePath);
     const workflow = await readWorkflowDefinition(workspacePath);
-    const workflowProgress = await ensureWorkflowProgressFiles(workspacePath, workflow);
+    const workflowProgress = await readWorkflowProgress(workspacePath, workflow);
     const appAccessStates = await getAppAccessStates(workspacePath, config);
     const prdFiles = await listFiles(workspacePath, 'prd', 120);
     const artifactFiles = await listFiles(workspacePath, 'design', 120);
@@ -156,9 +188,9 @@ function createWorkspaceStatusRuntime(deps) {
           outputStatuses.push({ path: output, exists: await pathExistsInWorkspace(workspacePath, output) });
         }
       }
-      let done = outputStatuses.length ? outputStatuses.every((item) => item.exists) : false;
+      let outputsReady = outputStatuses.length ? outputStatuses.every((item) => item.exists) : false;
       if (stepId === 'import-prd') {
-        done = hasParsedPrd;
+        outputsReady = hasParsedPrd;
         outputStatuses.splice(0, outputStatuses.length, {
           path: hasExternalPrdSource && !materialPrdFiles.length ? '飞书/外部 PRD 链接' : 'prd/**',
           exists: materialPrdFiles.length > 0 || hasExternalPrdSource,
@@ -169,23 +201,63 @@ function createWorkspaceStatusRuntime(deps) {
       }
       if (stepId === '06-implement-task' && requiredTaskIds.length) {
         const executionArtifactsReady = outputStatuses.every((item) => item.exists);
-        done = executionArtifactsReady && requiredTaskIds.every((taskId) => completedTaskIds.has(taskId));
+        outputsReady = executionArtifactsReady && requiredTaskIds.every((taskId) => completedTaskIds.has(taskId));
       }
       const requirementStatuses = [];
       for (const requirement of definition.requires || []) {
         requirementStatuses.push({ path: requirement, exists: await pathExistsInWorkspace(workspacePath, requirement) });
       }
-      const blocked = requirementStatuses.some((item) => !item.exists);
+      const requirementBlocked = requirementStatuses.some((item) => !item.exists);
       const checkpoint = await getCheckpointState(workspacePath, definition);
+      const progressRecord = workflowProgress.steps && workflowProgress.steps[stepId] ? workflowProgress.steps[stepId] : {};
+      let status = String(progressRecord.status || 'pending').trim().toLowerCase() || 'pending';
+      if (checkpoint) {
+        if (checkpoint.status === 'approved') status = 'done';
+        else if (checkpoint.status === 'rejected') status = 'rejected';
+      }
+      const validationIssues = [];
+      if (status === 'done' && !outputsReady) {
+        validationIssues.push(`完成记录缺少必需产物：${outputStatuses.filter((item) => !item.exists).map((item) => item.path).join('、')}`);
+      }
+      if (definition.kind === 'manual' && status === 'done' && (!checkpoint || checkpoint.status !== 'approved')) {
+        validationIssues.push('人工确认记录不存在或未批准。');
+      }
+      const done = status === 'done' && !validationIssues.length;
+      const blockedReasons = [
+        ...requirementStatuses.filter((item) => !item.exists).map((item) => item.path === 'review/evidence/smoke-test-case.md'
+          ? '阻塞：缺少研发提测前提供的冒烟用例 review/evidence/smoke-test-case.md。'
+          : `阻塞：缺少前置产物 ${item.path}。`),
+        ...validationIssues,
+        ...(['blocked', 'rejected'].includes(status) && progressRecord.summary ? [progressRecord.summary] : []),
+      ];
       steps[stepId] = {
         ...definition,
         id: stepId,
-        done: checkpoint ? checkpoint.status === 'approved' : done,
-        blocked,
+        status,
+        summary: String(progressRecord.summary || ''),
+        done,
+        blocked: requirementBlocked || ['blocked', 'rejected', 'stale'].includes(status) || validationIssues.length > 0,
+        blockedReasons,
+        outputsReady,
+        validationIssues,
         outputStatuses,
         requirementStatuses,
         checkpoint,
       };
+    }
+    let baselineVerification = null;
+    try {
+      baselineVerification = await verifyDesignBaselines(workspacePath);
+      const technicalCheckpoint = steps['manual-technical'];
+      if (technicalCheckpoint && technicalCheckpoint.status === 'done' && baselineVerification.status !== 'valid') {
+        technicalCheckpoint.status = 'stale';
+        technicalCheckpoint.done = false;
+        technicalCheckpoint.blocked = true;
+        technicalCheckpoint.validationIssues.push('技术方案或测试设计基线已漂移；请重新评审并冻结基线。');
+        technicalCheckpoint.blockedReasons.push('技术方案或测试设计基线已漂移；请重新评审并冻结基线。');
+      }
+    } catch (error) {
+      baselineVerification = { status: 'unknown', error: error.message };
     }
   
     const units = workflow.units.map((unit) => {
@@ -203,6 +275,7 @@ function createWorkspaceStatusRuntime(deps) {
       return { ...unit, status, doneCount, stepCount: unitSteps.length };
     });
     const nextRecommendation = buildNextRecommendation(workflow, steps, config, appAccessStates, tasks);
+    const iteration = readIterationStatus ? await readIterationStatus(workspacePath) : null;
     const handoffDone = await readJsonFileIfExists(workspacePath, HANDOFF_DONE_FILE);
     const handoffDonePath = path.join(workspacePath, HANDOFF_DONE_FILE);
     const handoffCurrentPath = path.join(workspacePath, HANDOFF_FILE);
@@ -242,6 +315,8 @@ function createWorkspaceStatusRuntime(deps) {
       handoffState,
       agentSessions,
       nextRecommendation,
+      baselineVerification,
+      iteration,
       units,
       steps,
     };

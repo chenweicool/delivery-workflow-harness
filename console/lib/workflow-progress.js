@@ -31,7 +31,9 @@ function createWorkflowProgressRuntime(deps) {
       }
       return 'pending';
     }
-    const outputs = (definition.outputs || []).filter((output) => typeof output === 'string' && !output.endsWith('/**'));
+    const outputs = (definition.outputs || []).filter((output) => typeof output === 'string'
+      && !output.endsWith('/**')
+      && !(definition.kind === 'local' && ['.workflow/progress.md', '.workflow/progress.json'].includes(output)));
     if (!outputs.length) {
       return 'pending';
     }
@@ -44,8 +46,13 @@ function createWorkflowProgressRuntime(deps) {
     assertWithin(workspacePath, filePath);
     const resolvedWorkflow = workflow || await readWorkflowDefinition(workspacePath);
     if (await exists(filePath)) {
+      let existing;
       try {
-        const existing = JSON.parse(await fsp.readFile(filePath, 'utf8'));
+        existing = JSON.parse(await fsp.readFile(filePath, 'utf8'));
+      } catch (error) {
+        throw new Error(`进度文件不是合法 JSON：${WORKFLOW_PROGRESS_JSON_FILE}；${error.message}`);
+      }
+      try {
         existing.steps = existing.steps && typeof existing.steps === 'object' ? existing.steps : {};
         for (const step of workflowStepSequence(resolvedWorkflow)) {
           if (!existing.steps[step.id]) {
@@ -57,13 +64,14 @@ function createWorkflowProgressRuntime(deps) {
           }
         }
         return {
-          version: 1,
-          latest: existing.latest || {},
           ...existing,
+          version: Math.max(2, Number(existing.version) || 1),
+          revision: Number.isInteger(Number(existing.revision)) && Number(existing.revision) >= 0 ? Number(existing.revision) : 0,
+          latest: existing.latest || {},
           steps: existing.steps,
         };
-      } catch {
-        // Recreate below.
+      } catch (error) {
+        throw new Error(`进度文件结构无效：${WORKFLOW_PROGRESS_JSON_FILE}；${error.message}`);
       }
     }
     const steps = {};
@@ -75,7 +83,8 @@ function createWorkflowProgressRuntime(deps) {
       };
     }
     const progress = {
-      version: 1,
+      version: 2,
+      revision: 0,
       updatedAt: nowIso(),
       latest: {},
       steps,
@@ -90,8 +99,9 @@ function createWorkflowProgressRuntime(deps) {
     assertWithin(workspacePath, jsonPath);
     await ensureDir(path.dirname(mdPath));
     const next = {
-      version: 1,
       ...progress,
+      version: Math.max(2, Number(progress.version) || 1),
+      revision: Number.isInteger(Number(progress.revision)) && Number(progress.revision) >= 0 ? Number(progress.revision) : 0,
       updatedAt: nowIso(),
     };
     await fsp.writeFile(jsonPath, JSON.stringify(next, null, 2), 'utf8');

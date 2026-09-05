@@ -5,6 +5,7 @@ function createAgentPromptRuntime(deps) {
     normalizeUserPath,
     readWorkflowDefinition,
     ensureWorkflowProgressFiles,
+    readWorkflowProgress,
     assertTaskAllowedForImplementation,
     workflowStepPosition,
     workflowStepSequence,
@@ -20,6 +21,7 @@ function createAgentPromptRuntime(deps) {
     collectDiffSummary,
     readWorkspaceTextFileIfExists,
     truncateText,
+    readIterationStatus,
     WORKFLOW_PROGRESS_FILE,
     HANDOFF_DONE_FILE,
   } = deps;
@@ -106,6 +108,7 @@ function createAgentPromptRuntime(deps) {
     const agent = targetAgent === 'claude' ? 'Claude Code' : 'Codex';
     const workflow = await readWorkflowDefinition(workspacePath);
     await ensureWorkflowProgressFiles(workspacePath, workflow);
+    const progress = await readWorkflowProgress(workspacePath, workflow);
     const definition = workflow.steps[stepId];
     if (!definition) {
       throw new Error(`未知步骤：${stepId}`);
@@ -188,17 +191,30 @@ function createAgentPromptRuntime(deps) {
       routedCapabilities.enabled && routedCapabilities.enabled.notes ? '- Notes: see `.workflow/workspace.json` and team configuration notes.' : '',
     ].filter(Boolean).join('\n');
     const qualityGateContext = await buildQualityGateContext(workspacePath, stepId, config);
+    const iteration = readIterationStatus ? await readIterationStatus(workspacePath) : null;
+    const candidateRequired = ['07-review-code', '08-verify-tests', '09-run-smoke'].includes(stepId);
+    const candidateLines = candidateRequired ? [
+      iteration && iteration.activeChangeSetId ? `- 当前 ChangeSet：${iteration.activeChangeSetId}` : '- 当前没有激活 ChangeSet；如本次属于变更或缺陷，先执行 `dw change create`。',
+      iteration && iteration.activeCandidateId
+        ? `- 当前 Candidate：${iteration.activeCandidateId} / ${iteration.candidateStatus}`
+        : '- 当前没有激活 Candidate；完成本节点前必须先执行 `dw candidate create --workspace <path>`。',
+      '- Review、单测和冒烟完成时会由 `dw done` 自动绑定到当前有效 Candidate；Candidate 变化后必须生成新 Candidate 并重新记录证据。',
+      `- 本次状态 revision：${progress.revision || 0}。完成时携带此 revision；若提示旧 revision，重新读取进度后再提交。`,
+    ].join('\n') : '';
     const returnUrl = `${localConsoleUrl(options.port)}/?workspace=${encodeURIComponent(workspacePath)}&step=${encodeURIComponent(returnStepId)}`;
     const doneJsonExample = JSON.stringify({
       stepId,
       taskId: taskId || '',
-      status: 'ready-for-review',
+      status: 'done',
+      changeSetId: iteration && iteration.activeChangeSetId || '',
+      candidateId: iteration && iteration.activeCandidateId || '',
+      expectedRevision: progress.revision || 0,
       returnStepId,
       outputs: (definition.outputs || []).map((item) => (typeof item === 'string' ? item : item.path)),
       summary: '简要说明本轮完成内容、用户纠偏点和剩余风险。',
       nextUrl: returnUrl,
     }, null, 2);
-    const doneCommand = `delivery-workflow done --workspace "${workspacePath}" --step ${stepId} --summary "ready for review"`;
+    const doneCommand = `delivery-workflow done --workspace "${workspacePath}" --step ${stepId} --revision ${progress.revision || 0} --summary "已完成当前步骤"`;
     const openCommand = `delivery-workflow open --workspace "${workspacePath}" --step ${returnStepId}`;
     const agentContract = agentContractForStep(stepId);
     const contractOutputLines = agentContract && agentContract.requiredOutputs && agentContract.requiredOutputs.length
@@ -224,6 +240,7 @@ function createAgentPromptRuntime(deps) {
       `- Step: ${stepPosition.current || '?'} / ${stepPosition.total}: ${stepId} / ${definition.title}`,
       definition.commandFile ? `- Command: ${definition.commandFile}` : '',
       `- Workflow: ${workflow.source} / v${workflow.version}`,
+      `- Status revision: ${progress.revision || 0}`,
       taskId ? `- Task: ${taskId}` : '',
       `- Progress: ${WORKFLOW_PROGRESS_FILE}`,
       '',
@@ -236,12 +253,12 @@ function createAgentPromptRuntime(deps) {
       definition.commandFile ? `5. 读取 \`${definition.commandFile}\`，只执行当前步骤。` : '5. 按当前人工步骤要求处理。',
       '6. 如命令文件要求使用 skill/rule，再读取下方启用项；不要主动展开未启用能力。',
       '7. 所有产物写回 workspace，输出中文且保持简洁。',
-      '8. 完成或阻塞时，更新 `.workflow/progress.md` 和 `.workflow/progress.json`。',
+      '8. 完成或阻塞时执行 `delivery-workflow done`；不要直接编辑 `.workflow/progress.*`。',
       '',
       '## Harness 内置边界',
       '',
       '- 本段规则来自 Delivery Workflow 平台，优先级高于团队模板和用户补充说明。',
-      '- 不要修改 `.workflow/workflow.json`、`.workflow/progress.json` 的结构定义，除非当前命令明确要求维护进度状态。',
+      '- 不要修改 `.workflow/workflow.json`、`.workflow/progress.json`；状态只由 `delivery-workflow done` 写入。',
       '- 不要跳过 manual checkpoint；需要人工确认时，只写回待确认产物并暂停。',
       '- 不要把聊天中的临时结论当作最终交付，最终结论必须落到本步骤产物文件。',
       '- 团队 rules / skills 只能增强当前步骤，不得扩大本步骤允许读取和允许修改范围。',
@@ -249,6 +266,7 @@ function createAgentPromptRuntime(deps) {
       (contractOutputLines || outputLines) ? `## Agent 必须回写产物\n\n${contractOutputLines || outputLines}\n` : '',
       contractOutputLines && outputLines && contractOutputLines !== outputLines ? `## 当前步骤补充产物\n\n${outputLines}\n` : '',
       capabilityLines ? `## 本步骤启用能力\n\n${capabilityLines}\n` : '',
+      candidateLines ? `## ChangeSet 与 Candidate\n\n${candidateLines}\n` : '',
       `## 当前交付视角\n\n- ${perspectiveLine}\n`,
       appLines ? `## 候选应用\n\n${appLines}\n` : '',
       '## 本次需求补充上下文\n\n- 读取 `context/demand-context.md`。\n',
@@ -271,7 +289,7 @@ function createAgentPromptRuntime(deps) {
       '',
       `- 然后在终端执行：\`${openCommand}\`。`,
       `- 如果命令不可用，请把这个链接展示给用户：${returnUrl}`,
-      '- 页面会优先根据产物文件、done.json 和 `.workflow/progress.json` 推导状态。',
+      '- 页面以 `.workflow/progress.json` 的显式状态为准；产物仅用于校验状态转换。',
       '- 在“产物”下拉中查看本步骤输出文件。',
       '- 如果当前步骤后面是人工确认，请在页面勾选确认清单，或写入评审意见后退回修改。',
     ].filter(Boolean).join('\n');

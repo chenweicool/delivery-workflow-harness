@@ -1,4 +1,4 @@
-version: 1
+version: 2
 gates:
   requirement-confirmed:
     title: 需求口径确认
@@ -12,11 +12,17 @@ gates:
     requires:
       - design/technical-design.md
       - design/unit-test-design.md
+      - design/smoke-test-design.md
       - .workflow/baselines/technical-design.lock.json
       - .workflow/baselines/unit-test-design.lock.json
+      - .workflow/baselines/smoke-test-design.lock.json
   delivery-verified:
     title: 交付验证
     approval: quality-or-tech-owner
+    candidateEvidence:
+      - review
+      - unit-test
+      - smoke-test
     requires:
       - review/quality-report.md
       - review/evidence/risk-list.md

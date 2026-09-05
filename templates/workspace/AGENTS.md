@@ -11,10 +11,10 @@
 - 实施阶段明确批准前，禁止修改代码。
 - 未经人工确认，禁止扩大应用范围。
 - 本需求相关过程文件必须保存在当前 workspace 内。
-- 必须维护贯穿全流程的进度文件：`.workflow/progress.md` 和 `.workflow/progress.json`。
+- 进度文件由 `dw done` 统一维护，Agent 不直接编辑 `.workflow/progress.md` 和 `.workflow/progress.json`。
 - 禁止把需求过程文件写回共享公共 AI 仓库。
 - 开始工作前必须阅读 `context/demand-context.md`、`context/domain-summary.md` 与 `context/capabilities.md`。`domain-summary.md` 可能明确当前未挂载领域 Harness，这不是阻塞项。实施、Review、测试和交付阶段还必须先阅读 `context/current-context.md`（若存在），再读取其指向的已批准方案、测试基线和确认记录。只读取其中标记为“本步骤启用 / available”的 skills / rules；未挂载或 unavailable 的能力不是前置条件，按当前命令的降级流程继续。
-- 挂载能力的只读链接位于 `context/skills/linked` 和 `context/rules/linked`；不得向这些公共源写入需求过程文件。不得因某个推荐能力未安装而停止当前阶段。
+- 挂载能力的只读链接位于 `context/skills/linked` 和 `context/rules/linked`；Skill 必须由用户显式安装后才会启用。不得向这些公共源写入需求过程文件；未安装的推荐 Skill 不得阻断当前阶段。
 - 所有面向用户的输出和 workspace 文档必须使用中文。
 - 输出保持简洁并聚焦当前阶段；不要添加泛泛免责声明、仪式化总结或对下一步没有帮助的宽泛兜底内容。
 - 证据不足时，只记录具体缺失输入或阻塞问题；不要写模糊兜底段落。
@@ -36,10 +36,17 @@ archive/          知识更新提案、知识卡片和归档索引；外部推�
 ## 进度回写
 
 - 每个阶段开始前先读取 `.workflow/progress.md`。
-- 当前阶段完成后，必须更新 `.workflow/progress.md` 和 `.workflow/progress.json`。
-- 如果阶段完成但需要人工确认，将当前 Agent 阶段标记为 `done`，并在 Summary 写明下一步需要人工确认。
-- 如果无法继续，将当前阶段标记为 `blocked`，Summary 只写具体缺失输入或阻塞点。
-- 页面会通过产物文件和 `.workflow/progress.json` 推导状态，不需要调用额外接口回传。
+- 当前阶段完成后执行 `dw done --workspace <path> --step <step-id> --summary "完成说明"`。
+- 如果无法继续，执行 `dw done --workspace <path> --step <step-id> --status blocked --summary "具体阻塞原因"`。
+- 产物会被校验，但不会自动把阶段标记为完成。
+
+## ChangeSet 与 Candidate
+
+- 产品口径变化、技术方案调整、缺陷修复、仅验证和 Hotfix 必须先创建 ChangeSet；不要覆盖旧批准或旧证据。
+- 创建代码候选：`dw candidate create --workspace <path> [--change <change-id>]`。Candidate 固定 PRD、设计基线和应用代码快照。
+- 代码 Review、单测、冒烟和 UAT 证据必须绑定同一个有效 Candidate。执行 Review、单测或冒烟步骤的 `dw done` 会自动绑定正式证据；Candidate 变化后必须创建新 Candidate 并重新验证。
+- 需要从某节点重做时，使用 `dw reopen --from <step-id> --reason "原因" --workspace <path>`；它会保留旧审批记录并标记为已替代。
+- 不要直接修改 `.workflow/progress.*`。状态提交应携带当前 revision；旧 revision 会被拒绝，网络重试使用同一 `--idempotency-key`。
 
 ## 平台定位
 

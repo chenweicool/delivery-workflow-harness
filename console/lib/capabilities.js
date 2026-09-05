@@ -10,7 +10,7 @@ function normalizeCapabilityList(value) {
     if (typeof item === 'string') {
       const text = item.trim();
       if (text) {
-        result.push({ id: text, name: path.basename(text), path: text, type: 'skill' });
+        result.push({ id: text, name: path.basename(text), path: text, type: 'skill', installed: false, enabled: false });
       }
       continue;
     }
@@ -30,7 +30,8 @@ function normalizeCapabilityList(value) {
         capabilityTypes: Array.isArray(item.capabilityTypes) ? item.capabilityTypes.map(String).filter(Boolean) : [],
         fallback: String(item.fallback || '').trim(),
         requiredFor: Array.isArray(item.requiredFor) ? item.requiredFor.map(String).filter(Boolean) : [],
-        enabled: item.enabled !== false,
+        installed: String(item.type || '').trim() === 'rule' ? true : item.installed === true,
+        enabled: String(item.type || '').trim() === 'rule' ? item.enabled !== false : item.installed === true && item.enabled === true,
         selectionSource: String(item.selectionSource || '').trim(),
       });
     }

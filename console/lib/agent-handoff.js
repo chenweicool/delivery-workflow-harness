@@ -20,6 +20,10 @@ function createAgentHandoffRuntime(deps) {
     buildAgentSessionName,
     localConsoleUrl,
     closeMatchingAgentSession,
+    transitionSteps,
+    pathExistsInWorkspace,
+    readIterationStatus,
+    recordCandidateEvidence,
     nowIso,
   } = deps;
 
@@ -81,13 +85,56 @@ function createAgentHandoffRuntime(deps) {
     const outputs = Array.isArray(body.outputs) && body.outputs.length
       ? body.outputs.map((item) => String(item || '').trim()).filter(Boolean)
       : (definition.outputs || []);
+    const requestedStatus = String(body.status || 'done').trim().toLowerCase();
+    const status = requestedStatus === 'ready-for-review' ? 'done' : requestedStatus;
+    if (!['done', 'blocked', 'running'].includes(status)) {
+      throw new Error('步骤状态仅支持 done、blocked 或 running');
+    }
+    if (status === 'done') {
+      const missing = [];
+      for (const output of definition.outputs || []) {
+        if (typeof output === 'string' && !output.endsWith('/**') && !(await pathExistsInWorkspace(workspacePath, output))) {
+          missing.push(output);
+        }
+      }
+      if (missing.length) {
+        throw new Error(`步骤完成前缺少必需产物：${missing.join('、')}`);
+      }
+    }
+    const evidenceByStep = {
+      '07-review-code': { kind: 'review', path: 'review/quality-report.md' },
+      '08-verify-tests': { kind: 'unit-test', path: 'review/evidence/unit-test-result.md' },
+      '09-run-smoke': { kind: 'smoke-test', path: 'review/evidence/smoke-test-result.md' },
+    };
+    const evidenceDefinition = evidenceByStep[stepId];
+    let candidateId = String(body.candidateId || body.candidate || '').trim();
+    let candidateEvidence = null;
+    if (status === 'done' && evidenceDefinition) {
+      const iteration = await readIterationStatus(workspacePath);
+      candidateId = candidateId || iteration.activeCandidateId;
+      if (!candidateId || iteration.activeCandidateId !== candidateId || iteration.candidateStatus !== 'valid') {
+        throw new Error(`完成 ${stepId} 前必须创建并激活有效 Candidate；执行 dw candidate create 后重试。`);
+      }
+      candidateEvidence = await recordCandidateEvidence({
+        workspacePath,
+        candidateId,
+        kind: evidenceDefinition.kind,
+        path: evidenceDefinition.path,
+        status: 'passed',
+        operator: String(body.operator || '').trim() || 'local-user',
+        note: String(body.summary || '').trim(),
+      });
+    }
     const payload = {
       stepId,
       taskId,
-      status: String(body.status || 'ready-for-review'),
+      status,
+      changeSetId: String(body.changeSetId || body.changeSet || '').trim(),
+      candidateId,
+      candidateEvidenceId: candidateEvidence && candidateEvidence.evidence ? candidateEvidence.evidence.evidenceId : '',
       returnStepId,
       outputs,
-      summary: String(body.summary || 'AI step completed and is ready for review.'),
+      summary: String(body.summary || (status === 'blocked' ? '当前步骤被阻塞，等待补齐输入。' : 'AI step completed.')),
       nextUrl: `${localConsoleUrl(body.port)}/?workspace=${encodeURIComponent(workspacePath)}&step=${encodeURIComponent(returnStepId)}`,
       createdAt: nowIso(),
       source: 'delivery-workflow-cli',
@@ -95,12 +142,32 @@ function createAgentHandoffRuntime(deps) {
     const donePath = path.join(workspacePath, HANDOFF_DONE_FILE);
     assertWithin(workspacePath, donePath);
     await ensureDir(path.dirname(donePath));
+    const transition = await transitionSteps({
+      workspacePath,
+      workflow,
+      eventType: 'agent-handoff',
+      transitions: [{ stepId, status, summary: payload.summary }],
+      actor: String(body.operator || '').trim() || 'local-user',
+      changeSetId: payload.changeSetId,
+      candidateId: payload.candidateId,
+      runId: String(body.runId || body.run || '').trim(),
+      idempotencyKey: String(body.idempotencyKey || body.idempotency || '').trim(),
+      expectedRevision: body.expectedRevision === undefined ? body.revision : body.expectedRevision,
+      metadata: {
+        taskId,
+        outputs,
+        candidateEvidenceId: payload.candidateEvidenceId,
+      },
+    });
+    payload.revision = transition.revision;
+    payload.transitionEventId = transition.event && transition.event.eventId || '';
     await fsp.writeFile(donePath, `${JSON.stringify(payload, null, 2)}\n`, 'utf8');
     await closeMatchingAgentSession(workspacePath, stepId, taskId, payload.status);
     return {
       workspacePath,
       doneFile: HANDOFF_DONE_FILE,
       payload,
+      transition,
     };
   }
 

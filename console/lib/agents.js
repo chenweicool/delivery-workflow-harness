@@ -11,7 +11,7 @@ const AGENT_CONTRACTS = {
     name: '技术方案 Agent',
     role: '基于已确认需求、团队模板和真实代码生成可进入拆分的技术方案。',
     sessionPolicy: '建议独立或延续需求会话；必须先读取需求确认产物。',
-    requiredOutputs: ['design/technical-design.md', 'design/unit-test-design.md', 'design/process/technical-confirmation.md'],
+    requiredOutputs: ['design/technical-design.md', 'design/unit-test-design.md', 'design/smoke-test-design.md', 'design/process/technical-confirmation.md'],
   },
   'coding-implementer': {
     name: '编码实现 Agent',

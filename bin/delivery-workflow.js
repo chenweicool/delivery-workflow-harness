@@ -27,6 +27,8 @@ const {
   saveToolsConfig,
   readTeamProfileConfig,
   initWorkspace,
+  readWorkspaceConfig,
+  writeWorkspaceConfig,
   getWorkspaceStatus,
   prepareAgentHandoff,
   completeAgentHandoff,
@@ -34,7 +36,16 @@ const {
   resolveWhitepaperWorkspaceContext,
   inspectDomainHarness,
   attachDomainHarness,
+  createChangeSet,
+  listChangeSets,
+  getChangeImpact,
+  createCandidate,
+  listCandidates,
+  verifyCandidate,
+  recordCandidateEvidence,
+  reopenChange,
   fetchWhitepaperApplicationSource,
+  refreshWorkspaceCapabilities,
   refreshQualitySummary,
   evaluateQualityGates,
   submitQualityGate,
@@ -72,6 +83,17 @@ function usage() {
     '  dw domain attach --workspace <path> --root <domain-harness-path>',
     '  dw gate check --workspace <path>',
     '  dw gate approve|reject|exception <gate-id> --workspace <path> [--note "..."]',
+    '  dw skill list --workspace <path>',
+    '  dw skill install <local-skill-path> --workspace <path> [--id <skill-id>]',
+    '  dw skill enable|disable|remove <skill-id> --workspace <path>',
+    '  dw change create --type feature|requirement-change|design-change|defect|verification-only|hotfix --reason <text> --workspace <path>',
+    '  dw change list|impact <change-id> --workspace <path>',
+    '  dw defect create --source review|test|uat|production --reason <text> --workspace <path>',
+    '  dw candidate create [--change <id[,id]>] --workspace <path>',
+    '  dw candidate list|verify <candidate-id> --workspace <path>',
+    '  dw evidence record --candidate <id> --kind review|unit-test|smoke-test|uat --path <workspace-file> --workspace <path>',
+    '  dw done --step <step-id> [--revision <n>] [--idempotency-key <key>] --workspace <path>',
+    '  dw reopen --from <step-id> --reason <text> [--change <id>] [--revision <n>] --workspace <path>',
     '  dw report complete --workspace <path>',
     '  dw report submit --workspace <path>',
     '  dw harness configure --server-url <url> [--token-env HARNESS_INGEST_TOKEN]',
@@ -842,11 +864,15 @@ async function commandStatus(args) {
     return;
   }
   const latest = status.progress && status.progress.latest ? status.progress.latest : null;
+  console.log(`revision: ${status.progress && Number.isInteger(Number(status.progress.revision)) ? status.progress.revision : 0}`);
   if (latest && latest.stepId) {
     console.log(`latest: ${latest.stepId} / ${latest.status || ''}`);
   }
-  const gates = await evaluateQualityGates(workspacePath);
-  console.log(`gates: ${gates.status}`);
+  if (status.iteration) {
+    console.log(`changeSet: ${status.iteration.activeChangeSetId || '(none)'}`);
+    console.log(`candidate: ${status.iteration.activeCandidateId || '(none)'} / ${status.iteration.candidateStatus || 'none'}`);
+  }
+  console.log('gates: 使用 `dw gate check --workspace <path>` 刷新质量门禁。');
   printNextRecommendation(status.nextRecommendation);
 }
 
@@ -888,7 +914,7 @@ async function commandHandoff(args) {
   console.log('');
   console.log(`Ask AI to read ${handoff.handoffFile}, complete the step, then run:`);
   const portArg = args.port ? ` --port ${args.port}` : '';
-  console.log(`dw done --workspace "${handoff.workspacePath}" --step ${handoff.stepId} --summary "ready for review"${portArg}`);
+  console.log(`dw done --workspace "${handoff.workspacePath}" --step ${handoff.stepId} --summary "已完成当前步骤"${portArg}`);
 }
 
 async function commandDone(args) {
@@ -906,8 +932,14 @@ async function commandDone(args) {
     taskId: args.task || args.taskId,
     summary: args.summary,
     status: args.status,
+    changeSetId: args.change || args.changeSet,
+    candidateId: args.candidate,
     returnStepId: args.returnStep || args.returnStepId,
     outputs: splitList(args.outputs),
+    operator: args.operator,
+    runId: args.run || args.runId,
+    expectedRevision: args.revision || args.expectedRevision,
+    idempotencyKey: args.idempotencyKey || args.idempotency,
     port: args.port,
   });
   if (['07-review-code', '06-generate-unit-tests'].includes(result.payload.stepId)) {
@@ -921,6 +953,195 @@ async function commandDone(args) {
   console.log(`done: ${path.join(result.workspacePath, result.doneFile)}`);
   console.log(`return: ${result.payload.returnStepId}`);
   console.log(result.payload.nextUrl);
+}
+
+function skillIdFromPath(sourcePath) {
+  return path.basename(String(sourcePath || '').replace(/[\\/]$/, '')).replace(/\.(md|json)$/i, '') || 'skill';
+}
+
+async function commandSkill(args) {
+  const action = String(args._[1] || 'list').toLowerCase();
+  const workspacePath = resolveWorkspaceArg(args);
+  if (!workspacePath) throw new Error('Missing workspace. Run inside a workspace or pass --workspace <path>.');
+  const config = await readWorkspaceConfig(workspacePath);
+  const capabilities = Array.isArray(config.capabilities) ? [...config.capabilities] : [];
+  const skills = capabilities.filter((item) => item && item.type === 'skill');
+  if (action === 'list') {
+    if (!skills.length) {
+      console.log('No workspace skills installed. Use `dw skill install <local-skill-path> --workspace <path>`.');
+      return;
+    }
+    for (const skill of skills) {
+      console.log(`${skill.id}\t${skill.installed ? (skill.enabled ? 'enabled' : 'disabled') : 'not-installed'}\t${skill.path || ''}`);
+    }
+    return;
+  }
+  if (action === 'install') {
+    const rawPath = String(args._[2] || '').trim();
+    if (!rawPath) throw new Error('Missing skill path. Usage: dw skill install <local-skill-path> --workspace <path>.');
+    const sourcePath = path.resolve(workspacePath, rawPath);
+    if (!fs.existsSync(sourcePath)) throw new Error(`Skill path does not exist: ${sourcePath}`);
+    const stat = fs.statSync(sourcePath);
+    if (stat.isDirectory() && !fs.existsSync(path.join(sourcePath, 'SKILL.md'))) {
+      throw new Error(`Skill directory must contain SKILL.md: ${sourcePath}`);
+    }
+    if (!stat.isDirectory() && path.basename(sourcePath).toLowerCase() !== 'skill.md') {
+      throw new Error(`Skill file must be named SKILL.md: ${sourcePath}`);
+    }
+    const id = String(args.id || skillIdFromPath(sourcePath)).trim();
+    const retained = capabilities.filter((item) => !(item && item.type === 'skill' && (item.id === id || item.path === sourcePath)));
+    retained.push({ id, type: 'skill', name: id, path: sourcePath, installed: true, enabled: true, installedAt: new Date().toISOString(), source: 'user-install' });
+    await writeWorkspaceConfig(workspacePath, { capabilities: retained });
+    const snapshot = await refreshWorkspaceCapabilities(workspacePath);
+    console.log(`installed: ${id}`);
+    console.log(`skills: ${snapshot.skills.length}`);
+    return;
+  }
+  const id = String(args._[2] || args.id || '').trim();
+  if (!id) throw new Error(`Missing skill id. Usage: dw skill ${action} <skill-id> --workspace <path>.`);
+  const index = capabilities.findIndex((item) => item && item.type === 'skill' && item.id === id);
+  if (index < 0) throw new Error(`Skill is not installed in this workspace: ${id}`);
+  if (action === 'remove') {
+    capabilities.splice(index, 1);
+  } else if (action === 'enable' || action === 'disable') {
+    if (action === 'enable' && capabilities[index].installed !== true) throw new Error(`Skill has not been installed: ${id}`);
+    capabilities[index] = { ...capabilities[index], enabled: action === 'enable' };
+  } else {
+    throw new Error('Skill command supports list, install, enable, disable, or remove.');
+  }
+  await writeWorkspaceConfig(workspacePath, { capabilities });
+  await refreshWorkspaceCapabilities(workspacePath);
+  console.log(`${action}: ${id}`);
+}
+
+async function requireWorkspaceForIteration(args) {
+  const workspacePath = resolveWorkspaceArg(args);
+  if (!workspacePath) throw new Error('Missing workspace. Run inside a workspace or pass --workspace <path>.');
+  return workspacePath;
+}
+
+async function commandChange(args) {
+  const action = String(args._[1] || 'list').toLowerCase();
+  const workspacePath = await requireWorkspaceForIteration(args);
+  if (action === 'list') {
+    const result = await listChangeSets(workspacePath);
+    console.log(`active: ${result.activeChangeSetId || '(none)'}`);
+    for (const change of result.changeSets || []) {
+      console.log(`${change.changeSetId}\t${change.type}\t${change.status}\t${change.targetCandidateId || '-'}\t${change.reason}`);
+    }
+    return;
+  }
+  if (action === 'impact') {
+    const changeSetId = String(args._[2] || args.change || '').trim();
+    if (!changeSetId) throw new Error('Missing ChangeSet id. Usage: dw change impact <change-id> --workspace <path>.');
+    const result = await getChangeImpact(workspacePath, changeSetId);
+    console.log(`change: ${result.changeSet.changeSetId}`);
+    console.log(`steps: ${result.impact.affectedSteps.join(', ')}`);
+    console.log(`approvals: ${result.impact.approvalsToSupersede.join(', ') || '(none)'}`);
+    console.log(`gates: ${result.impact.gatesToRecheck.join(', ') || '(none)'}`);
+    console.log(`candidate: ${result.impact.candidateAction}`);
+    return;
+  }
+  if (action !== 'create') throw new Error('Change command supports create, list, or impact.');
+  const result = await createChangeSet({
+    workspacePath,
+    type: args.type,
+    reason: args.reason,
+    source: args.source,
+    operator: args.operator,
+    basedOnCandidateId: args.base || args.candidate,
+    affectedSteps: splitList(args.steps || args.affectedSteps),
+  });
+  console.log(`change: ${result.record.changeSetId}`);
+  console.log(`type: ${result.record.type}`);
+  console.log(`status: ${result.record.status}`);
+}
+
+async function commandCandidate(args) {
+  const action = String(args._[1] || 'list').toLowerCase();
+  const workspacePath = await requireWorkspaceForIteration(args);
+  if (action === 'list') {
+    const result = await listCandidates(workspacePath);
+    console.log(`active: ${result.activeCandidateId || '(none)'}`);
+    for (const candidate of result.candidates || []) {
+      console.log(`${candidate.candidateId}\t${candidate.status}\t${candidate.changeSetIds && candidate.changeSetIds.join(',') || '-'}\t${candidate.title || ''}`);
+    }
+    return;
+  }
+  if (action === 'create') {
+    const result = await createCandidate({
+      workspacePath,
+      title: args.title,
+      changeSetIds: splitList(args.change || args.changes || args.changeSet),
+      prdVersion: args.prdVersion,
+      operator: args.operator,
+    });
+    console.log(`candidate: ${result.record.candidateId}`);
+    console.log(`fingerprint: ${result.record.fingerprint}`);
+    return;
+  }
+  if (action === 'verify') {
+    const candidateId = String(args._[2] || args.candidate || '').trim();
+    if (!candidateId) throw new Error('Missing candidate id. Usage: dw candidate verify <candidate-id> --workspace <path>.');
+    const result = await verifyCandidate(workspacePath, candidateId);
+    console.log(`candidate: ${result.candidateId}`);
+    console.log(`status: ${result.status}`);
+    return;
+  }
+  throw new Error('Candidate command supports create, list, or verify.');
+}
+
+async function commandEvidence(args) {
+  const action = String(args._[1] || '').toLowerCase();
+  if (action !== 'record') throw new Error('Evidence command supports record.');
+  const workspacePath = await requireWorkspaceForIteration(args);
+  const result = await recordCandidateEvidence({
+    workspacePath,
+    candidateId: args.candidate,
+    kind: args.kind,
+    path: args.path,
+    status: args.status,
+    environment: args.environment,
+    scope: args.scope,
+    note: args.note,
+    operator: args.operator,
+  });
+  console.log(`evidence: ${result.evidence.evidenceId}`);
+  console.log(`candidate: ${result.candidate.candidateId}`);
+}
+
+async function commandReopen(args) {
+  const workspacePath = await requireWorkspaceForIteration(args);
+  const result = await reopenChange({
+    workspacePath,
+    fromStepId: args.from || args.step,
+    reason: args.reason,
+    changeSetId: args.change || args.changeSet,
+    type: args.type,
+    source: args.source,
+    operator: args.operator,
+    expectedRevision: args.revision || args.expectedRevision,
+    idempotencyKey: args.idempotencyKey || args.idempotency,
+  });
+  console.log(`change: ${result.changeSet.changeSetId}`);
+  console.log(`reopened: ${result.reopenedSteps.join(', ')}`);
+}
+
+async function commandDefect(args) {
+  const action = String(args._[1] || '').toLowerCase();
+  if (action !== 'create') throw new Error('Defect command supports create.');
+  const workspacePath = await requireWorkspaceForIteration(args);
+  const result = await createChangeSet({
+    workspacePath,
+    type: 'defect',
+    reason: args.reason,
+    source: args.source,
+    operator: args.operator,
+    basedOnCandidateId: args.base || args.candidate,
+    affectedSteps: splitList(args.steps || args.affectedSteps),
+  });
+  console.log(`defect: ${result.record.changeSetId}`);
+  console.log(`status: ${result.record.status}`);
 }
 
 function statusMark(ok) {
@@ -1068,6 +1289,30 @@ async function main() {
   }
   if (command === 'gate') {
     await commandGate(args);
+    return;
+  }
+  if (command === 'skill') {
+    await commandSkill(args);
+    return;
+  }
+  if (command === 'change') {
+    await commandChange(args);
+    return;
+  }
+  if (command === 'candidate') {
+    await commandCandidate(args);
+    return;
+  }
+  if (command === 'evidence') {
+    await commandEvidence(args);
+    return;
+  }
+  if (command === 'reopen') {
+    await commandReopen(args);
+    return;
+  }
+  if (command === 'defect') {
+    await commandDefect(args);
     return;
   }
   if (command === 'app') {

@@ -12,8 +12,7 @@ function createCheckpointRuntime(deps) {
     exists,
     writeWorkspaceJsonFile,
     unlinkWorkspaceFileIfExists,
-    readWorkflowProgress,
-    writeWorkflowProgress,
+    transitionSteps,
     nowIso,
     TECHNICAL_REVIEW_FILE,
     TECHNICAL_REVIEW_TEMPLATE,
@@ -93,6 +92,7 @@ function createCheckpointRuntime(deps) {
     const locks = [
       '.workflow/baselines/technical-design.lock.json',
       '.workflow/baselines/unit-test-design.lock.json',
+      '.workflow/baselines/smoke-test-design.lock.json',
     ];
     const appLines = Array.isArray(workspace.apps) && workspace.apps.length
       ? workspace.apps.map((app) => `- ${app.name || app.sourcePath || '未命名应用'}：${app.worktreePath || app.sourcePath || '待确认'}`).join('\n')
@@ -111,7 +111,7 @@ function createCheckpointRuntime(deps) {
       '',
       '1. `AGENTS.md`、`CLAUDE.md`、`.workflow/progress.md`。',
       '2. 本文件。',
-      '3. `design/technical-design.md`、`design/unit-test-design.md`。',
+      '3. `design/technical-design.md`、`design/unit-test-design.md`、`design/smoke-test-design.md`。',
       `4. ${requirementPath}、${technicalConfirmationPath}。`,
       '5. 按当前阶段再读取 `tasks/task-list.md`、Review 证据或代码 worktree。',
       '',
@@ -119,6 +119,7 @@ function createCheckpointRuntime(deps) {
       '',
       '- `design/technical-design.md`',
       '- `design/unit-test-design.md`',
+      '- `design/smoke-test-design.md`',
       '- 冻结证据：',
       ...locks.map((item) => `  - \`${item}\``),
       '',
@@ -150,7 +151,9 @@ function createCheckpointRuntime(deps) {
     const approval = await readJsonFileIfExists(workspacePath, definition.approvalFile);
     const rejection = await readJsonFileIfExists(workspacePath, definition.rejectionFile);
     let status = 'pending';
-    if (approval) {
+    if (approval && approval.status === 'superseded') {
+      status = 'superseded';
+    } else if (approval) {
       status = 'approved';
     } else if (rejection) {
       status = 'rejected';
@@ -222,39 +225,37 @@ function createCheckpointRuntime(deps) {
       createdAt: nowIso(),
     };
   
-    if (action === 'approve') {
-      if (stepId === 'manual-technical') {
-        await freezeDesignBaselines(workspacePath, payload);
-      }
-      await writeWorkspaceJsonFile(workspacePath, definition.approvalFile, payload);
-      if (stepId === 'manual-technical') {
-        await writeCurrentContext(workspacePath, payload);
-      }
-      await unlinkWorkspaceFileIfExists(workspacePath, definition.rejectionFile);
-    } else {
-      await writeWorkspaceJsonFile(workspacePath, definition.rejectionFile, payload);
-      await unlinkWorkspaceFileIfExists(workspacePath, definition.approvalFile);
-      if (stepId === 'manual-technical') {
-        await appendTechnicalReview(workspacePath, payload);
-      }
-    }
-    const progress = await readWorkflowProgress(workspacePath, workflow);
-    progress.steps = progress.steps || {};
-    progress.steps[stepId] = {
-      ...(progress.steps[stepId] || {}),
-      status: action === 'approve' ? 'done' : 'rejected',
-      updatedAt: payload.createdAt,
-      summary: note || (action === 'approve' ? '人工确认通过' : '人工退回修改'),
-    };
-    progress.latest = {
-      stepId,
-      status: progress.steps[stepId].status,
-      updatedAt: payload.createdAt,
-      summary: progress.steps[stepId].summary,
-    };
-    await writeWorkflowProgress(workspacePath, workflow, progress);
+    const summary = note || (action === 'approve' ? '人工确认通过' : '人工退回修改');
+    const transition = await transitionSteps({
+      workspacePath,
+      workflow,
+      eventType: 'manual-checkpoint',
+      transitions: [{ stepId, status: action === 'approve' ? 'done' : 'rejected', summary }],
+      actor: operator,
+      expectedRevision: body.expectedRevision === undefined ? body.revision : body.expectedRevision,
+      idempotencyKey: String(body.idempotencyKey || body.idempotency || '').trim(),
+      metadata: { action, approvalFile: definition.approvalFile || '', rejectionFile: definition.rejectionFile || '' },
+      beforeCommit: async () => {
+        if (action === 'approve') {
+          if (stepId === 'manual-technical') {
+            await freezeDesignBaselines(workspacePath, payload);
+          }
+          await writeWorkspaceJsonFile(workspacePath, definition.approvalFile, payload);
+          if (stepId === 'manual-technical') {
+            await writeCurrentContext(workspacePath, payload);
+          }
+          await unlinkWorkspaceFileIfExists(workspacePath, definition.rejectionFile);
+        } else {
+          await writeWorkspaceJsonFile(workspacePath, definition.rejectionFile, payload);
+          await unlinkWorkspaceFileIfExists(workspacePath, definition.approvalFile);
+          if (stepId === 'manual-technical') {
+            await appendTechnicalReview(workspacePath, payload);
+          }
+        }
+      },
+    });
   
-    return { checkpoint: await getCheckpointState(workspacePath, definition) };
+    return { checkpoint: await getCheckpointState(workspacePath, definition), transition };
   }
 
   return {

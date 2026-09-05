@@ -99,11 +99,17 @@ const {
   createWorkflowProgressRuntime,
 } = require('./lib/workflow-progress');
 const {
+  createTransitionStoreRuntime,
+} = require('./lib/transition-store');
+const {
   createCheckpointRuntime,
 } = require('./lib/checkpoint');
 const {
   createDesignBaselineRuntime,
 } = require('./lib/design-baseline');
+const {
+  createChangeCandidateRuntime,
+} = require('./lib/change-candidate');
 const workflowRuntime = require('./lib/workflow');
 const {
   workflowStepSequence,
@@ -182,6 +188,7 @@ const {
   writeWorkspaceJsonFile,
 });
 const progressApi = {};
+const transitionApi = {};
 const {
   getCheckpointState,
   submitCheckpoint,
@@ -196,8 +203,7 @@ const {
   exists,
   writeWorkspaceJsonFile,
   unlinkWorkspaceFileIfExists,
-  readWorkflowProgress: (...args) => progressApi.readWorkflowProgress(...args),
-  writeWorkflowProgress: (...args) => progressApi.writeWorkflowProgress(...args),
+  transitionSteps: (...args) => transitionApi.transitionSteps(...args),
   nowIso,
   TECHNICAL_REVIEW_FILE,
   TECHNICAL_REVIEW_TEMPLATE: () => TECHNICAL_REVIEW_TEMPLATE,
@@ -222,6 +228,20 @@ Object.assign(progressApi, {
   readWorkflowProgress,
   writeWorkflowProgress,
 });
+const {
+  transitionSteps,
+} = createTransitionStoreRuntime({
+  normalizeUserPath,
+  exists,
+  assertWithin,
+  ensureDir,
+  readJsonFileIfExists,
+  writeWorkspaceJsonFile,
+  readWorkflowProgress: (...args) => progressApi.readWorkflowProgress(...args),
+  writeWorkflowProgress: (...args) => progressApi.writeWorkflowProgress(...args),
+  nowIso,
+});
+Object.assign(transitionApi, { transitionSteps });
 const {
   linkConfiguredCapabilities,
   routeCapabilitiesForStep,
@@ -267,6 +287,31 @@ const {
   normalizeCapabilityList,
 });
 const {
+  createChangeSet,
+  listChangeSets,
+  getChangeImpact,
+  createCandidate,
+  listCandidates,
+  verifyCandidate,
+  recordCandidateEvidence,
+  reopenChange,
+  readIterationStatus,
+} = createChangeCandidateRuntime({
+  normalizeUserPath,
+  exists,
+  readJsonFileIfExists,
+  writeWorkspaceJsonFile,
+  readWorkspaceTextFileIfExists,
+  readWorkspaceConfig: (workspacePath) => readWorkspaceConfig(workspacePath, { ensureSnapshots: false }),
+  readWorkflowDefinition,
+  transitionSteps: (...args) => transitionApi.transitionSteps(...args),
+  workflowStepSequence,
+  verifyDesignBaselines,
+  gitHead,
+  gitOutputSafe,
+  nowIso,
+});
+const {
   readWhitepaperCatalog,
   matchFunctions,
   resolveWhitepaperContext,
@@ -306,6 +351,8 @@ const {
   readJsonFileIfExists,
   writeWorkspaceJsonFile,
   readWorkspaceTextFileIfExists,
+  verifyDesignBaselines,
+  readIterationStatus,
 });
 const {
   createKnowledgeUpdateProposal,
@@ -412,6 +459,7 @@ const {
   normalizeUserPath,
   readWorkflowDefinition,
   ensureWorkflowProgressFiles,
+  readWorkflowProgress: (...args) => progressApi.readWorkflowProgress(...args),
   assertTaskAllowedForImplementation,
   workflowStepPosition,
   workflowStepSequence,
@@ -427,6 +475,7 @@ const {
   collectDiffSummary,
   readWorkspaceTextFileIfExists,
   truncateText,
+  readIterationStatus,
   WORKFLOW_PROGRESS_FILE,
   HANDOFF_DONE_FILE,
 });
@@ -448,6 +497,10 @@ const {
   buildAgentSessionName,
   localConsoleUrl,
   closeMatchingAgentSession,
+  transitionSteps: (...args) => transitionApi.transitionSteps(...args),
+  pathExistsInWorkspace,
+  readIterationStatus,
+  recordCandidateEvidence,
   nowIso,
 });
 const {
@@ -465,9 +518,9 @@ const {
 } = createWorkspaceStatusRuntime({
   normalizeUserPath,
   exists,
-  readWorkspaceConfig,
+  readWorkspaceConfig: (workspacePath) => readWorkspaceConfig(workspacePath, { ensureSnapshots: false }),
   readWorkflowDefinition,
-  ensureWorkflowProgressFiles,
+  readWorkflowProgress: (...args) => progressApi.readWorkflowProgress(...args),
   getAppAccessStates,
   listFiles,
   pathExistsInWorkspace,
@@ -479,6 +532,8 @@ const {
   workflowStepSequence,
   HANDOFF_FILE,
   HANDOFF_DONE_FILE,
+  verifyDesignBaselines,
+  readIterationStatus,
 });
 const KNOWN_FACTS_TEMPLATE = [
   '# 技术方案生成输入',
@@ -1223,7 +1278,8 @@ function resolveProfileCapabilities(profile, root) {
     type: 'skill',
     name: path.basename(item),
     path: item,
-    enabled: true,
+    installed: false,
+    enabled: false,
   }));
   const legacyRules = normalizeTextList(profile.rules).map((item) => ({
     id: item,
@@ -1800,7 +1856,7 @@ function capabilitiesMarkdown(snapshot) {
     '',
     `generated_at: ${snapshot.generatedAt}`,
     '',
-    '## Skills（仅 `available` 可按步骤路由使用）',
+    '## Skills（仅用户显式安装且 `available` 的 Skill 可按步骤路由使用）',
     '',
     items(snapshot.skills),
     '',
@@ -1811,8 +1867,8 @@ function capabilitiesMarkdown(snapshot) {
     '## 使用约束',
     '',
     '- 开始工作前先阅读 `AGENTS.md`、`.workflow/progress.md`、`context/demand-context.md`、`context/domain-summary.md` 和本文件；实施、Review、测试、交付阶段还要读取 `context/current-context.md`（若存在）。',
-    '- 只读取当前步骤提示词列出的 `available` 能力；Skill 为目录时先读其中的 `SKILL.md`，Rule 为文件时先读规则正文。',
-    '- `unavailable` 仅表示本机未挂载，不是当前阶段的阻塞条件；按阶段命令的降级流程继续。',
+    '- 只读取当前步骤提示词列出的 `available` 能力；Skill 必须先通过 `dw skill install` 显式安装，Skill 为目录时先读其中的 `SKILL.md`，Rule 为文件时先读规则正文。',
+    '- 未安装或 `unavailable` 的 Skill 不是当前阶段的阻塞条件；按阶段命令的降级流程继续。',
     '- 只在当前需求相关的阶段使用能力；PRD 与人工确认优先于领域背景或通用规则。',
     snapshot.notes ? `\n## 团队补充约束\n\n${snapshot.notes}` : '',
     '',
@@ -2938,6 +2994,48 @@ async function route(req, res) {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/workspace/changes') {
+      sendJson(res, 200, await listChangeSets(url.searchParams.get('workspacePath')));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/changes') {
+      sendJson(res, 200, await createChangeSet(await readJson(req)));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/changes/impact') {
+      const body = await readJson(req);
+      sendJson(res, 200, await getChangeImpact(body.workspacePath, body.changeSetId));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/reopen') {
+      sendJson(res, 200, await reopenChange(await readJson(req)));
+      return;
+    }
+
+    if (req.method === 'GET' && url.pathname === '/api/workspace/candidates') {
+      sendJson(res, 200, await listCandidates(url.searchParams.get('workspacePath')));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/candidates') {
+      sendJson(res, 200, await createCandidate(await readJson(req)));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/candidates/verify') {
+      const body = await readJson(req);
+      sendJson(res, 200, await verifyCandidate(body.workspacePath, body.candidateId));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/candidates/evidence') {
+      sendJson(res, 200, await recordCandidateEvidence(await readJson(req)));
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/gates/check') {
       const body = await readJson(req);
       sendJson(res, 200, await evaluateQualityGates(body.workspacePath));
@@ -2999,6 +3097,9 @@ async function route(req, res) {
       }
       if (Object.prototype.hasOwnProperty.call(body, 'rules')) {
         nextConfig.rules = Array.isArray(body.rules) ? body.rules : [];
+      }
+      if (Object.prototype.hasOwnProperty.call(body, 'capabilities')) {
+        nextConfig.capabilities = Array.isArray(body.capabilities) ? body.capabilities : [];
       }
       if (Object.prototype.hasOwnProperty.call(body, 'branchPattern')) {
         nextConfig.branchPattern = body.branchPattern || '';
@@ -3249,7 +3350,8 @@ async function route(req, res) {
 
     sendError(res, 405, '不支持的请求方法');
   } catch (error) {
-    sendError(res, 500, error.message);
+    const statusCode = Number(error && error.statusCode);
+    sendError(res, Number.isInteger(statusCode) && statusCode >= 400 && statusCode < 600 ? statusCode : 500, error.message);
   }
 }
 
@@ -3291,6 +3393,8 @@ module.exports = {
   saveToolsConfig,
   readTeamProfileConfig,
   initWorkspace,
+  readWorkspaceConfig,
+  writeWorkspaceConfig,
   getWorkspaceStatus,
   importFeishuPrd,
   prepareAgentHandoff,
@@ -3307,6 +3411,14 @@ module.exports = {
   inspectDomainHarness,
   attachDomainHarness,
   materializeDomainSources,
+  createChangeSet,
+  listChangeSets,
+  getChangeImpact,
+  createCandidate,
+  listCandidates,
+  verifyCandidate,
+  recordCandidateEvidence,
+  reopenChange,
   refreshWorkspaceCapabilities,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,

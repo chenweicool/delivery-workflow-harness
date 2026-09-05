@@ -11,7 +11,7 @@ const rootDir = path.resolve(__dirname, '..');
 const tempRoot = path.join(os.tmpdir(), 'delivery-workflow-api-regression', `run-${Date.now()}`);
 process.env.DELIVERY_WORKFLOW_DATA_DIR = path.join(tempRoot, '.data');
 
-const { startServer, buildWindowsPickerScript } = require(path.join(rootDir, 'console', 'server.js'));
+const { startServer, buildWindowsPickerScript, completeAgentHandoff } = require(path.join(rootDir, 'console', 'server.js'));
 const { assertWithin } = require(path.join(rootDir, 'console', 'lib', 'fs-utils.js'));
 const { createAgentRunnerRuntime } = require(path.join(rootDir, 'console', 'lib', 'agent-runner.js'));
 const { writeJsonAtomically, readJsonWithRetry } = require(path.join(rootDir, 'console', 'lib', 'run-store.js'));
@@ -309,7 +309,7 @@ async function main() {
       method: 'POST',
       body: JSON.stringify({ workspacePath: initData.workspacePath }),
     });
-    assert.equal(initialGateResponse.status, 200);
+    assert.equal(initialGateResponse.status, 200, JSON.stringify(initialGateData));
     assert.equal(initialGateData.gates['requirement-confirmed'].status, 'blocked');
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'quality-policy.lock.json')), true);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'gates.json')), true);
@@ -324,6 +324,89 @@ async function main() {
     assert.equal(statusResponse.status, 200);
     assert.equal(statusData.isWorkspace, true);
     assert.equal(statusData.workspacePath, initData.workspacePath);
+    const progressPath = path.join(initData.workspacePath, '.workflow', 'progress.json');
+    const progressBeforeStatus = await fsp.readFile(progressPath, 'utf8');
+    const progressMtimeBeforeStatus = (await fsp.stat(progressPath)).mtimeMs;
+    const { response: secondStatusResponse } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(secondStatusResponse.status, 200);
+    assert.equal(await fsp.readFile(progressPath, 'utf8'), progressBeforeStatus);
+    assert.equal((await fsp.stat(progressPath)).mtimeMs, progressMtimeBeforeStatus);
+
+    const blockedImport = await completeAgentHandoff({
+      workspacePath: initData.workspacePath,
+      stepId: 'import-prd',
+      status: 'blocked',
+      summary: '等待产品补齐版本范围。',
+      port: runtime.port,
+    });
+    assert.equal(blockedImport.payload.status, 'blocked');
+    assert.equal(blockedImport.payload.revision, 1);
+    assert.equal(blockedImport.transition.event.eventType, 'agent-handoff');
+    await assert.rejects(
+      () => completeAgentHandoff({
+        workspacePath: initData.workspacePath,
+        stepId: 'import-prd',
+        status: 'done',
+        summary: '过期客户端不应覆盖当前状态。',
+        expectedRevision: 0,
+        port: runtime.port,
+      }),
+      /拒绝旧 revision/,
+    );
+    const staleHandoff = JSON.parse(await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'handoff', 'done.json'), 'utf8'));
+    assert.equal(staleHandoff.status, 'blocked');
+    const { response: blockedStatusResponse, data: blockedStatusData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(blockedStatusResponse.status, 200);
+    assert.equal(blockedStatusData.steps['import-prd'].status, 'blocked');
+    assert.equal(blockedStatusData.nextRecommendation.stepId, 'import-prd');
+    assert.equal(blockedStatusData.nextRecommendation.status, 'blocked');
+    const completedImport = await completeAgentHandoff({
+      workspacePath: initData.workspacePath,
+      stepId: 'import-prd',
+      status: 'done',
+      summary: 'PRD 已导入。',
+      port: runtime.port,
+    });
+    assert.equal(completedImport.payload.status, 'done');
+    assert.equal(completedImport.payload.revision, 2);
+    const retryPayload = {
+      workspacePath: initData.workspacePath,
+      stepId: 'import-prd',
+      status: 'done',
+      summary: '重复投递应保持幂等。',
+      expectedRevision: completedImport.payload.revision,
+      idempotencyKey: 'regression-import-retry',
+      port: runtime.port,
+    };
+    const firstRetry = await completeAgentHandoff(retryPayload);
+    const secondRetry = await completeAgentHandoff(retryPayload);
+    assert.equal(firstRetry.transition.idempotent, false);
+    assert.equal(secondRetry.transition.idempotent, true);
+    assert.equal(firstRetry.payload.revision, secondRetry.payload.revision);
+    const transitionEvents = (await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'events.jsonl'), 'utf8'))
+      .trim().split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
+    assert.equal(transitionEvents.length, 3);
+    assert.deepEqual(transitionEvents.map((item) => item.revision), [1, 2, 3]);
+    const transitionIndex = JSON.parse(await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'events-index.json'), 'utf8'));
+    assert.equal(transitionIndex.revision, 3);
+    await fsp.writeFile(
+      path.join(initData.workspacePath, '.workflow', 'events-index.json'),
+      JSON.stringify({ ...transitionIndex, revision: 2 }, null, 2),
+      'utf8',
+    );
+    const recoveredImport = await completeAgentHandoff({
+      workspacePath: initData.workspacePath,
+      stepId: 'import-prd',
+      status: 'done',
+      summary: '模拟中断后恢复事件投影。',
+      expectedRevision: 3,
+      idempotencyKey: 'regression-projection-recovery',
+      port: runtime.port,
+    });
+    assert.equal(recoveredImport.transition.recovered, true);
+    assert.equal(recoveredImport.payload.revision, 4);
+    const recoveredIndex = JSON.parse(await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'events-index.json'), 'utf8'));
+    assert.equal(recoveredIndex.revision, 4);
 
     const { response: configResponse, data: configData } = await requestJson(runtime.url, '/api/workspace/config', {
       method: 'POST',
@@ -351,20 +434,58 @@ async function main() {
       body: JSON.stringify({ workspacePath: initData.workspacePath }),
     });
     assert.equal(capabilityRefreshResponse.status, 200);
-    assert.equal(capabilityRefreshData.skills.some((item) => item.availability === 'unavailable'), true);
+    assert.equal(capabilityRefreshData.skills.length, 0);
     const refreshedCapabilitySnapshot = await fsp.readFile(path.join(initData.workspacePath, 'context', 'capabilities.md'), 'utf8');
-    assert.match(refreshedCapabilitySnapshot, /\[unavailable\]/);
+    assert.match(refreshedCapabilitySnapshot, /显式安装/);
     const { response: unavailablePromptResponse, data: unavailablePromptData } = await requestJson(runtime.url, `/api/prompt?workspacePath=${workspaceQuery}&stepId=02-generate-technical-design`);
     assert.equal(unavailablePromptResponse.status, 200);
-    assert.match(unavailablePromptData.prompt, /本机未挂载能力/);
-    assert.match(unavailablePromptData.prompt, /不是前置条件/);
+    assert.doesNotMatch(unavailablePromptData.prompt, /not-installed-skill/);
+    const explicitSkillPath = path.join(domainRoot, 'skills', 'settlement-analyst');
+    const { response: installedCapabilityResponse } = await requestJson(runtime.url, '/api/workspace/config', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        capabilities: [{ id: 'settlement-analyst', type: 'skill', path: explicitSkillPath, installed: true, enabled: true }],
+      }),
+    });
+    assert.equal(installedCapabilityResponse.status, 200);
+    const { response: installedRefreshResponse, data: installedRefreshData } = await requestJson(runtime.url, '/api/workspace/capabilities/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(installedRefreshResponse.status, 200);
+    assert.equal(installedRefreshData.skills.some((item) => item.id === 'settlement-analyst' && item.availability === 'available'), true);
 
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'quality-report.md'), '# AI Review\nP0: block release\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'risk-list.md'), '# Risk List\nP2: follow up\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'unit-test-design.md'), '# Unit Test Design\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'smoke-test-design.md'), '# Smoke Test Design\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'unit-test-result.md'), '# Unit Test Result\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'technical-design.md'), '# Technical Design\n', 'utf8');
+    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'process', 'requirement-confirmation.md'), '# Requirement Confirmation\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'design', 'process', 'technical-confirmation.md'), '# Technical Confirmation\n\n## 确认结果\n\n无阻塞项。\n', 'utf8');
+    const { response: requirementExceptionResponse, data: requirementExceptionData } = await requestJson(runtime.url, '/api/gates/exception', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        gateId: 'requirement-confirmed',
+        operator: 'regression-user',
+        note: 'temporary regression exception',
+        exceptionExpiresAt: new Date(Date.now() + 60_000).toISOString(),
+      }),
+    });
+    assert.equal(requirementExceptionResponse.status, 200);
+    assert.equal(requirementExceptionData.gates['requirement-confirmed'].status, 'exception-approved');
+    const gatesPath = path.join(initData.workspacePath, '.workflow', 'gates.json');
+    const gatesWithExpiredException = JSON.parse(await fsp.readFile(gatesPath, 'utf8'));
+    gatesWithExpiredException.gates['requirement-confirmed'].exception.expiresAt = new Date(Date.now() - 1_000).toISOString();
+    await fsp.writeFile(gatesPath, JSON.stringify(gatesWithExpiredException, null, 2), 'utf8');
+    const { response: expiredGateResponse, data: expiredGateData } = await requestJson(runtime.url, '/api/gates/check', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(expiredGateResponse.status, 200);
+    assert.equal(expiredGateData.gates['requirement-confirmed'].status, 'stale');
     const { response: checkpointResponse, data: checkpointData } = await requestJson(runtime.url, '/api/checkpoint/approve', {
       method: 'POST',
       body: JSON.stringify({
@@ -377,6 +498,21 @@ async function main() {
       }),
     });
     assert.equal(checkpointResponse.status, 200, JSON.stringify(checkpointData));
+    assert.equal(checkpointData.transition.event.eventType, 'manual-checkpoint');
+    const technicalApprovalPath = path.join(initData.workspacePath, 'design', 'approvals', 'technical-design.approved.json');
+    const approvalBeforeStaleCheckpoint = await fsp.readFile(technicalApprovalPath, 'utf8');
+    const { response: staleCheckpointResponse, data: staleCheckpointData } = await requestJson(runtime.url, '/api/checkpoint/reject', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        stepId: 'manual-technical',
+        note: '过期页面不能退回当前确认。',
+        expectedRevision: checkpointData.transition.revision - 1,
+      }),
+    });
+    assert.equal(staleCheckpointResponse.status, 409);
+    assert.match(staleCheckpointData.error, /拒绝旧 revision/);
+    assert.equal(await fsp.readFile(technicalApprovalPath, 'utf8'), approvalBeforeStaleCheckpoint);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, '.workflow', 'baselines', 'technical-design.lock.json')), true);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'context', 'current-context.md')), true);
     const currentContext = await fsp.readFile(path.join(initData.workspacePath, 'context', 'current-context.md'), 'utf8');
@@ -404,6 +540,16 @@ async function main() {
     });
     assert.equal(approveGateResponse.status, 200);
     assert.equal(approveGateData.gates['design-ready'].status, 'approved');
+    await fsp.writeFile(path.join(initData.workspacePath, 'design', 'technical-design.md'), '# Technical Design\n\nchanged after approval\n', 'utf8');
+    const { response: staleGateResponse, data: staleGateData } = await requestJson(runtime.url, '/api/gates/check', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(staleGateResponse.status, 200);
+    assert.equal(staleGateData.gates['design-ready'].status, 'stale');
+    const { response: staleBaselineStatusResponse, data: staleBaselineStatusData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(staleBaselineStatusResponse.status, 200);
+    assert.equal(staleBaselineStatusData.steps['manual-technical'].status, 'stale');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'traceability-matrix.md'), '# Traceability\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'smoke-test-case.md'), '# 研发提供的冒烟用例\n', 'utf8');
     await fsp.writeFile(path.join(initData.workspacePath, 'review', 'evidence', 'smoke-test-result.md'), '# Smoke Result\n', 'utf8');
@@ -427,6 +573,158 @@ async function main() {
     assert.equal(proposalData.qualityStatus, 'blocked');
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'archive', 'knowledge-update-proposal.json')), true);
     assert.equal(fs.existsSync(path.join(initData.workspacePath, 'archive', 'knowledge-patch.md')), true);
+
+    const { response: changeResponse, data: changeData } = await requestJson(runtime.url, '/api/workspace/changes', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        type: 'design-change',
+        reason: '调整技术方案后需要重新验证。',
+        source: 'regression',
+        operator: 'regression-user',
+      }),
+    });
+    assert.equal(changeResponse.status, 200);
+    assert.equal(changeData.record.changeSetId, 'DESIGN-001');
+    const { response: changeImpactResponse, data: changeImpactData } = await requestJson(runtime.url, '/api/workspace/changes/impact', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath, changeSetId: changeData.record.changeSetId }),
+    });
+    assert.equal(changeImpactResponse.status, 200);
+    assert.equal(changeImpactData.impact.affectedSteps.includes('manual-technical'), true);
+    assert.equal(changeImpactData.impact.gatesToRecheck.includes('design-ready'), true);
+    const { response: candidateResponse, data: candidateData } = await requestJson(runtime.url, '/api/workspace/candidates', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        changeSetId: changeData.record.changeSetId,
+        title: 'Regression candidate',
+        operator: 'regression-user',
+      }),
+    });
+    assert.equal(candidateResponse.status, 200);
+    assert.equal(candidateData.record.candidateId, 'C-001');
+    const { response: candidateVerifyResponse, data: candidateVerifyData } = await requestJson(runtime.url, '/api/workspace/candidates/verify', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath, candidateId: candidateData.record.candidateId }),
+    });
+    assert.equal(candidateVerifyResponse.status, 200);
+    assert.equal(candidateVerifyData.status, 'valid');
+    const { response: evidenceResponse, data: evidenceData } = await requestJson(runtime.url, '/api/workspace/candidates/evidence', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        candidateId: candidateData.record.candidateId,
+        kind: 'review',
+        path: 'review/quality-report.md',
+        status: 'passed',
+        operator: 'regression-user',
+      }),
+    });
+    assert.equal(evidenceResponse.status, 200);
+    assert.equal(evidenceData.evidence.candidateFingerprint, candidateData.record.fingerprint);
+    for (const [kind, evidencePath] of [
+      ['unit-test', 'review/evidence/unit-test-result.md'],
+      ['smoke-test', 'review/evidence/smoke-test-result.md'],
+    ]) {
+      const { response } = await requestJson(runtime.url, '/api/workspace/candidates/evidence', {
+        method: 'POST',
+        body: JSON.stringify({
+          workspacePath: initData.workspacePath,
+          candidateId: candidateData.record.candidateId,
+          kind,
+          path: evidencePath,
+          status: 'passed',
+          operator: 'regression-user',
+        }),
+      });
+      assert.equal(response.status, 200);
+    }
+    const { response: candidateGateResponse, data: candidateGateData } = await requestJson(runtime.url, '/api/gates/check', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(candidateGateResponse.status, 200);
+    assert.equal(candidateGateData.gates['delivery-verified'].candidate.binding.candidateId, candidateData.record.candidateId);
+    assert.equal(candidateGateData.gates['delivery-verified'].candidate.issues.length, 0);
+    const { response: candidateGateApproveResponse, data: candidateGateApproveData } = await requestJson(runtime.url, '/api/gates/approve', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath, gateId: 'delivery-verified', operator: 'regression-user', note: 'candidate evidence reviewed' }),
+    });
+    assert.equal(candidateGateApproveResponse.status, 200);
+    assert.equal(candidateGateApproveData.gates['delivery-verified'].status, 'approved');
+    assert.equal(candidateGateApproveData.gates['delivery-verified'].approvalSnapshot.candidateId, candidateData.record.candidateId);
+    const completedVerification = await completeAgentHandoff({
+      workspacePath: initData.workspacePath,
+      stepId: '08-verify-tests',
+      status: 'done',
+      summary: '绑定当前 Candidate 的单测证据。',
+      candidateId: candidateData.record.candidateId,
+      port: runtime.port,
+    });
+    assert.equal(completedVerification.payload.candidateId, candidateData.record.candidateId);
+    assert.match(completedVerification.payload.candidateEvidenceId, /^C-001-unit-test-/);
+    await fsp.writeFile(path.join(initData.workspacePath, 'review', 'quality-report.md'), '# AI Review\n\nmodified after evidence binding\n', 'utf8');
+    const { response: staleEvidenceGateResponse, data: staleEvidenceGateData } = await requestJson(runtime.url, '/api/gates/check', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath }),
+    });
+    assert.equal(staleEvidenceGateResponse.status, 200);
+    assert.equal(staleEvidenceGateData.gates['delivery-verified'].status, 'blocked');
+    assert.equal(staleEvidenceGateData.gates['delivery-verified'].candidate.issues.some((item) => /证据已变化/.test(item)), true);
+    const { response: iterationStatusResponse, data: iterationStatusData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(iterationStatusResponse.status, 200);
+    assert.equal(iterationStatusData.iteration.activeChangeSetId, changeData.record.changeSetId);
+    assert.equal(iterationStatusData.iteration.activeCandidateId, candidateData.record.candidateId);
+    const { response: reopenResponse, data: reopenData } = await requestJson(runtime.url, '/api/workspace/reopen', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        changeSetId: changeData.record.changeSetId,
+        fromStepId: '02-generate-technical-design',
+        reason: '设计基线发生变化。',
+        operator: 'regression-user',
+      }),
+    });
+    assert.equal(reopenResponse.status, 200);
+    assert.equal(reopenData.reopenedSteps.includes('manual-technical'), true);
+    assert.equal(reopenData.transition.event.eventType, 'change-reopen');
+    assert.equal(reopenData.transition.revision > checkpointData.transition.revision, true);
+    const supersededApproval = JSON.parse(await fsp.readFile(path.join(initData.workspacePath, 'design', 'approvals', 'technical-design.approved.json'), 'utf8'));
+    assert.equal(supersededApproval.status, 'superseded');
+    const { response: reopenedStatusResponse, data: reopenedStatusData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(reopenedStatusResponse.status, 200);
+    assert.equal(reopenedStatusData.steps['manual-technical'].status, 'pending');
+    assert.equal(reopenedStatusData.iteration.activeCandidateId, '');
+    const { response: autoChangeReopenResponse, data: autoChangeReopenData } = await requestJson(runtime.url, '/api/workspace/reopen', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        fromStepId: '06-implement-task',
+        reason: '验证自动创建 ChangeSet 的重开。',
+        expectedRevision: reopenData.transition.revision,
+        operator: 'regression-user',
+      }),
+    });
+    assert.equal(autoChangeReopenResponse.status, 200);
+    assert.equal(autoChangeReopenData.changeSet.changeSetId, 'DESIGN-002');
+    const { response: changesBeforeStaleResponse, data: changesBeforeStaleData } = await requestJson(runtime.url, `/api/workspace/changes?workspacePath=${workspaceQuery}`);
+    assert.equal(changesBeforeStaleResponse.status, 200);
+    const { response: staleReopenResponse, data: staleReopenData } = await requestJson(runtime.url, '/api/workspace/reopen', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        fromStepId: '06-implement-task',
+        reason: '过期重开不应创建 ChangeSet。',
+        expectedRevision: autoChangeReopenData.transition.revision - 1,
+        operator: 'regression-user',
+      }),
+    });
+    assert.equal(staleReopenResponse.status, 409);
+    assert.match(staleReopenData.error, /拒绝旧 revision/);
+    const { response: changesAfterStaleResponse, data: changesAfterStaleData } = await requestJson(runtime.url, `/api/workspace/changes?workspacePath=${workspaceQuery}`);
+    assert.equal(changesAfterStaleResponse.status, 200);
+    assert.equal(changesAfterStaleData.changeSets.length, changesBeforeStaleData.changeSets.length);
 
     const { response: definitionResponse, data: definitionData } = await requestJson(runtime.url, `/api/definition?workspacePath=${workspaceQuery}`);
     assert.equal(definitionResponse.status, 200);
@@ -568,6 +866,26 @@ async function main() {
     assert.equal(runLogResponse.status, 200);
     assert.equal(runLogData.meta.status, 'success');
     assert.match(runLogData.log, /runner-ok/);
+
+    const workflowPath = path.join(initData.workspacePath, '.workflow', 'workflow.json');
+    const preservedProgress = await fsp.readFile(progressPath, 'utf8');
+    const preservedWorkflow = await fsp.readFile(workflowPath, 'utf8');
+    const preservedApproval = await fsp.readFile(technicalApprovalPath, 'utf8');
+    await fsp.writeFile(progressPath, '{not-json', 'utf8');
+    const { response: invalidProgressResponse, data: invalidProgressData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(invalidProgressResponse.status, 500);
+    assert.match(invalidProgressData.error, /进度文件不是合法 JSON/);
+    await fsp.writeFile(progressPath, preservedProgress, 'utf8');
+    await fsp.writeFile(workflowPath, '{not-json', 'utf8');
+    const { response: invalidWorkflowResponse, data: invalidWorkflowData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(invalidWorkflowResponse.status, 500);
+    assert.match(invalidWorkflowData.error, /Workflow 定义不是合法 JSON/);
+    await fsp.writeFile(workflowPath, preservedWorkflow, 'utf8');
+    await fsp.writeFile(technicalApprovalPath, '{not-json', 'utf8');
+    const { response: invalidApprovalResponse, data: invalidApprovalData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(invalidApprovalResponse.status, 500);
+    assert.match(invalidApprovalData.error, /Workspace JSON 文件不是合法 JSON/);
+    await fsp.writeFile(technicalApprovalPath, preservedApproval, 'utf8');
 
     console.log(`API regression passed: ${initData.workspacePath}`);
   } finally {

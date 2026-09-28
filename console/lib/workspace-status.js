@@ -21,6 +21,7 @@ function createWorkspaceStatusRuntime(deps) {
     HANDOFF_DONE_FILE,
     verifyDesignBaselines,
     readIterationStatus,
+    readPatchStatus,
   } = deps;
 
   function buildNextRecommendation(workflow, steps, config, appAccessStates, tasks) {
@@ -276,6 +277,11 @@ function createWorkspaceStatusRuntime(deps) {
     });
     const nextRecommendation = buildNextRecommendation(workflow, steps, config, appAccessStates, tasks);
     const iteration = readIterationStatus ? await readIterationStatus(workspacePath) : null;
+    const patchWork = readPatchStatus ? await readPatchStatus(workspacePath) : {
+      activeCount: 0,
+      completedUnpromotedCount: 0,
+      actions: [],
+    };
     const handoffDone = await readJsonFileIfExists(workspacePath, HANDOFF_DONE_FILE);
     const handoffDonePath = path.join(workspacePath, HANDOFF_DONE_FILE);
     const handoffCurrentPath = path.join(workspacePath, HANDOFF_FILE);
@@ -315,6 +321,9 @@ function createWorkspaceStatusRuntime(deps) {
       handoffState,
       agentSessions,
       nextRecommendation,
+      mainlineRecommendation: nextRecommendation,
+      independentActions: patchWork.actions,
+      patchWork,
       baselineVerification,
       iteration,
       units,

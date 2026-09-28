@@ -149,9 +149,17 @@ function createChangeCandidateRuntime(deps) {
       hotfix: '06-implement-task',
     }[type];
     const startIndex = sequence.findIndex((item) => item.id === startStep);
+    const scopedDefaults = {
+      defect: ['06-implement-task', '07-review-code', '08-verify-tests', '09-run-smoke'],
+      'verification-only': ['07-review-code', '08-verify-tests', '09-run-smoke'],
+      hotfix: ['06-implement-task', '07-review-code', '08-verify-tests', '09-run-smoke', '09-release-checklist'],
+    };
+    const defaultAffectedSteps = scopedDefaults[type]
+      ? scopedDefaults[type].filter((stepId) => sequence.some((step) => step.id === stepId))
+      : sequence.slice(Math.max(0, startIndex)).map((item) => item.id);
     const affectedSteps = requestedAffectedSteps.length
       ? requestedAffectedSteps
-      : sequence.slice(Math.max(0, startIndex)).map((item) => item.id);
+      : defaultAffectedSteps;
     const createdAt = nowIso();
     const changeSetId = nextId(index, changePrefix(type));
     const record = {

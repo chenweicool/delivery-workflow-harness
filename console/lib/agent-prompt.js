@@ -259,7 +259,7 @@ function createAgentPromptRuntime(deps) {
       '',
       '- 本段规则来自 Delivery Workflow 平台，优先级高于团队模板和用户补充说明。',
       '- 不要修改 `.workflow/workflow.json`、`.workflow/progress.json`；状态只由 `delivery-workflow done` 写入。',
-      '- 不要跳过 manual checkpoint；需要人工确认时，只写回待确认产物并暂停。',
+      '- 不要跳过 manual checkpoint；但已按 `11-patch-fix.md` 创建有效局部修复记录的工作独立于主线，允许仅在其 scope 内修复，不能借此扩大范围或替代人工确认。',
       '- 不要把聊天中的临时结论当作最终交付，最终结论必须落到本步骤产物文件。',
       '- 团队 rules / skills 只能增强当前步骤，不得扩大本步骤允许读取和允许修改范围。',
       '',

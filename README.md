@@ -128,17 +128,22 @@ Agent 应将 PRD 和人工确认视为目标行为，将当前代码视为当前
 
 技术方案阶段会冻结 `design/unit-test-design.md`，测试用例必须以表格记录。冒烟用例不由 Workflow 设计：研发需在提测前提供 `review/evidence/smoke-test-case.md`，QA 将执行结果记录到 `review/evidence/smoke-test-result.md`。
 
-## ChangeSet 与 Candidate
+## ChangeSet、局部修复与 Candidate
 
-需求变动、技术调整、缺陷修复、仅验证和 Hotfix 都以 ChangeSet 记录；Candidate 固定本次 PRD、设计 baseline 和应用代码快照。不要以“分支仍在”或“文件还在”代替可验证的交付候选。
+需求变动、技术调整、完整缺陷交付、仅验证和 Hotfix 都以 ChangeSet 记录；Candidate 固定本次 PRD、设计 baseline 和应用代码快照。不要以“分支仍在”或“文件还在”代替可验证的交付候选。
+
+用户已明确授权、范围局部且不触发高风险项的缺陷，先使用独立修复记录：它不重开主线，也不要求重写任务拆分和三份过程文档。金额/账单/结算、数据库、跨应用 API、删除、共享组件或归属不明的修复必须使用受控修复，并写明最小影响和验证。代码稳定后才提升到 ChangeSet、Candidate 与正式验证。
 
 ```bash
-dw change create --type defect --source uat --reason "UAT 复测失败" --workspace <workspace-path>
-dw change impact BUG-001 --workspace <workspace-path>
+dw patch start --mode quick --scope "SettlementTask 的重试分支" --reason "已存在任务无法重试" --authorization "用户：直接修复该重试分支" --workspace <workspace-path>
+# 修改代码并执行最小相关测试后
+dw patch complete P-001 --files "src/SettlementTask.java" --test "mvn -Dtest=SettlementTaskTest test：通过" --summary "修复重复重试判断" --workspace <workspace-path>
+dw patch promote P-001 --workspace <workspace-path>
 dw candidate create --change BUG-001 --workspace <workspace-path>
 dw evidence record --candidate C-001 --kind uat --path review/evidence/uat-result.md --workspace <workspace-path>
-dw reopen --from 06-implement-task --change BUG-001 --reason "修复 UAT 缺陷" --workspace <workspace-path>
 ```
+
+需要重新执行主线某一节点时，才使用 `dw reopen`；它会重开该节点后的主线步骤，不应用于局部修复。
 
 Review、单测和冒烟步骤通过 `dw done` 完成时会自动写入其对应的 Candidate 证据。UAT、容量和发布审批等非标准节点使用 `dw evidence record` 显式绑定。
 

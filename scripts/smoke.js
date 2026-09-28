@@ -32,6 +32,24 @@ function run(args, options = {}) {
   return result.stdout;
 }
 
+function runFailure(args, expected) {
+  const result = spawnSync(process.execPath, [cliPath, ...args], {
+    cwd: rootDir,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      DELIVERY_WORKFLOW_DATA_DIR: path.join(tmpRoot, '.data'),
+    },
+  });
+  if (result.status === 0) {
+    throw new Error(`Expected command to fail: delivery-workflow ${args.join(' ')}`);
+  }
+  const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
+  if (expected && !output.includes(expected)) {
+    throw new Error(`Expected failed output to include "${expected}". Output:\n${output}`);
+  }
+}
+
 function assertFile(relativePath) {
   const targetPath = path.join(workspacePath, relativePath);
   if (!fs.existsSync(targetPath)) {
@@ -129,6 +147,28 @@ async function main() {
   run(['candidate', 'create', '--change', 'BUG-001', '--workspace', workspacePath], { includes: 'candidate: C-001' });
   run(['candidate', 'verify', 'C-001', '--workspace', workspacePath], { includes: 'status: valid' });
   run(['evidence', 'record', '--candidate', 'C-001', '--kind', 'review', '--path', 'review/quality-report.md', '--workspace', workspacePath], { includes: 'candidate: C-001' });
+
+  const progressBeforePatch = await readJson('.workflow/progress.json');
+  run(['patch', 'start', '--mode', 'quick', '--scope', 'SettlementTask retry branch', '--reason', 'retry condition is reversed', '--authorization', 'user explicitly authorized this local fix', '--workspace', workspacePath], { includes: 'mainline: unchanged' });
+  assertFile('.workflow/patches/P-001.json');
+  const quickPatch = await readJson('.workflow/patches/P-001.json');
+  if (quickPatch.mode !== 'quick' || quickPatch.status !== 'active') {
+    throw new Error('Expected an active quick patch record.');
+  }
+  const progressAfterPatch = await readJson('.workflow/progress.json');
+  if (JSON.stringify(progressBeforePatch) !== JSON.stringify(progressAfterPatch)) {
+    throw new Error('Starting a patch must not change mainline workflow progress.');
+  }
+  run(['status', '--workspace', workspacePath], { includes: 'independent-actions:' });
+  runFailure(['patch', 'start', '--mode', 'quick', '--scope', 'billing amount', '--reason', 'amount mismatch', '--authorization', 'user says fix', '--risk', 'financial', '--workspace', workspacePath], '快捷修复不能声明高风险触发项');
+  run(['patch', 'complete', 'P-001', '--files', 'src/SettlementTask.java', '--test', 'mvn -Dtest=SettlementTaskTest test: passed', '--summary', 'fixed retry branch', '--workspace', workspacePath], { includes: 'status: completed' });
+  run(['patch', 'promote', 'P-001', '--workspace', workspacePath], { includes: 'change: BUG-002' });
+  const promotedPatch = await readJson('.workflow/patches/P-001.json');
+  if (promotedPatch.status !== 'promoted' || promotedPatch.changeSetId !== 'BUG-002') {
+    throw new Error('Expected a completed patch to promote into a scoped defect ChangeSet.');
+  }
+  run(['patch', 'promote', 'P-001', '--workspace', workspacePath], { includes: 'change: BUG-002' });
+  run(['change', 'impact', 'BUG-002', '--workspace', workspacePath], { includes: 'steps: 07-review-code, 08-verify-tests, 09-run-smoke' });
 
   const stateFile = path.join(tmpRoot, '.data', 'state.json');
   await fsp.writeFile(stateFile, JSON.stringify({

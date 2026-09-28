@@ -10,19 +10,19 @@
 
 1. 读取 `AGENTS.md`。
 2. 读取 `.workflow/commands/README.md`，确认当前命令所属的交付生命周期、正式产物和人工确认点。
-3. 执行 `.workflow/commands/` 中的当前阶段命令。不要假设所有节点必须线性执行，先以 `.workflow/progress.md` 和当前命令文件为准。
+3. 执行 `.workflow/commands/` 中的当前阶段命令。不要假设所有节点必须线性执行；主线以 `.workflow/progress.md` 为准，用户已授权的局部修复按 `11-patch-fix.md` 独立执行。
 4. 严格遵循当前阶段命令。
 5. 阶段完成或阻塞时执行 `dw done` 回写状态；不要直接编辑 `.workflow/progress.md` 和 `.workflow/progress.json`。
 
 ## 边界
 
-- 实施任务确认前，禁止修改代码。
+- 完整交付主线在实施任务确认前，禁止修改代码；有效局部修复记录允许在其明确 scope 内修复，不改变主线进度。
 - 禁止自动执行 worktree 设置，除非当前阶段明确要求。
 - 禁止只根据关键词假设应用范围。
 - 禁止把需求过程文件写入共享公共 AI 仓库。
 - 开始工作前读取 `context/demand-context.md`、`context/domain-summary.md` 与 `context/capabilities.md`；`domain-summary.md` 可能明确当前未挂载领域 Harness，这不是阻塞项。实施、Review、测试和交付阶段还必须读取 `context/current-context.md`（若存在）及其指向的已批准产物。后者是当前需求能力快照。只读取当前步骤标记为 `available` 的能力，未挂载能力按命令文件的降级流程处理，不得阻断阶段。
 - Skill 为目录时先阅读其中的 `SKILL.md`，Rule 为文件时先阅读规则正文；公共源只读，链接位于 `context/skills/linked` 和 `context/rules/linked` 下。
-- 产品口径变化、方案调整和缺陷修复先创建 ChangeSet；Review、单测和冒烟完成前必须有有效 Candidate，且证据由 `dw done` 绑定到该 Candidate。
+- 产品口径变化、方案调整和完整缺陷交付先创建 ChangeSet。低风险局部缺陷可先按 `11-patch-fix.md` 创建快捷修复记录；高风险局部缺陷必须创建受控修复记录。代码稳定并进入 Review、单测或冒烟前，必须提升为 ChangeSet、创建有效 Candidate，且证据由 `dw done` 绑定到该 Candidate。
 - 不要直接修改 `.workflow/progress.*`。状态提交应携带当前 revision；旧 revision 会被拒绝，网络重试使用同一 `--idempotency-key`。
 
 ## 输出纪律

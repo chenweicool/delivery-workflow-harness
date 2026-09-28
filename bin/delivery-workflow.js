@@ -44,6 +44,10 @@ const {
   verifyCandidate,
   recordCandidateEvidence,
   reopenChange,
+  createPatch,
+  listPatches,
+  completePatch,
+  promotePatch,
   fetchWhitepaperApplicationSource,
   refreshWorkspaceCapabilities,
   refreshQualitySummary,
@@ -89,6 +93,10 @@ function usage() {
     '  dw change create --type feature|requirement-change|design-change|defect|verification-only|hotfix --reason <text> --workspace <path>',
     '  dw change list|impact <change-id> --workspace <path>',
     '  dw defect create --source review|test|uat|production --reason <text> --workspace <path>',
+    '  dw patch start --mode quick|controlled --scope <text> --reason <text> --authorization <user-authority> --workspace <path> [--risk database,financial,api-contract,deletion,shared-component,ownership-unknown --impact <text>]',
+    '  dw patch list --workspace <path>',
+    '  dw patch complete <patch-id> --test <result> --summary <text> --workspace <path> [--files <path[,path]>]',
+    '  dw patch promote <patch-id> --workspace <path>',
     '  dw candidate create [--change <id[,id]>] --workspace <path>',
     '  dw candidate list|verify <candidate-id> --workspace <path>',
     '  dw evidence record --candidate <id> --kind review|unit-test|smoke-test|uat --path <workspace-file> --workspace <path>',
@@ -312,6 +320,16 @@ function printNextRecommendation(recommendation) {
   }
   for (const blocker of recommendation.blockers || []) {
     console.log(`blocker: ${blocker}`);
+  }
+}
+
+function printIndependentActions(actions) {
+  const available = Array.isArray(actions) ? actions : [];
+  if (!available.length) return;
+  console.log('independent-actions:');
+  for (const action of available) {
+    console.log(`- ${action.status || 'available'}: ${action.title || action.id}`);
+    if (action.summary) console.log(`  ${action.summary}`);
   }
 }
 
@@ -874,6 +892,7 @@ async function commandStatus(args) {
   }
   console.log('gates: 使用 `dw gate check --workspace <path>` 刷新质量门禁。');
   printNextRecommendation(status.nextRecommendation);
+  printIndependentActions(status.independentActions);
 }
 
 async function commandNext(args) {
@@ -886,6 +905,7 @@ async function commandNext(args) {
     throw new Error(status.message || 'Not a delivery workflow workspace.');
   }
   printNextRecommendation(status.nextRecommendation);
+  printIndependentActions(status.independentActions);
 }
 
 async function commandHandoff(args) {
@@ -1051,6 +1071,7 @@ async function commandChange(args) {
     operator: args.operator,
     basedOnCandidateId: args.base || args.candidate,
     affectedSteps: splitList(args.steps || args.affectedSteps),
+    activate: args['no-activate'] ? false : undefined,
   });
   console.log(`change: ${result.record.changeSetId}`);
   console.log(`type: ${result.record.type}`);
@@ -1142,6 +1163,67 @@ async function commandDefect(args) {
   });
   console.log(`defect: ${result.record.changeSetId}`);
   console.log(`status: ${result.record.status}`);
+}
+
+async function commandPatch(args) {
+  const action = String(args._[1] || 'list').toLowerCase();
+  const workspacePath = await requireWorkspaceForIteration(args);
+  if (action === 'list') {
+    const result = await listPatches(workspacePath);
+    if (!result.patches.length) {
+      console.log('patches: (none)');
+      return;
+    }
+    for (const patch of result.patches) {
+      console.log(`${patch.patchId}\t${patch.mode}\t${patch.status}\t${patch.changeSetId || '-'}\t${patch.scope}`);
+    }
+    return;
+  }
+  if (action === 'start' || action === 'create') {
+    const result = await createPatch({
+      workspacePath,
+      mode: args.mode,
+      scope: args.scope,
+      reason: args.reason,
+      authorization: args.authorization || args.authorisation,
+      riskTriggers: splitList(args.risk || args.risks),
+      impact: args.impact,
+      source: args.source,
+      operator: args.operator,
+    });
+    console.log(`patch: ${result.record.patchId}`);
+    console.log(`mode: ${result.record.mode}`);
+    console.log('mainline: unchanged');
+    return;
+  }
+  const patchId = String(args._[2] || args.patch || '').trim();
+  if (!patchId) throw new Error(`Missing patch id. Usage: dw patch ${action} <patch-id> --workspace <path>.`);
+  if (action === 'complete') {
+    const result = await completePatch({
+      workspacePath,
+      patchId,
+      testResult: args.test || args.testResult,
+      summary: args.summary,
+      changedFiles: splitList(args.files || args.changedFiles),
+    });
+    console.log(`patch: ${result.record.patchId}`);
+    console.log(`status: ${result.record.status}`);
+    console.log('next: 代码稳定后执行 `dw patch promote <patch-id>`，再创建 Candidate 并记录正式验证证据。');
+    return;
+  }
+  if (action === 'promote') {
+    const result = await promotePatch({
+      workspacePath,
+      patchId,
+      basedOnCandidateId: args.base || args.candidate,
+      operator: args.operator,
+    });
+    console.log(`patch: ${result.record.patchId}`);
+    console.log(`change: ${result.record.changeSetId}`);
+    console.log(`next: dw candidate create --change ${result.record.changeSetId} --workspace "${workspacePath}"`);
+    return;
+  }
+  throw new Error('Patch command supports start, list, complete, or promote.');
 }
 
 function statusMark(ok) {
@@ -1313,6 +1395,10 @@ async function main() {
   }
   if (command === 'defect') {
     await commandDefect(args);
+    return;
+  }
+  if (command === 'patch') {
+    await commandPatch(args);
     return;
   }
   if (command === 'app') {

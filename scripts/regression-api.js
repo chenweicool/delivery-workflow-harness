@@ -726,6 +726,59 @@ async function main() {
     assert.equal(changesAfterStaleResponse.status, 200);
     assert.equal(changesAfterStaleData.changeSets.length, changesBeforeStaleData.changeSets.length);
 
+    const progressBeforePatch = JSON.parse(await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'progress.json'), 'utf8'));
+    const { response: patchResponse, data: patchData } = await requestJson(runtime.url, '/api/workspace/patches', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        mode: 'quick',
+        scope: 'Settlement task retry branch',
+        reason: 'Retry condition is reversed.',
+        authorization: '用户明确授权：直接修复该局部缺陷。',
+        operator: 'regression-user',
+      }),
+    });
+    assert.equal(patchResponse.status, 200);
+    assert.equal(patchData.record.patchId, 'P-001');
+    const progressAfterPatch = JSON.parse(await fsp.readFile(path.join(initData.workspacePath, '.workflow', 'progress.json'), 'utf8'));
+    assert.deepEqual(progressAfterPatch, progressBeforePatch);
+    const { response: invalidQuickPatchResponse, data: invalidQuickPatchData } = await requestJson(runtime.url, '/api/workspace/patches', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        mode: 'quick',
+        scope: 'Billing amount',
+        reason: 'Amount mismatch.',
+        authorization: '用户明确授权：修复。',
+        riskTriggers: ['financial'],
+      }),
+    });
+    assert.equal(invalidQuickPatchResponse.status, 500);
+    assert.match(invalidQuickPatchData.error, /快捷修复不能声明高风险触发项/);
+    const { response: completePatchResponse, data: completePatchData } = await requestJson(runtime.url, '/api/workspace/patches/complete', {
+      method: 'POST',
+      body: JSON.stringify({
+        workspacePath: initData.workspacePath,
+        patchId: patchData.record.patchId,
+        changedFiles: ['src/SettlementTask.java'],
+        testResult: 'mvn -Dtest=SettlementTaskTest test：通过',
+        summary: '修复重试条件。',
+      }),
+    });
+    assert.equal(completePatchResponse.status, 200);
+    assert.equal(completePatchData.record.status, 'completed');
+    const { response: promotePatchResponse, data: promotePatchData } = await requestJson(runtime.url, '/api/workspace/patches/promote', {
+      method: 'POST',
+      body: JSON.stringify({ workspacePath: initData.workspacePath, patchId: patchData.record.patchId, operator: 'regression-user' }),
+    });
+    assert.equal(promotePatchResponse.status, 200);
+    assert.equal(promotePatchData.record.status, 'promoted');
+    assert.deepEqual(promotePatchData.changeSet.affectedSteps, ['07-review-code', '08-verify-tests', '09-run-smoke']);
+    const { response: patchStatusResponse, data: patchStatusData } = await requestJson(runtime.url, `/api/workspace/status?workspacePath=${workspaceQuery}`);
+    assert.equal(patchStatusResponse.status, 200);
+    assert.equal(patchStatusData.mainlineRecommendation.stepId, patchStatusData.nextRecommendation.stepId);
+    assert.equal(patchStatusData.independentActions.some((item) => item.id === 'start-patch'), true);
+
     const { response: definitionResponse, data: definitionData } = await requestJson(runtime.url, `/api/definition?workspacePath=${workspaceQuery}`);
     assert.equal(definitionResponse.status, 200);
     assert.equal(typeof definitionData.steps['import-prd'], 'object');

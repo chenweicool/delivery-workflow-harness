@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Added independent quick and controlled patch records so user-authorized local fixes no longer reopen or block on an unrelated mainline checkpoint.
+- Kept high-risk triggers (database, financial logic, API contract, deletion, shared component, unknown ownership) out of the quick path; controlled patches require recorded impact and verification.
+- Deferred ChangeSet, Candidate, Review, unit-test, smoke, and UAT evidence until a completed patch is promoted for formal verification.
+- Updated workspace instructions and status output to distinguish the mainline next step from available independent patch work.
+
 ## V0.2.10
 
 - Added explicit ChangeSet and Candidate lifecycle records so requirement/design changes and defects can reopen only the affected delivery stages while preserving prior approvals and evidence.

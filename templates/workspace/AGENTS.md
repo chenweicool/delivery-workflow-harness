@@ -8,7 +8,7 @@
 - 按阶段执行 `.workflow/commands/` 下的命令文件。
 - 执行前先阅读 `.workflow/commands/README.md`，确认当前命令所属的交付生命周期、正式产物和人工确认点。
 - 禁止跳过人工确认点。
-- 实施阶段明确批准前，禁止修改代码。
+- 完整交付主线的实施阶段在明确批准前，禁止修改代码；但存在有效的局部修复记录时，可按其授权范围独立修复，不受主线未完成确认点阻塞。
 - 未经人工确认，禁止扩大应用范围。
 - 本需求相关过程文件必须保存在当前 workspace 内。
 - 进度文件由 `dw done` 统一维护，Agent 不直接编辑 `.workflow/progress.md` 和 `.workflow/progress.json`。
@@ -40,9 +40,12 @@ archive/          知识更新提案、知识卡片和归档索引；外部推�
 - 如果无法继续，执行 `dw done --workspace <path> --step <step-id> --status blocked --summary "具体阻塞原因"`。
 - 产物会被校验，但不会自动把阶段标记为完成。
 
-## ChangeSet 与 Candidate
+## ChangeSet、局部修复与 Candidate
 
-- 产品口径变化、技术方案调整、缺陷修复、仅验证和 Hotfix 必须先创建 ChangeSet；不要覆盖旧批准或旧证据。
+- 产品口径变化、技术方案调整、完整缺陷交付、仅验证和 Hotfix 使用 ChangeSet；不要覆盖旧批准或旧证据。
+- 已有用户明确授权、范围局部且不触发高风险项的缺陷，可先创建“快捷修复”记录；它不重开主线、不要求任务拆分，也不要求更新 `task-progress.md`、`change-log.md`、`self-check.md`。执行 `dw patch start --mode quick --scope "范围" --reason "原因" --authorization "用户原话" --workspace <path>` 后，才可在记录范围内改代码。
+- 涉及数据库、金额/费用/报价/账单/结算、跨应用 API、删除既有行为、共享组件或归属不明时，不得使用快捷修复；必须创建“受控修复”记录并写明风险与最小影响：`dw patch start --mode controlled --scope "范围" --reason "原因" --authorization "用户原话" --risk <触发项> --impact "影响与验证" --workspace <path>`。
+- 修复完成后必须记录真实测试结果：`dw patch complete <patch-id> --test "命令及结果，或未执行原因" --summary "完成说明" --workspace <path>`。准备 Review、单测、冒烟或 UAT 时，再执行 `dw patch promote <patch-id>`，创建 Candidate 并绑定正式证据。
 - 创建代码候选：`dw candidate create --workspace <path> [--change <change-id>]`。Candidate 固定 PRD、设计基线和应用代码快照。
 - 代码 Review、单测、冒烟和 UAT 证据必须绑定同一个有效 Candidate。执行 Review、单测或冒烟步骤的 `dw done` 会自动绑定正式证据；Candidate 变化后必须创建新 Candidate 并重新验证。
 - 需要从某节点重做时，使用 `dw reopen --from <step-id> --reason "原因" --workspace <path>`；它会保留旧审批记录并标记为已替代。
@@ -92,7 +95,7 @@ archive/          知识更新提案、知识卡片和归档索引；外部推�
 
 ## 必须暂停条件
 
-如果工作涉及或发现以下情况，必须立即暂停：
+以下事项不得走快捷修复；必须按“受控修复”记录风险、影响和验证后再实施。若用户未明确授权风险范围，仍必须暂停：
 
 - 数据库结构变更。
 - 金额、费用、报价、账单、结算、应付、清分逻辑。
@@ -105,8 +108,6 @@ archive/          知识更新提案、知识卡片和归档索引；外部推�
 
 ## 实施规则
 
-- 修改文件前，说明任务编号和计划修改文件。
-- 只实现已确认任务。
-- 代码变更后更新 `review/process/change-log.md`。
-- 自检后更新 `review/process/self-check.md`。
+- 完整交付主线：修改文件前说明任务编号和计划修改文件；只实现已确认任务；代码变更后更新 `review/process/change-log.md` 和 `review/process/self-check.md`。
+- 局部修复：修改文件前说明修复记录编号和计划修改文件；只实现记录中的 scope，不得借机扩大范围。完成时将实际文件和测试结果写入修复记录。
 - Review 和总结必须基于 `git diff`。

@@ -110,6 +110,9 @@ const {
 const {
   createChangeCandidateRuntime,
 } = require('./lib/change-candidate');
+const {
+  createPatchWorkRuntime,
+} = require('./lib/patch-work');
 const workflowRuntime = require('./lib/workflow');
 const {
   workflowStepSequence,
@@ -310,6 +313,20 @@ const {
   gitHead,
   gitOutputSafe,
   nowIso,
+});
+const {
+  createPatch,
+  listPatches,
+  completePatch,
+  promotePatch,
+  readPatchStatus,
+} = createPatchWorkRuntime({
+  normalizeUserPath,
+  exists,
+  readJsonFileIfExists,
+  writeWorkspaceJsonFile,
+  nowIso,
+  createChangeSet,
 });
 const {
   readWhitepaperCatalog,
@@ -534,6 +551,7 @@ const {
   HANDOFF_DONE_FILE,
   verifyDesignBaselines,
   readIterationStatus,
+  readPatchStatus,
 });
 const KNOWN_FACTS_TEMPLATE = [
   '# 技术方案生成输入',
@@ -3010,6 +3028,26 @@ async function route(req, res) {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/workspace/patches') {
+      sendJson(res, 200, await listPatches(url.searchParams.get('workspacePath')));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/patches') {
+      sendJson(res, 200, await createPatch(await readJson(req)));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/patches/complete') {
+      sendJson(res, 200, await completePatch(await readJson(req)));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/workspace/patches/promote') {
+      sendJson(res, 200, await promotePatch(await readJson(req)));
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/workspace/reopen') {
       sendJson(res, 200, await reopenChange(await readJson(req)));
       return;
@@ -3419,6 +3457,10 @@ module.exports = {
   verifyCandidate,
   recordCandidateEvidence,
   reopenChange,
+  createPatch,
+  listPatches,
+  completePatch,
+  promotePatch,
   refreshWorkspaceCapabilities,
   fetchWhitepaperApplicationSource,
   refreshQualitySummary,

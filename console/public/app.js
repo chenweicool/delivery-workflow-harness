@@ -1543,6 +1543,9 @@ function renderNextStepPanel() {
   const nextStepId = recommendation && recommendation.stepId ? recommendation.stepId : state.selectedStepId;
   const nextStep = getStep(nextStepId);
   const blockers = recommendation && recommendation.unitId === unit.id ? recommendation.blockers || [] : [];
+  const independentActions = state.status && Array.isArray(state.status.independentActions)
+    ? state.status.independentActions
+    : [];
   const actionPackage = stageActionPackage(unit, nextStep);
   const agentContract = agentContractForStep(nextStepId);
   const agentBlocker = stageAgentBlocker(unit.id);
@@ -1551,9 +1554,10 @@ function renderNextStepPanel() {
   els.nextStepSummary.textContent = actionPackage.summary || actionPackage.bridge || '';
   renderStageActionPlan(unit, nextStep);
   if (els.nextStepMeta) {
-    els.nextStepMeta.innerHTML = visibleBlockers.length
-      ? `<span class="danger">缺少前置输入</span>`
-      : '';
+    els.nextStepMeta.innerHTML = [
+      visibleBlockers.length ? '<span class="danger">缺少前置输入</span>' : '',
+      ...independentActions.map((action) => `<span class="badge">主线外：${escapeHtml(action.title || action.id)}</span>`),
+    ].filter(Boolean).join('');
   }
   els.nextStepBlockers.innerHTML = visibleBlockers.length
     ? visibleBlockers.map((item) => `<li>${escapeHtml(item)}</li>`).join('')

@@ -20,8 +20,11 @@
 | `03-design-tests.md` | 冻结单测设计基线 | `design/unit-test-design.md` |
 | `05-split-tasks.md` | 拆分可确认的实施任务 | `tasks/task-list.md` |
 | `06-implement-task.md` | 实施单个已确认任务 | `tasks/process/task-progress.md`、`review/process/change-log.md`、`review/process/self-check.md` |
+| `11-patch-fix.md` | 已授权局部缺陷修复（不改变主线） | `.workflow/patches/<patch-id>.json` |
 
 技术方案和任务拆分完成后，必须分别等待人工确认，才可进入后续阶段。
+
+局部修复不是主线的补丁式“跳关”：它需要独立修复记录，且只在用户明确授权范围内工作。快捷修复不得触及高风险项；受控修复必须先记录风险与最小影响。需要正式 Review、单测、冒烟或 UAT 时，再提升为 ChangeSet 和 Candidate。
 
 ## 验证
 

@@ -1,0 +1,58 @@
+bin/delivery-workflow.js
+  s_0566311d18413b::t_16c57610acdd54 1074
+  s_0566311d18413b::t_d9cd3f4a83018c 1168-1228
+  s_0566311d18413b::t_b4e56853b1b298 1400-1403
+  s_0566311d18413b::t_09acb576f31aaa 326-334
+  s_0566311d18413b::t_2bcf55e94a2fdb 47-50,96-99,335
+  s_0566311d18413b::t_1c53dd144acbc2 895,908
+scripts/smoke.js
+  s_0566311d18413b::t_25478eb97ba8b1 35-52,151-169,171-172
+  s_0566311d18413b::t_fb404ef5d0040d 170
+templates/workspace/.workflow/commands/README.md
+  s_0566311d18413b::t_f656363b4dd74c 23,27
+templates/workspace/CLAUDE.md
+  s_0566311d18413b::t_f656363b4dd74c 13,19,25
+console/public/app.js
+  s_0566311d18413b::t_7a61e8b3fca0fa 1546-1548,1557-1560
+templates/workspace/AGENTS.md
+  s_0566311d18413b::t_efb32bcca84e74 11,43,45-48,98,111-112
+CHANGELOG.md
+  s_0566311d18413b::t_9941c5b48cedab 3-9
+README.md
+  s_0566311d18413b::t_9941c5b48cedab 131,133-135,138-141,146
+console/lib/patch-work.js
+  s_0566311d18413b::t_21d75be9b006dd 1-208,212-308
+  s_0566311d18413b::t_876350f30c566a 209-211
+console/lib/change-candidate.js
+  s_0566311d18413b::t_9ba7097fa3a3bf 152-159,162
+scripts/regression-api.js
+  s_0566311d18413b::t_9da1797af12b98 729-780
+templates/workspace/.workflow/commands/11-patch-fix.md
+  s_0566311d18413b::t_efb32bcca84e74 1-47
+package.json
+  s_0566311d18413b::t_8f784770b03e5a 30
+console/lib/workspace-status.js
+  s_0566311d18413b::t_0498780642b1d8 24,280-284,324-326
+console/server.js
+  s_0566311d18413b::t_677698d8f1f25b 3031-3050,3460-3463
+  s_0566311d18413b::t_cecb254c24a41c 554
+  s_0566311d18413b::t_9856bd05e06c5c 114-115,317-329
+console/lib/agent-prompt.js
+  s_0566311d18413b::t_7a61e8b3fca0fa 262
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "e61b7603398f694e30d5bfabb5d099253654e08a",
+  "prompts": {},
+  "sessions": {
+    "s_0566311d18413b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06663-51e1-7763-ad90-c6d4d065caad",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "ewan.chen <ewan.chen@jtexpress.com>"
+    }
+  }
+}

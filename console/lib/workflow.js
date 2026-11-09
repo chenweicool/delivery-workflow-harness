@@ -1,59 +1,31 @@
+const fsp = require('fs/promises');
+const path = require('path');
+const { exists } = require('./fs-utils');
+
 const WORKFLOW_UNITS = [
   {
     id: 'workspace',
-    title: 'Workspace 准备',
-    summary: '创建需求工作区，并生成基础目录和上下文快照。',
-    inputs: ['需求名称', '工作区目录'],
-    outputs: ['AGENTS.md', 'CLAUDE.md', 'context/knowledge-version.md', '.workflow/workspace.json'],
+    title: '准备',
+    summary: '建立需求 Workspace，接入需求材料、代码和可选领域上下文。',
+    inputs: ['需求名称', '需求负责人', '需求链接'],
+    outputs: ['AGENTS.md', '.workflow/workspace.json', 'context/demand-context.md'],
     steps: ['init-workspace'],
   },
   {
-    id: 'prd-to-design',
-    title: '需求资料',
-    summary: '导入并解析 PRD，加载领域上下文，形成可确认的需求口径与验收边界。',
-    inputs: ['PRD 文件或飞书链接', '交付配置中的应用上下文', 'design/process/known-facts.md（可选技术定位输入）'],
-    outputs: [
-      'prd/**',
-      '.workflow/workspace.json',
-      'design/process/context-summary.md',
-      'design/process/requirement-confirmation.md',
-    ],
-    steps: [
-      'import-prd',
-      '00-load-context',
-      '01-clarify-requirement',
-      'manual-requirement',
-    ],
+    id: 'work-run',
+    title: '自主交付',
+    summary: 'Agent 自主完成理解、设计、实现、Review 和验证；只有命中高风险触发项时才暂停。',
+    inputs: ['input/**', 'context/**', '应用代码', '用户反馈'],
+    outputs: ['delivery/unit-test-report.md', 'delivery/coverage-report.md', 'delivery/release-config.yaml'],
+    steps: ['execute-delivery'],
   },
   {
-    id: 'design-to-code',
-    title: '研发实施',
-    summary: '形成并确认技术方案和测试设计基线，拆分任务后按单任务方式实现代码。',
-    inputs: ['design/approvals/requirement-confirmation.approved.json', '已确认应用代码', '任务编号'],
-    outputs: ['tasks/task-list.md', 'tasks/process/task-progress.md', '代码 diff', 'review/process/change-log.md', 'review/process/self-check.md'],
-    steps: ['02-generate-technical-design', '03-design-tests', 'manual-technical', '05-split-tasks', 'manual-task', '06-implement-task'],
-  },
-  {
-    id: 'quality-gate',
-    title: '验证',
-    summary: '基于实现结果完成代码评审、单元测试、需求追溯和研发提供的冒烟用例验证，并汇总人工确认状态。',
-    inputs: ['代码 diff', 'tasks/task-list.md', 'design/**', 'review/process/change-log.md', 'review/process/self-check.md'],
-    outputs: ['review/quality-report.md', 'review/evidence/risk-list.md', 'review/evidence/unit-test-result.md', 'review/evidence/traceability-matrix.md', 'review/evidence/smoke-test-case.md', 'review/evidence/smoke-test-result.md'],
-    steps: ['07-review-code', '08-verify-tests', '09-run-smoke'],
-  },
-  {
-    id: 'release-and-archive',
-    title: '交付结果',
-    summary: '生成上线 checklist，沉淀交付总结和归档材料；远端知识库推送只生成计划，不自动执行。',
-    inputs: ['design/**', 'tasks/**', 'review/**', '代码 diff'],
-    outputs: [
-      'delivery/release-checklist.md',
-      'delivery/delivery-summary.md',
-      'archive/knowledge-update-proposal.md',
-      'archive/index.md',
-      'archive/knowledge-card.md',
-    ],
-    steps: ['09-release-checklist', '08-delivery-summary', '10-archive-knowledge'],
+    id: 'release',
+    title: '发布确认',
+    summary: '人工核对三份正式交付物和风险决策，确认是否允许发布。',
+    inputs: ['delivery/unit-test-report.md', 'delivery/coverage-report.md', 'delivery/release-config.yaml'],
+    outputs: ['.workflow/approvals/release.approved.json'],
+    steps: ['manual-release'],
   },
 ];
 
@@ -61,7 +33,7 @@ const STEP_DEFINITIONS = {
   'init-workspace': {
     title: '创建 Workspace',
     kind: 'local',
-    description: '从 delivery-workflow 模板复制出一个需求工作区，并生成上下文快照。',
+    description: '创建精简 Workspace，并生成需求与领域上下文快照。',
     outputs: [
       'AGENTS.md',
       'CLAUDE.md',
@@ -69,165 +41,56 @@ const STEP_DEFINITIONS = {
       '.workflow/workflow.json',
       '.workflow/progress.md',
       '.workflow/progress.json',
-      '.workflow/commands/00-load-context.md',
+      '.workflow/commands/execute-delivery.md',
       'context/knowledge-version.md',
+      'context/demand-context.md',
     ],
   },
-  'import-prd': {
-    title: '导入并解析 PRD',
+  'execute-delivery': {
+    title: '自主完成需求',
     kind: 'agent',
-    commandFile: '.workflow/commands/00-import-and-parse-prd.md',
-    description: '先在页面选择本地 PRD 或记录外部链接，再调用可用的文档解析 skill 产出 Markdown 版 PRD。',
-    outputs: ['prd/document.md'],
-  },
-  '00-load-context': {
-    title: '加载上下文',
-    kind: 'agent',
-    commandFile: '.workflow/commands/00-load-context.md',
-    requires: ['prd/document.md'],
-    outputs: ['design/process/context-summary.md'],
-  },
-  '01-clarify-requirement': {
-    title: '需求澄清',
-    kind: 'agent',
-    commandFile: '.workflow/commands/01-clarify-requirement.md',
-    outputs: ['design/process/requirement-confirmation.md'],
-  },
-  'manual-requirement': {
-    title: '人工确认需求口径',
-    kind: 'manual',
-    description: '确认结果应写回 design/process/requirement-confirmation.md。',
-    inputs: ['design/process/requirement-confirmation.md'],
-    reviewFiles: ['design/process/requirement-confirmation.md'],
-    checklist: [
-      { id: 'reviewed-requirement-file', label: '已预览并确认需求澄清文档' },
-      { id: 'scope-clear', label: '需求口径和本次范围已明确，或未明确项已记录' },
-      { id: 'delivery-materials-reviewed', label: '已确认交付物资料完整性；缺少模板、样例或字段口径的影响已明确' },
-      { id: 'risks-recorded', label: '关键风险、待澄清问题和 Must Pause 项已知悉' },
-      { id: 'allow-next-step', label: '允许进入 02 生成技术方案' },
+    commandFile: '.workflow/commands/execute-delivery.md',
+    description: '根据当前目标和代码事实循环实施、验证与修复，并生成可复核的交付证据。',
+    outputs: [
+      'delivery/unit-test-report.md',
+      'delivery/coverage-report.md',
+      'delivery/release-config.yaml',
     ],
-    approvalFile: 'design/approvals/requirement-confirmation.approved.json',
-    rejectionFile: 'design/approvals/requirement-confirmation.rejected.json',
-    outputs: ['design/approvals/requirement-confirmation.approved.json'],
+    metadata: {
+      capabilityTypes: ['rule', 'general', 'unit-test', 'code-review', 'api-doc', 'prd-convert'],
+    },
   },
-  '02-generate-technical-design': {
-    title: '编写技术方案',
-    kind: 'agent',
-    commandFile: '.workflow/commands/02-generate-technical-design.md',
-    requires: ['design/approvals/requirement-confirmation.approved.json'],
-    outputs: ['design/technical-design.md', 'design/process/technical-confirmation.md', 'design/process/technical-design.changelog.md'],
-  },
-  '03-design-tests': {
-    title: '设计测试方案',
-    kind: 'agent',
-    commandFile: '.workflow/commands/03-design-tests.md',
-    requires: ['design/technical-design.md'],
-    outputs: ['design/unit-test-design.md', 'design/smoke-test-design.md'],
-  },
-  'manual-technical': {
-    title: '人工确认技术方案',
+  'manual-release': {
+    title: '人工确认发布',
     kind: 'manual',
-    description: '多轮评审技术方案；可退回写入评审意见，修订完成后再确认终版。',
-    inputs: ['design/technical-design.md', 'design/unit-test-design.md', 'design/smoke-test-design.md', 'design/process/technical-confirmation.md', 'design/process/technical-review.md'],
+    description: '核对交付证据、代码指纹、配置和回滚信息；发布动作始终由人决定。',
+    inputs: [
+      'delivery/unit-test-report.md',
+      'delivery/coverage-report.md',
+      'delivery/release-config.yaml',
+    ],
     reviewFiles: [
-      'design/technical-design.md',
-      'design/unit-test-design.md',
-      'design/smoke-test-design.md',
-      'design/process/technical-confirmation.md',
-      { path: 'design/process/technical-review.md', optional: true },
-      { path: 'design/process/technical-design.changelog.md', optional: true },
+      'delivery/unit-test-report.md',
+      'delivery/coverage-report.md',
+      'delivery/release-config.yaml',
     ],
     checklist: [
-      { id: 'reviewed-technical-files', label: '已预览研发技术方案、单测设计、冒烟测试设计和确认文档' },
-      { id: 'app-scope-confirmed', label: '应用范围、接口边界和数据边界已确认' },
-      { id: 'branch-strategy-confirmed', label: '研发已确认每个应用的基准分支、开发分支命名及 worktree 创建方式' },
-      { id: 'risk-accepted', label: '权限、资金、结算、兼容性风险已知悉' },
-      { id: 'review-comments-resolved', label: '本轮评审意见已处理或已明确保留原因' },
-      { id: 'test-design-approved', label: '已确认单测设计和冒烟测试设计将在批准后冻结为基线；提测前实际冒烟用例须与设计对齐' },
-      { id: 'allow-task-split', label: '允许冻结基线并进入实施任务拆分' },
+      { id: 'tests-reviewed', label: '已核对单元测试结果和失败数' },
+      { id: 'coverage-reviewed', label: '已核对 JaCoCo 字节码覆盖率和覆盖范围' },
+      { id: 'config-reviewed', label: '已核对发布应用、提交、配置、观测和回滚信息' },
+      { id: 'risks-reviewed', label: '所有高风险决策均已批准且没有待处理项' },
+      { id: 'allow-release', label: '允许按发布配置执行发布' },
     ],
-    approvalFile: 'design/approvals/technical-design.approved.json',
-    rejectionFile: 'design/approvals/technical-design.rejected.json',
-    outputs: ['design/approvals/technical-design.approved.json', 'context/current-context.md'],
-  },
-  '05-split-tasks': {
-    title: '拆分实施任务',
-    kind: 'agent',
-    commandFile: '.workflow/commands/05-split-tasks.md',
-    requires: ['design/approvals/technical-design.approved.json'],
-    outputs: ['tasks/task-list.md'],
-  },
-  'manual-task': {
-    title: '人工确认任务',
-    kind: 'manual',
-    description: '确认任务拆分和本轮允许实施的任务。tasks/task-list.md 保存任务事实，tasks/process/task-confirmation.md 保存人工准入结论，后续实施会同时读取两个文件。',
-    inputs: ['tasks/task-list.md', 'tasks/process/task-confirmation.md'],
-    reviewFiles: ['tasks/task-list.md', 'tasks/process/task-confirmation.md'],
-    checklist: [
-      { id: 'reviewed-task-list', label: '已预览任务拆分清单' },
-      { id: 'task-confirmation-written', label: '已填写任务确认结果，明确允许实施和暂缓任务' },
-      { id: 'task-boundary-clear', label: '任务边界、顺序、依赖和验收标准已确认' },
-      { id: 'single-task-ready', label: '已确认下一步可按单任务方式实施指定任务' },
-      { id: 'allow-implementation', label: '允许进入 06 单任务实现' },
-    ],
-    approvalFile: 'tasks/approvals/task-list.approved.json',
-    rejectionFile: 'tasks/approvals/task-list.rejected.json',
-    outputs: ['tasks/approvals/task-list.approved.json'],
-  },
-  '06-implement-task': {
-    title: '开发实现',
-    kind: 'agent',
-    commandFile: '.workflow/commands/06-implement-task.md',
-    requires: ['tasks/approvals/task-list.approved.json'],
-    outputs: ['tasks/process/task-progress.md', 'review/process/change-log.md', 'review/process/self-check.md'],
-  },
-  '07-review-code': {
-    title: '代码评审',
-    kind: 'agent',
-    commandFile: '.workflow/commands/07-review-code.md',
-    outputs: ['review/quality-report.md', 'review/evidence/risk-list.md'],
-  },
-  '08-verify-tests': {
-    title: '测试验证',
-    kind: 'agent',
-    commandFile: '.workflow/commands/08-verify-tests.md',
-    outputs: ['review/evidence/unit-test-result.md', 'review/evidence/traceability-matrix.md'],
-  },
-  '09-run-smoke': {
-    title: '冒烟验证',
-    kind: 'agent',
-    commandFile: '.workflow/commands/09-run-smoke.md',
-    requires: ['review/evidence/smoke-test-case.md'],
-    outputs: ['review/evidence/smoke-test-result.md'],
-  },
-  '09-release-checklist': {
-    title: '发布准备',
-    kind: 'agent',
-    commandFile: '.workflow/commands/09-release-checklist.md',
-    outputs: ['delivery/release-checklist.md'],
-  },
-  '08-delivery-summary': {
-    title: '交付总结',
-    kind: 'agent',
-    commandFile: '.workflow/commands/08-delivery-summary.md',
-    outputs: ['delivery/delivery-summary.md', 'archive/knowledge-update-proposal.md'],
-  },
-  '10-archive-knowledge': {
-    title: '交付归档',
-    kind: 'agent',
-    commandFile: '.workflow/commands/10-archive-knowledge.md',
-    outputs: ['archive/index.md', 'archive/knowledge-card.md', 'archive/process/platform-push-plan.md'],
+    approvalFile: '.workflow/approvals/release.approved.json',
+    rejectionFile: '.workflow/approvals/release.rejected.json',
+    outputs: ['.workflow/approvals/release.approved.json'],
   },
 };
 
-
-const fsp = require('fs/promises');
-const path = require('path');
-const { exists } = require('./fs-utils');
-
 function defaultWorkflowDefinition() {
   return {
-    version: 1,
+    version: 3,
+    description: 'Delivery Workflow V3：结果驱动、风险触发、证据交付。',
     units: WORKFLOW_UNITS,
     steps: STEP_DEFINITIONS,
     source: 'built-in',
@@ -239,17 +102,11 @@ function normalizeWorkflowDefinition(raw = {}, source = 'custom') {
   const rawSteps = raw && raw.steps && typeof raw.steps === 'object' ? raw.steps : {};
   const steps = {};
   for (const [stepId, defaultStep] of Object.entries(defaults.steps)) {
-    steps[stepId] = {
-      ...defaultStep,
-      ...(rawSteps[stepId] || {}),
-    };
+    steps[stepId] = { ...defaultStep, ...(rawSteps[stepId] || {}) };
   }
   for (const [stepId, step] of Object.entries(rawSteps)) {
-    if (!steps[stepId]) {
-      steps[stepId] = step;
-    }
+    if (!steps[stepId]) steps[stepId] = step;
   }
-
   const rawUnits = Array.isArray(raw.units) ? raw.units : defaults.units;
   const units = rawUnits
     .filter((unit) => unit && unit.id && Array.isArray(unit.steps))
@@ -260,10 +117,9 @@ function normalizeWorkflowDefinition(raw = {}, source = 'custom') {
       steps: unit.steps.filter((stepId) => steps[stepId]),
     }))
     .filter((unit) => unit.steps.length);
-
   return {
-    version: Number(raw.version || 1),
-    description: String(raw.description || ''),
+    version: Number(raw.version || 3),
+    description: String(raw.description || defaults.description),
     units: units.length ? units : defaults.units,
     steps,
     source,
@@ -273,22 +129,16 @@ function normalizeWorkflowDefinition(raw = {}, source = 'custom') {
 async function readWorkflowDefinition(workspacePath = '', options = {}) {
   const workflowDefinitionFile = options.workflowDefinitionFile || '.workflow/workflow.json';
   const templateDir = options.templateDir || '';
-  if (workspacePath) {
-    const filePath = path.join(workspacePath, workflowDefinitionFile);
-    if (await exists(filePath)) {
-      try {
-        return normalizeWorkflowDefinition(JSON.parse(await fsp.readFile(filePath, 'utf8')), 'workspace');
-      } catch (error) {
-        throw new Error(`Workflow 定义不是合法 JSON 或结构无效：${workflowDefinitionFile}；${error.message}`);
-      }
-    }
-  }
-  const templatePath = templateDir ? path.join(templateDir, workflowDefinitionFile) : '';
-  if (templatePath && await exists(templatePath)) {
+  const candidates = [
+    workspacePath ? { path: path.join(workspacePath, workflowDefinitionFile), source: 'workspace' } : null,
+    templateDir ? { path: path.join(templateDir, workflowDefinitionFile), source: 'template' } : null,
+  ].filter(Boolean);
+  for (const candidate of candidates) {
+    if (!(await exists(candidate.path))) continue;
     try {
-      return normalizeWorkflowDefinition(JSON.parse(await fsp.readFile(templatePath, 'utf8')), 'template');
+      return normalizeWorkflowDefinition(JSON.parse(await fsp.readFile(candidate.path, 'utf8')), candidate.source);
     } catch (error) {
-      throw new Error(`Workflow 模板不是合法 JSON 或结构无效：${templatePath}；${error.message}`);
+      throw new Error(`Workflow 定义不是合法 JSON 或结构无效：${candidate.path}；${error.message}`);
     }
   }
   return defaultWorkflowDefinition();
@@ -299,17 +149,9 @@ function workflowStepSequence(workflow) {
   const seen = new Set();
   for (const unit of workflow.units || []) {
     for (const stepId of unit.steps || []) {
-      if (seen.has(stepId)) {
-        continue;
-      }
+      if (seen.has(stepId)) continue;
       const definition = workflow.steps && workflow.steps[stepId] ? workflow.steps[stepId] : {};
-      sequence.push({
-        id: stepId,
-        title: definition.title || stepId,
-        kind: definition.kind || '',
-        unitId: unit.id,
-        unitTitle: unit.title || unit.id,
-      });
+      sequence.push({ id: stepId, title: definition.title || stepId, kind: definition.kind || '', unitId: unit.id, unitTitle: unit.title || unit.id });
       seen.add(stepId);
     }
   }
@@ -323,13 +165,7 @@ function workflowUnitForStep(workflow, stepId) {
 function workflowStepPosition(workflow, stepId) {
   const sequence = workflowStepSequence(workflow);
   const index = sequence.findIndex((step) => step.id === stepId);
-  return {
-    sequence,
-    index,
-    current: index >= 0 ? index + 1 : 0,
-    total: sequence.length,
-    currentStep: index >= 0 ? sequence[index] : null,
-  };
+  return { sequence, index, current: index >= 0 ? index + 1 : 0, total: sequence.length, currentStep: index >= 0 ? sequence[index] : null };
 }
 
 function progressMarkdown(workflow, existing = null) {
@@ -338,35 +174,19 @@ function progressMarkdown(workflow, existing = null) {
   const latest = existing && existing.latest ? existing.latest : {};
   const rows = sequence.map((step, index) => {
     const record = existing && existing.steps && existing.steps[step.id] ? existing.steps[step.id] : {};
-    return `| ${String(index + 1).padStart(2, '0')} | ${step.id} | ${step.title} | ${record.status || 'pending'} | ${record.updatedAt || ''} | ${record.summary || ''} |`;
+    return `| ${index + 1} | ${step.id} | ${step.title} | ${record.status || 'pending'} | ${record.updatedAt || ''} | ${record.summary || ''} |`;
   });
   return [
-    '# Workflow Progress',
-    '',
-    `updatedAt: ${updatedAt}`,
+    '# Workflow Progress', '', `updatedAt: ${updatedAt}`,
     latest.stepId ? `latestStep: ${latest.stepId}` : 'latestStep: ',
-    latest.status ? `latestStatus: ${latest.status}` : 'latestStatus: ',
-    '',
-    '## Status Values',
-    '',
-    '- pending: 未开始',
-    '- running: 处理中',
-    '- done: 已完成',
-    '- blocked: 阻塞或等待人工确认',
-    '- rejected: 已退回',
-    '',
-    '## Steps',
-    '',
-    '| No. | Step | Title | Status | Updated At | Summary |',
-    '| --- | --- | --- | --- | --- | --- |',
-    ...rows,
-    '',
-    '## AI Update Rule',
-    '',
-    '- 不直接手工编辑本文件或 `.workflow/progress.json`。',
-    '- 由 `dw done --step <step-id>` 写入完成状态；阻塞时使用 `--status blocked --summary "具体阻塞原因"`。',
-    '- 产物是否存在只是完成状态的校验条件，不能替代显式状态迁移。',
-    '',
+    latest.status ? `latestStatus: ${latest.status}` : 'latestStatus: ', '',
+    '## 状态', '',
+    '- pending：未开始', '- running：自主交付中', '- done：结果已形成', '- blocked：等待风险决策或外部输入', '- rejected：人工退回', '',
+    '## 节点', '', '| No. | Step | Title | Status | Updated At | Summary |', '| --- | --- | --- | --- | --- | --- |', ...rows, '',
+    '## 回写规则', '',
+    '- Agent 只在三份正式交付物均已生成且风险已清零后执行 `dw done --step execute-delivery`。',
+    '- 发现高风险时先执行 `dw risk report`，将当前节点标记为 blocked，待人工决策后继续。',
+    '- 不直接编辑本文件或 `.workflow/progress.json`。', '',
   ].join('\n');
 }
 

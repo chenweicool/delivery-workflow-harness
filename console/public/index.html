@@ -41,8 +41,8 @@
           <section id="startScreen" class="card start-card">
             <div class="card-heading">
               <div>
-                <h2>三步创建需求 Workspace</h2>
-                <p>PRD、补充上下文和当前代码是需求交付的主要依据；领域 Harness 可按需增强背景和约束。创建后，可直接在 Workspace 中使用 Codex、Claude 或任意 IDE 推进交付。</p>
+                <h2>创建需求 Workspace</h2>
+                <p>需求、补充上下文和当前代码是主要依据；领域 Harness 可按需增强。创建后，Agent 在一个 Work Run 内自主推进到三份正式交付物。</p>
               </div>
             </div>
             <div class="step-grid">
@@ -68,14 +68,14 @@
               </section>
               <section class="setup-step optional">
                 <span class="step-number">3</span>
-                <h3>导入 PRD</h3>
-                <p>可选。可上传本地材料，也可填写独立的飞书 PRD 链接自动读取。</p>
-                <label><span>飞书 PRD 链接（可选）</span><input id="feishuPrdUrl" type="url" placeholder="例如：https://xxx.feishu.cn/wiki/..." /></label>
+                <h3>导入需求材料</h3>
+                <p>可选。可上传本地材料，也可填写独立的飞书需求链接自动读取。</p>
+                <label><span>飞书需求链接（可选）</span><input id="feishuPrdUrl" type="url" placeholder="例如：https://xxx.feishu.cn/wiki/..." /></label>
                 <div id="feishuPrdHint" class="source-hint">
-                  <strong>独立的 PRD 来源</strong>
+                  <strong>独立的需求来源</strong>
                   <span>这里只填写飞书 docx/wiki 文档地址，不会覆盖第 2 步的需求追溯链接。</span>
                 </div>
-                <label><span>本地 PRD</span><input id="initialPrdFiles" type="file" multiple /></label>
+                <label><span>本地需求材料</span><input id="initialPrdFiles" type="file" multiple /></label>
               </section>
             </div>
             <div class="start-footer"><p>无需知识库也可创建；如挂载 Harness，领域和团队级能力会叠加形成当前需求的“生效能力清单”。</p><button id="createWorkspaceBtn" class="primary" type="button">创建需求 Workspace</button></div>
@@ -94,9 +94,9 @@
             <nav class="workspace-tabs" aria-label="需求视图">
               <button class="workspace-tab active" data-view="overview" type="button">概览</button>
               <button class="workspace-tab" data-view="context" type="button">需求资料</button>
-              <button class="workspace-tab" data-view="development" type="button">研发实施</button>
-              <button class="workspace-tab" data-view="verification" type="button">验证</button>
-              <button class="workspace-tab" data-view="delivery" type="button">交付结果</button>
+              <button class="workspace-tab" data-view="development" type="button">自主交付</button>
+              <button class="workspace-tab" data-view="verification" type="button">验证与确认</button>
+              <button class="workspace-tab" data-view="delivery" type="button">正式交付物</button>
             </nav>
 
             <section id="overviewView" class="view-panel">
@@ -114,7 +114,7 @@
                   <div class="delivery-config-grid">
                     <label><span>交付视角</span><select id="deliveryPerspective"><option value="backend">后端研发</option><option value="frontend">前端研发</option><option value="qa">测试验证</option><option value="ops">运维发布</option></select></label>
                     <label><span>建议分支格式</span><input id="deliveryBranchPattern" placeholder="例如：feature/{demand}" /></label>
-                    <label class="checkbox-field"><input id="loadAppContextForClarification" type="checkbox" /><span>需求澄清阶段加载应用代码上下文</span></label>
+                    <label class="checkbox-field"><input id="loadAppContextForClarification" type="checkbox" /><span>自主交付开始时加载应用代码上下文</span></label>
                   </div>
                   <div class="delivery-config-actions"><button id="saveDeliveryConfigBtn" class="primary" type="button">保存执行配置</button></div>
                 </div>
@@ -122,20 +122,20 @@
             </section>
 
             <section id="developmentView" class="view-panel hidden">
-              <section class="section-heading"><div><h2>研发实施</h2></div><p>技术方案、任务拆分和代码工作区构成本阶段的实施依据。</p></section>
+              <section class="section-heading"><div><h2>自主交付</h2></div><p>Agent 按任务复杂度自主理解、实现、Review、测试和修复；只有高风险决策会暂停。</p></section>
               <section id="developmentCards" class="delivery-grid delivery-grid-secondary"></section>
-              <section class="card development-apps-card"><h3>应用与分支</h3><p>实际分支须以研发确认记录为准。</p><div id="deliveryApps" class="delivery-apps-list"></div></section>
+              <section class="card development-apps-card"><h3>应用与分支</h3><p>三份交付物会绑定这里的实际代码提交和工作区指纹。</p><div id="deliveryApps" class="delivery-apps-list"></div></section>
             </section>
 
             <section id="verificationView" class="view-panel hidden">
-              <section class="section-heading"><div><h2>验证</h2></div><p>单元测试、接口契约、冒烟验证和需求追溯共同构成验证证据。</p></section>
+              <section class="section-heading"><div><h2>验证与发布确认</h2></div><p>单元测试和 JaCoCo 字节码覆盖率来自真实工具报告；最终发布由人确认。</p></section>
               <section id="verificationCards" class="delivery-grid delivery-grid-secondary"></section>
-              <section class="section-heading gate-heading"><div><h3>确认状态</h3></div><p>仅在必需证据齐备后，开放相应责任人的人工确认。</p></section>
+              <section class="section-heading gate-heading"><div><h3>发布确认</h3></div><p>三份交付物、当前代码指纹和风险决策一致后开放人工确认。</p></section>
               <section id="gatesPanel" class="gate-list"></section>
             </section>
 
             <section id="deliveryView" class="view-panel hidden">
-              <section class="section-heading"><div><h2>交付结果</h2></div><p>代码评审、上线检查、交付总结与知识归档在本阶段形成正式结论。</p></section>
+              <section class="section-heading"><div><h2>正式交付物</h2></div><p>最终只强制要求单元测试报告、JaCoCo 字节码覆盖率报告和发布配置。</p></section>
               <section id="deliveryResultCards" class="delivery-grid delivery-grid-secondary"></section>
             </section>
           </section>

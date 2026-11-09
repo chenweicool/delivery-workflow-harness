@@ -1,4 +1,60 @@
 {
-  "version": 2,
-  "description": "Domain Workspace v2：需求资料、研发实施、验证与交付结果的闭环。"
+  "version": 3,
+  "description": "Delivery Workflow V3：结果驱动、风险触发、证据交付。",
+  "units": [
+    {
+      "id": "workspace",
+      "title": "准备",
+      "summary": "建立需求 Workspace，接入需求材料、代码和可选领域上下文。",
+      "inputs": ["需求名称", "需求负责人", "需求链接"],
+      "outputs": ["AGENTS.md", ".workflow/workspace.json", "context/demand-context.md"],
+      "steps": ["init-workspace"]
+    },
+    {
+      "id": "work-run",
+      "title": "自主交付",
+      "summary": "Agent 自主完成理解、设计、实现、Review 和验证；只有命中高风险触发项时才暂停。",
+      "inputs": ["input/**", "context/**", "应用代码", "用户反馈"],
+      "outputs": ["delivery/unit-test-report.md", "delivery/coverage-report.md", "delivery/release-config.yaml"],
+      "steps": ["execute-delivery"]
+    },
+    {
+      "id": "release",
+      "title": "发布确认",
+      "summary": "人工核对三份正式交付物和风险决策，确认是否允许发布。",
+      "inputs": ["delivery/unit-test-report.md", "delivery/coverage-report.md", "delivery/release-config.yaml"],
+      "outputs": [".workflow/approvals/release.approved.json"],
+      "steps": ["manual-release"]
+    }
+  ],
+  "steps": {
+    "init-workspace": {
+      "title": "创建 Workspace",
+      "kind": "local",
+      "outputs": ["AGENTS.md", "CLAUDE.md", ".workflow/workspace.json", ".workflow/workflow.json", ".workflow/progress.md", ".workflow/progress.json", ".workflow/commands/execute-delivery.md", "context/knowledge-version.md", "context/demand-context.md"]
+    },
+    "execute-delivery": {
+      "title": "自主完成需求",
+      "kind": "agent",
+      "commandFile": ".workflow/commands/execute-delivery.md",
+      "outputs": ["delivery/unit-test-report.md", "delivery/coverage-report.md", "delivery/release-config.yaml"],
+      "metadata": { "capabilityTypes": ["rule", "general", "unit-test", "code-review", "api-doc", "prd-convert"] }
+    },
+    "manual-release": {
+      "title": "人工确认发布",
+      "kind": "manual",
+      "inputs": ["delivery/unit-test-report.md", "delivery/coverage-report.md", "delivery/release-config.yaml"],
+      "reviewFiles": ["delivery/unit-test-report.md", "delivery/coverage-report.md", "delivery/release-config.yaml"],
+      "checklist": [
+        { "id": "tests-reviewed", "label": "已核对单元测试结果和失败数" },
+        { "id": "coverage-reviewed", "label": "已核对 JaCoCo 字节码覆盖率和覆盖范围" },
+        { "id": "config-reviewed", "label": "已核对发布应用、提交、配置、观测和回滚信息" },
+        { "id": "risks-reviewed", "label": "所有高风险决策均已批准且没有待处理项" },
+        { "id": "allow-release", "label": "允许按发布配置执行发布" }
+      ],
+      "approvalFile": ".workflow/approvals/release.approved.json",
+      "rejectionFile": ".workflow/approvals/release.rejected.json",
+      "outputs": [".workflow/approvals/release.approved.json"]
+    }
+  }
 }

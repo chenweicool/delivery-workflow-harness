@@ -17,13 +17,11 @@
       "description": "本次需求可参考的历史方案或业务背景"
     }
   ],
-  "skills": [
-    "C:\\code\\team-ai\\skills\\prd-word-to-md"
-  ],
+  "skills": [],
   "rules": [
     "C:\\code\\team-ai\\rules\\java-backend.md"
   ],
   "branchPattern": "feature/{demand}-{date}",
-  "loadAppContextForClarification": false,
-  "notes": "只写本次需求特有说明；团队通用约束放到团队默认配置。"
+  "loadAppContextForClarification": true,
+  "notes": "Skill 必须由用户通过 dw skill install 显式安装；这里不配置默认启用的 Skill。"
 }

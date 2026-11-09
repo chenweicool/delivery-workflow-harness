@@ -6,9 +6,9 @@
 
 ## 发布版本记录
 
-- npm 当前 `latest`：`0.2.2`。
-- `0.2.0`、`0.2.1` 的 Git tag 已创建，但发布工作流分别因版本检查脚本和 Trusted Publisher 配置问题失败，未发布到 npm。
-- 后续每次发布后，更新 `CHANGELOG.md`；当前线上版本以 `npm view delivery-workflow-harness version` 的输出为准。
+- 当前仓库版本：`0.3.0`（Delivery Workflow V3）。
+- npm 线上版本以 `npm view delivery-workflow-harness version` 的实时输出为准；不要用本文档代替发布结果验证。
+- 后续每次发布后更新 `CHANGELOG.md`。
 
 发布成功后的维护验证：
 
@@ -19,7 +19,7 @@ npx -y delivery-workflow-harness@latest --help
 
 ## 客户端支持策略
 
-- 仅维护 npm `latest` 指向的版本；当前为 `0.2.2`。
+- 仅维护 npm `latest` 指向的版本。
 - `0.2.0` 及以上版本会在启动时检查 `latest`，由用户确认后更新并重启。
 - `0.1.x` 不含应用内更新入口，属于不再支持的旧版；应使用 `npm install -g delivery-workflow-harness@latest` 或 `npx -y delivery-workflow-harness@latest start` 升级。
 
@@ -68,7 +68,7 @@ git push origin main --follow-tags
 正式发布示例（将版本明确升级至目标稳定版本）：
 
 ```bash
-npm version 0.2.0
+npm version 0.3.0
 git push origin main --follow-tags
 ```
 
@@ -94,4 +94,4 @@ dw restart
 
 ## 领域知识边界
 
-Domain Harness、团队 Skill 和白皮书不随通用 npm 包发布。Workflow 仅生成知识更新提案，仍需知识 Owner 通过正常 Git/GitLab 审查后提交、推送和合并；定时维护任务不得绕过此流程。
+Domain Harness、团队 Skill 和白皮书不随通用 npm 包发布。共享知识变更仍需知识 Owner 通过正常 Git/GitLab 审查后提交、推送和合并；定时维护任务不得绕过此流程。

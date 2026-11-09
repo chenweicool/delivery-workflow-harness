@@ -4,190 +4,127 @@ const fs = require('fs');
 const fsp = require('fs/promises');
 const os = require('os');
 const path = require('path');
-const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
 const cliPath = path.join(rootDir, 'bin', 'delivery-workflow.js');
-const tmpRoot = path.join(os.tmpdir(), 'delivery-workflow-smoke');
+const tmpRoot = path.join(os.tmpdir(), 'delivery-workflow-v3-smoke');
 const demandName = `smoke-${Date.now()}`;
 const workspacePath = path.join(tmpRoot, demandName);
+const appPath = path.join(tmpRoot, 'sample-service');
 
-function run(args, options = {}) {
+function runCli(args, expected = '') {
   const result = spawnSync(process.execPath, [cliPath, ...args], {
     cwd: rootDir,
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      DELIVERY_WORKFLOW_DATA_DIR: path.join(tmpRoot, '.data'),
-    },
+    env: { ...process.env, DELIVERY_WORKFLOW_DATA_DIR: path.join(tmpRoot, '.data') },
   });
-  if (result.status !== 0) {
-    const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
-    throw new Error(`Command failed: delivery-workflow ${args.join(' ')}\n${output}`);
-  }
-  if (options.includes && !result.stdout.includes(options.includes)) {
-    throw new Error(`Expected command output to include "${options.includes}". Output:\n${result.stdout}`);
-  }
-  return result.stdout;
+  const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
+  if (result.status !== 0) throw new Error(`Command failed: dw ${args.join(' ')}\n${output}`);
+  if (expected && !output.includes(expected)) throw new Error(`Expected "${expected}" in:\n${output}`);
+  return output;
 }
 
-function runFailure(args, expected) {
+function runCliFailure(args, expected = '') {
   const result = spawnSync(process.execPath, [cliPath, ...args], {
     cwd: rootDir,
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      DELIVERY_WORKFLOW_DATA_DIR: path.join(tmpRoot, '.data'),
-    },
+    env: { ...process.env, DELIVERY_WORKFLOW_DATA_DIR: path.join(tmpRoot, '.data') },
   });
-  if (result.status === 0) {
-    throw new Error(`Expected command to fail: delivery-workflow ${args.join(' ')}`);
-  }
   const output = [result.stdout, result.stderr].filter(Boolean).join('\n');
-  if (expected && !output.includes(expected)) {
-    throw new Error(`Expected failed output to include "${expected}". Output:\n${output}`);
-  }
+  if (result.status === 0) throw new Error(`Expected failure: dw ${args.join(' ')}`);
+  if (expected && !output.includes(expected)) throw new Error(`Expected failure output "${expected}" in:\n${output}`);
+  return output;
+}
+
+function runGit(args, cwd) {
+  const result = spawnSync('git', args, { cwd, encoding: 'utf8', windowsHide: true });
+  if (result.status !== 0) throw new Error(`git ${args.join(' ')} failed:\n${result.stderr}`);
 }
 
 function assertFile(relativePath) {
-  const targetPath = path.join(workspacePath, relativePath);
-  if (!fs.existsSync(targetPath)) {
-    throw new Error(`Expected file to exist: ${targetPath}`);
-  }
+  const filePath = path.join(workspacePath, relativePath);
+  if (!fs.existsSync(filePath)) throw new Error(`Expected file: ${filePath}`);
 }
 
-async function readJson(relativePath) {
-  return JSON.parse(await fsp.readFile(path.join(workspacePath, relativePath), 'utf8'));
-}
-
-async function lockBaseline(relativePath, baseline) {
-  const content = await fsp.readFile(path.join(workspacePath, relativePath), 'utf8');
-  await fsp.mkdir(path.join(workspacePath, '.workflow', 'baselines'), { recursive: true });
-  await fsp.writeFile(
-    path.join(workspacePath, '.workflow', 'baselines', `${baseline}.lock.json`),
-    JSON.stringify({ version: 1, baseline, path: relativePath, sha256: crypto.createHash('sha256').update(content, 'utf8').digest('hex') }, null, 2),
-    'utf8',
-  );
-}
-
-async function createDomainHarnessFixture(root) {
-  await fsp.mkdir(path.join(root, 'docs', 'domain'), { recursive: true });
-  await fsp.writeFile(path.join(root, '.module-manifest.yaml'), [
-    'name: smoke-domain',
-    'description: Smoke domain Harness',
-    'bound_repositories:',
-    '  - name: smoke-service',
-    '    directory: codes/smoke-service',
-    '',
+async function createAppFixture() {
+  await fsp.mkdir(path.join(appPath, 'src'), { recursive: true });
+  await fsp.writeFile(path.join(appPath, 'src', 'App.java'), 'class App {}\n', 'utf8');
+  runGit(['init'], appPath);
+  runGit(['config', 'user.name', 'Smoke'], appPath);
+  runGit(['config', 'user.email', 'smoke@example.com'], appPath);
+  runGit(['add', '.'], appPath);
+  runGit(['commit', '-m', 'fixture'], appPath);
+  await fsp.mkdir(path.join(appPath, 'target', 'surefire-reports'), { recursive: true });
+  await fsp.mkdir(path.join(appPath, 'target', 'site', 'jacoco'), { recursive: true });
+  await fsp.writeFile(path.join(appPath, 'target', 'surefire-reports', 'TEST-AppTest.xml'), '<testsuite name="AppTest" tests="4" failures="0" errors="0" skipped="1" time="0.125"></testsuite>\n', 'utf8');
+  await fsp.writeFile(path.join(appPath, 'target', 'site', 'jacoco', 'jacoco.xml'), [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<report name="sample">',
+    '<counter type="INSTRUCTION" missed="20" covered="80"/>',
+    '<counter type="BRANCH" missed="3" covered="7"/>',
+    '<counter type="LINE" missed="4" covered="16"/>',
+    '</report>',
   ].join('\n'), 'utf8');
-  await fsp.writeFile(path.join(root, 'docs', 'domain', 'whitepaper.md'), '# Smoke Domain\n', 'utf8');
+}
+
+async function configureWorkspaceApp() {
+  const configPath = path.join(workspacePath, '.workflow', 'workspace.json');
+  const config = JSON.parse(await fsp.readFile(configPath, 'utf8'));
+  config.apps = [{ name: 'sample-service', sourcePath: appPath, worktreePath: 'apps/sample-service', type: 'java-backend' }];
+  config.appPaths = [{ name: 'sample-service', path: appPath }];
+  await fsp.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 }
 
 async function main() {
   await fsp.rm(tmpRoot, { recursive: true, force: true });
   await fsp.mkdir(tmpRoot, { recursive: true });
-  const domainRoot = path.join(tmpRoot, 'smoke-domain');
-  await createDomainHarnessFixture(domainRoot);
-
-  run(['help'], { includes: 'delivery-workflow start' });
-  run(['init', demandName, '--output-root', tmpRoot, '--domain', domainRoot, '--owner', 'Smoke', '--owner-id', 'smoke', '--demand-url', 'https://example.internal/demand/smoke'], { includes: 'Workspace created' });
+  await createAppFixture();
+  runCli(['help'], 'Delivery Workflow V3');
+  runCli(['init', demandName, '--output-root', tmpRoot, '--owner', 'Smoke', '--demand-url', 'https://example.internal/demand/smoke'], 'Workspace created');
   assertFile('AGENTS.md');
-  assertFile('.workflow/workspace.json');
-  assertFile('.workflow/progress.json');
+  assertFile('.workflow/commands/execute-delivery.md');
   assertFile('.workflow/workflow.json');
-  assertFile('.workflow/quality-policy.yaml');
-  run(['report', 'complete', '--workspace', workspacePath], { includes: 'status: created' });
-  assertFile('delivery/delivery-report.json');
-  const report = await readJson('delivery/delivery-report.json');
-  if (report.schemaVersion !== '1.0' || report.demand.owner.id !== 'smoke') {
-    throw new Error('Expected delivery report v1 to contain demand statistics.');
-  }
+  const workflow = JSON.parse(await fsp.readFile(path.join(workspacePath, '.workflow', 'workflow.json'), 'utf8'));
+  if (workflow.version !== 3 || Object.keys(workflow.steps).join(',') !== 'init-workspace,execute-delivery,manual-release') throw new Error('Expected V3 three-step workflow');
+  await configureWorkspaceApp();
 
-  run(['status', '--workspace', workspacePath], { includes: 'valid: true' });
-  run(['next', '--workspace', workspacePath], { includes: 'step: import-prd' });
-  run(['gate', 'check', '--workspace', workspacePath], { includes: 'requirement-confirmed\tblocked' });
-  assertFile('.workflow/quality-policy.lock.json');
-  assertFile('.workflow/gates.json');
+  const requestFile = path.join(tmpRoot, 'request.md');
+  await fsp.writeFile(requestFile, '# Smoke requirement\n', 'utf8');
+  runCli(['input', 'import', requestFile, '--workspace', workspacePath], 'input:');
+  assertFile('input/source/request.md');
+  assertFile('input/request.md');
+  runCli(['next', '--workspace', workspacePath], 'step: execute-delivery');
 
-  const sourcePrd = path.join(tmpRoot, 'source-prd.md');
-  await fsp.writeFile(sourcePrd, '# Smoke PRD\n', 'utf8');
-  run(['prd', 'import', sourcePrd, '--workspace', workspacePath], { includes: 'prd:' });
-  assertFile('prd/source/source-prd.md');
-  assertFile('prd/document.md');
-  assertFile('prd/metadata/ingestion.json');
+  runCli(['risk', 'report', '--type', 'database', '--scope', 'sample table', '--impact', 'schema change', '--rollback', 'revert migration', '--workspace', workspacePath], 'risk: R-001');
+  runCli(['risk', 'list', '--workspace', workspacePath], 'R-001\twaiting');
+  runCli(['risk', 'approve', 'R-001', '--note', 'fixture approved', '--workspace', workspacePath], 'status: approved');
 
-  await fsp.mkdir(path.join(workspacePath, 'design'), { recursive: true });
-  await fsp.mkdir(path.join(workspacePath, 'tasks'), { recursive: true });
-  await fsp.mkdir(path.join(workspacePath, 'review'), { recursive: true });
-  await fsp.writeFile(path.join(workspacePath, 'design', 'process', 'requirement-confirmation.md'), '# 需求确认\n\n- 覆盖边界条件\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'prd', 'document.md'), '# 解析后的 PRD\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'design', 'technical-design.md'), '# 技术方案\n\n- 修改 Service 分支逻辑\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'design', 'unit-test-design.md'), '# 单测设计\n\n- UT-001 覆盖边界\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'design', 'smoke-test-design.md'), '# 冒烟测试设计\n\n- ST-001 覆盖主路径\n', 'utf8');
-  await lockBaseline('design/technical-design.md', 'technical-design');
-  await lockBaseline('design/unit-test-design.md', 'unit-test-design');
-  await lockBaseline('design/smoke-test-design.md', 'smoke-test-design');
-  await fsp.writeFile(path.join(workspacePath, 'tasks', 'task-list.md'), '# 任务清单\n\n- T001 覆盖核心改动\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'process', 'change-log.md'), '# 变更记录\n\n- 修改目标代码\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'process', 'self-check.md'), '# 自检\n\n- 已自检主路径\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'quality-report.md'), '# AI Review\n\n## 发现问题\n\n- 边界场景需要补测\n', 'utf8');
-  await fsp.writeFile(path.join(workspacePath, 'review', 'evidence', 'risk-list.md'), '# 风险清单\n\n## 测试缺口\n\n- 异常路径\n', 'utf8');
-  run(['gate', 'check', '--workspace', workspacePath], { includes: 'design-ready\tready-for-approval' });
-  run(['gate', 'approve', 'design-ready', '--workspace', workspacePath, '--note', 'smoke reviewed'], { includes: 'design-ready / approved' });
+  runCli(['delivery', 'collect', '--workspace', workspacePath], 'delivery: collected');
+  assertFile('delivery/unit-test-report.md');
+  assertFile('delivery/coverage-report.md');
+  assertFile('delivery/release-config.yaml');
+  const testReport = await fsp.readFile(path.join(workspacePath, 'delivery', 'unit-test-report.md'), 'utf8');
+  const coverageReport = await fsp.readFile(path.join(workspacePath, 'delivery', 'coverage-report.md'), 'utf8');
+  if (!testReport.includes('| 4 | 0 | 0 | 1 |')) throw new Error('Unit test report totals are incorrect');
+  if (!coverageReport.includes('| sample-service | 80.00% | 70.00% | 80.00% |')) throw new Error('Coverage report totals are incorrect');
+  runCli(['delivery', 'validate', '--workspace', workspacePath], 'delivery: ready');
+  runCli(['done', '--step', 'execute-delivery', '--summary', 'fixture ready', '--workspace', workspacePath], 'return: manual-release');
+  runCli(['next', '--workspace', workspacePath], 'step: manual-release');
+  runCli(['release', 'approve', '--note', 'fixture release approved', '--workspace', workspacePath], 'release: approved');
+  assertFile('.workflow/approvals/release.approved.json');
+  runCli(['next', '--workspace', workspacePath], '交付流程已完成');
+  await fsp.appendFile(path.join(appPath, 'src', 'App.java'), '// changed after approval\n', 'utf8');
+  runCliFailure(['delivery', 'validate', '--workspace', workspacePath], '代码指纹不匹配');
+  runCli(['next', '--workspace', workspacePath], 'step: execute-delivery');
 
-  const localSkillPath = path.join(tmpRoot, 'local-smoke-skill');
-  await fsp.mkdir(localSkillPath, { recursive: true });
-  await fsp.writeFile(path.join(localSkillPath, 'SKILL.md'), '# Local Smoke Skill\n', 'utf8');
-  run(['skill', 'install', localSkillPath, '--workspace', workspacePath], { includes: 'installed: local-smoke-skill' });
-  run(['skill', 'disable', 'local-smoke-skill', '--workspace', workspacePath], { includes: 'disable: local-smoke-skill' });
-  run(['skill', 'enable', 'local-smoke-skill', '--workspace', workspacePath], { includes: 'enable: local-smoke-skill' });
-  run(['change', 'create', '--type', 'defect', '--reason', 'smoke defect', '--workspace', workspacePath], { includes: 'change: BUG-001' });
-  run(['change', 'impact', 'BUG-001', '--workspace', workspacePath], { includes: 'steps: 06-implement-task' });
-  run(['candidate', 'create', '--change', 'BUG-001', '--workspace', workspacePath], { includes: 'candidate: C-001' });
-  run(['candidate', 'verify', 'C-001', '--workspace', workspacePath], { includes: 'status: valid' });
-  run(['evidence', 'record', '--candidate', 'C-001', '--kind', 'review', '--path', 'review/quality-report.md', '--workspace', workspacePath], { includes: 'candidate: C-001' });
-
-  const progressBeforePatch = await readJson('.workflow/progress.json');
-  run(['patch', 'start', '--mode', 'quick', '--scope', 'SettlementTask retry branch', '--reason', 'retry condition is reversed', '--authorization', 'user explicitly authorized this local fix', '--workspace', workspacePath], { includes: 'mainline: unchanged' });
-  assertFile('.workflow/patches/P-001.json');
-  const quickPatch = await readJson('.workflow/patches/P-001.json');
-  if (quickPatch.mode !== 'quick' || quickPatch.status !== 'active') {
-    throw new Error('Expected an active quick patch record.');
-  }
-  const progressAfterPatch = await readJson('.workflow/progress.json');
-  if (JSON.stringify(progressBeforePatch) !== JSON.stringify(progressAfterPatch)) {
-    throw new Error('Starting a patch must not change mainline workflow progress.');
-  }
-  run(['status', '--workspace', workspacePath], { includes: 'independent-actions:' });
-  runFailure(['patch', 'start', '--mode', 'quick', '--scope', 'billing amount', '--reason', 'amount mismatch', '--authorization', 'user says fix', '--risk', 'financial', '--workspace', workspacePath], '快捷修复不能声明高风险触发项');
-  run(['patch', 'complete', 'P-001', '--files', 'src/SettlementTask.java', '--test', 'mvn -Dtest=SettlementTaskTest test: passed', '--summary', 'fixed retry branch', '--workspace', workspacePath], { includes: 'status: completed' });
-  run(['patch', 'promote', 'P-001', '--workspace', workspacePath], { includes: 'change: BUG-002' });
-  const promotedPatch = await readJson('.workflow/patches/P-001.json');
-  if (promotedPatch.status !== 'promoted' || promotedPatch.changeSetId !== 'BUG-002') {
-    throw new Error('Expected a completed patch to promote into a scoped defect ChangeSet.');
-  }
-  run(['patch', 'promote', 'P-001', '--workspace', workspacePath], { includes: 'change: BUG-002' });
-  run(['change', 'impact', 'BUG-002', '--workspace', workspacePath], { includes: 'steps: 07-review-code, 08-verify-tests, 09-run-smoke' });
-
-  const stateFile = path.join(tmpRoot, '.data', 'state.json');
-  await fsp.writeFile(stateFile, JSON.stringify({
-    outputRoot: path.join(tmpRoot, 'missing-output-root'),
-    workspacePath: path.join(tmpRoot, 'missing-workspace'),
-    selectedUnitId: 'design-to-code',
-    tools: {
-      workspaceRoot: tmpRoot,
-    },
-  }, null, 2), 'utf8');
-  const stateOutput = run(['config', 'show']);
-  if (stateOutput.includes('missing-workspace') || stateOutput.includes('missing-output-root')) {
-    throw new Error('Expected stale workspace state to be ignored.');
-  }
-
+  const workspaceConfig = JSON.parse(await fsp.readFile(path.join(workspacePath, '.workflow', 'workspace.json'), 'utf8'));
+  const enabledSkills = (workspaceConfig.capabilities || []).filter((item) => item.type === 'skill' && item.enabled === true);
+  if (enabledSkills.length) throw new Error('Workspace skills must not be enabled by default');
   console.log(`Smoke passed: ${workspacePath}`);
 }
 
 main().catch((error) => {
-  console.error(error.message);
+  console.error(error.stack || error.message);
   process.exit(1);
 });

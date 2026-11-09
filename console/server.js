@@ -62,15 +62,6 @@ const {
   createDomainHarnessRuntime,
 } = require('./lib/domain-harness');
 const {
-  createQualityEvidenceRuntime,
-} = require('./lib/quality-evidence');
-const {
-  createQualityGateRuntime,
-} = require('./lib/quality-gate');
-const {
-  createKnowledgeArchiveRuntime,
-} = require('./lib/knowledge-archive');
-const {
   validateDemand,
   createDeliveryReportRuntime,
 } = require('./lib/delivery-report');
@@ -105,14 +96,16 @@ const {
   createCheckpointRuntime,
 } = require('./lib/checkpoint');
 const {
-  createDesignBaselineRuntime,
-} = require('./lib/design-baseline');
+  reportRisk,
+  listRisks,
+  decideRisk,
+  riskSummary,
+  assertNoUnresolvedRisks,
+} = require('./lib/risk-decision');
 const {
-  createChangeCandidateRuntime,
-} = require('./lib/change-candidate');
-const {
-  createPatchWorkRuntime,
-} = require('./lib/patch-work');
+  generateDeliveryArtifacts,
+  validateDeliveryArtifacts,
+} = require('./lib/delivery-artifacts');
 const workflowRuntime = require('./lib/workflow');
 const {
   workflowStepSequence,
@@ -182,14 +175,6 @@ const TECHNICAL_REVIEW_FILE = 'design/process/technical-review.md';
 const TASK_CONFIRMATION_FILE = 'tasks/process/task-confirmation.md';
 const CAPABILITY_LOCK_FILE = '.workflow/capabilities.lock.json';
 const CAPABILITY_SUMMARY_FILE = 'context/capabilities.md';
-const {
-  freezeDesignBaselines,
-  verifyDesignBaselines,
-} = createDesignBaselineRuntime({
-  readWorkspaceTextFileIfExists,
-  readJsonFileIfExists,
-  writeWorkspaceJsonFile,
-});
 const progressApi = {};
 const transitionApi = {};
 const {
@@ -208,9 +193,7 @@ const {
   unlinkWorkspaceFileIfExists,
   transitionSteps: (...args) => transitionApi.transitionSteps(...args),
   nowIso,
-  TECHNICAL_REVIEW_FILE,
-  TECHNICAL_REVIEW_TEMPLATE: () => TECHNICAL_REVIEW_TEMPLATE,
-  freezeDesignBaselines,
+  validateDeliveryArtifacts,
 });
 const {
   readWorkflowProgress,
@@ -290,45 +273,6 @@ const {
   normalizeCapabilityList,
 });
 const {
-  createChangeSet,
-  listChangeSets,
-  getChangeImpact,
-  createCandidate,
-  listCandidates,
-  verifyCandidate,
-  recordCandidateEvidence,
-  reopenChange,
-  readIterationStatus,
-} = createChangeCandidateRuntime({
-  normalizeUserPath,
-  exists,
-  readJsonFileIfExists,
-  writeWorkspaceJsonFile,
-  readWorkspaceTextFileIfExists,
-  readWorkspaceConfig: (workspacePath) => readWorkspaceConfig(workspacePath, { ensureSnapshots: false }),
-  readWorkflowDefinition,
-  transitionSteps: (...args) => transitionApi.transitionSteps(...args),
-  workflowStepSequence,
-  verifyDesignBaselines,
-  gitHead,
-  gitOutputSafe,
-  nowIso,
-});
-const {
-  createPatch,
-  listPatches,
-  completePatch,
-  promotePatch,
-  readPatchStatus,
-} = createPatchWorkRuntime({
-  normalizeUserPath,
-  exists,
-  readJsonFileIfExists,
-  writeWorkspaceJsonFile,
-  nowIso,
-  createChangeSet,
-});
-const {
   readWhitepaperCatalog,
   matchFunctions,
   resolveWhitepaperContext,
@@ -347,38 +291,6 @@ const {
   gitHead,
   readWorkspaceConfig,
   writeWorkspaceConfig,
-  writeWorkspaceJsonFile,
-  writeWorkspaceTextFile,
-});
-const {
-  refreshQualitySummary,
-} = createQualityEvidenceRuntime({
-  normalizeUserPath,
-  exists,
-  readWorkspaceConfig,
-  readWorkspaceTextFileIfExists,
-  writeWorkspaceJsonFile,
-});
-const {
-  evaluateQualityGates,
-  submitQualityGate,
-} = createQualityGateRuntime({
-  normalizeUserPath,
-  exists,
-  readJsonFileIfExists,
-  writeWorkspaceJsonFile,
-  readWorkspaceTextFileIfExists,
-  verifyDesignBaselines,
-  readIterationStatus,
-});
-const {
-  createKnowledgeUpdateProposal,
-} = createKnowledgeArchiveRuntime({
-  normalizeUserPath,
-  exists,
-  readWorkspaceConfig,
-  readWorkspaceTextFileIfExists,
-  readJsonFileIfExists,
   writeWorkspaceJsonFile,
   writeWorkspaceTextFile,
 });
@@ -492,7 +404,6 @@ const {
   collectDiffSummary,
   readWorkspaceTextFileIfExists,
   truncateText,
-  readIterationStatus,
   WORKFLOW_PROGRESS_FILE,
   HANDOFF_DONE_FILE,
 });
@@ -516,8 +427,8 @@ const {
   closeMatchingAgentSession,
   transitionSteps: (...args) => transitionApi.transitionSteps(...args),
   pathExistsInWorkspace,
-  readIterationStatus,
-  recordCandidateEvidence,
+  assertNoUnresolvedRisks,
+  validateDeliveryArtifacts,
   nowIso,
 });
 const {
@@ -549,9 +460,8 @@ const {
   workflowStepSequence,
   HANDOFF_FILE,
   HANDOFF_DONE_FILE,
-  verifyDesignBaselines,
-  readIterationStatus,
-  readPatchStatus,
+  riskSummary,
+  validateDeliveryArtifacts,
 });
 const KNOWN_FACTS_TEMPLATE = [
   '# 技术方案生成输入',
@@ -1137,10 +1047,10 @@ async function resolveWhitepaperWorkspaceContext(body) {
   if (!workspacePath || !(await exists(workspacePath))) {
     throw new Error('请选择有效的 workspace');
   }
-  const prdDir = path.join(workspacePath, 'prd');
+  const prdDir = path.join(workspacePath, 'input');
   const prdFiles = await fsp.readdir(prdDir, { withFileTypes: true }).catch(() => []);
   if (!prdFiles.some((item) => item.isFile() && !/^README/i.test(item.name))) {
-    throw new Error('请先导入 PRD 或需求材料，再确认功能点');
+    throw new Error('请先导入需求材料，再确认功能点');
   }
   const tools = await readToolsConfig();
   const catalog = await readWhitepaperCatalog(whitepaperRootForTools(tools));
@@ -1352,9 +1262,11 @@ async function resolveTeamDefaultsForWorkspace(tools, demandName) {
     appPaths: apps.map((app) => ({ name: app.name, path: app.sourcePath })),
     apps,
     knowledge,
-    skills,
+    skills: [],
     rules,
-    capabilities,
+    capabilities: capabilities.map((capability) => capability.type === 'skill'
+      ? { ...capability, installed: false, enabled: false, selectionSource: 'profile-recommendation' }
+      : capability),
     branchPattern,
     loadAppContextForClarification: Boolean(profile.loadAppContextForClarification),
     notes,
@@ -1829,17 +1741,17 @@ async function listWorkspaces(outputRootValue) {
 }
 
 function chooseDestinationDir(prdRoot, targetSubdir) {
-  const allowed = new Set(['', 'source', 'assets', 'tables', 'metadata', 'templates', 'examples', 'references']);
+  const allowed = new Set(['', 'source', 'assets', 'metadata']);
   const normalized = String(targetSubdir || '').replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
   if (!allowed.has(normalized)) {
-    throw new Error('PRD 目标目录不合法');
+    throw new Error('需求材料目标目录不合法');
   }
   return path.join(prdRoot, normalized || 'source');
 }
 
 async function importLocalPaths(workspacePathValue, sourcePaths, targetSubdir) {
   const workspacePath = normalizeUserPath(workspacePathValue);
-  const prdRoot = path.join(workspacePath, 'prd');
+  const prdRoot = path.join(workspacePath, 'input');
   const destinationDir = chooseDestinationDir(prdRoot, targetSubdir);
   await ensureDir(destinationDir);
 
@@ -1855,7 +1767,7 @@ async function importLocalPaths(workspacePathValue, sourcePaths, targetSubdir) {
     await copyRecursive(sourcePath, destination);
     imported.push(path.relative(workspacePath, destination).replace(/\\/g, '/'));
   }
-  const sourceImports = imported.filter((item) => item.startsWith('prd/source/'));
+  const sourceImports = imported.filter((item) => item.startsWith('input/source/'));
   const ingestion = sourceImports.length ? await ingestPrdSources(workspacePath, sourceImports) : null;
   return { imported, ingestion };
 }
@@ -1884,10 +1796,10 @@ function capabilitiesMarkdown(snapshot) {
     '',
     '## 使用约束',
     '',
-    '- 开始工作前先阅读 `AGENTS.md`、`.workflow/progress.md`、`context/demand-context.md`、`context/domain-summary.md` 和本文件；实施、Review、测试、交付阶段还要读取 `context/current-context.md`（若存在）。',
-    '- 只读取当前步骤提示词列出的 `available` 能力；Skill 必须先通过 `dw skill install` 显式安装，Skill 为目录时先读其中的 `SKILL.md`，Rule 为文件时先读规则正文。',
-    '- 未安装或 `unavailable` 的 Skill 不是当前阶段的阻塞条件；按阶段命令的降级流程继续。',
-    '- 只在当前需求相关的阶段使用能力；PRD 与人工确认优先于领域背景或通用规则。',
+    '- 开始工作前先阅读 `AGENTS.md`、`context/demand-context.md`、`input/request.md`（若存在）、`context/domain-summary.md` 和本文件。',
+    '- 只有通过 `dw skill install` 显式安装且 enabled 的 Skill 才可使用；Skill 为目录时先读其中的 `SKILL.md`。',
+    '- 未安装或 `unavailable` 的 Skill 不是阻塞条件；继续使用当前代码和通用工具完成 Work Run。',
+    '- Rule 约束当前交付，但不能把 V3 重新扩展成固定阶段流水线。',
     snapshot.notes ? `\n## 团队补充约束\n\n${snapshot.notes}` : '',
     '',
   ].join('\n');
@@ -1950,12 +1862,12 @@ async function saveFeishuAssetFiles(workspacePath, assetFiles) {
   });
   const saved = [];
   for (const asset of prepared) {
-    const destination = path.join(workspacePath, 'prd', ...asset.localPath.split('/'));
+    const destination = path.join(workspacePath, 'input', ...asset.localPath.split('/'));
     assertWithin(workspacePath, destination);
     await ensureDir(path.dirname(destination));
     await fsp.writeFile(destination, asset.data);
     saved.push({
-      localPath: `prd/${asset.localPath}`,
+      localPath: `input/${asset.localPath}`,
       token: asset.token,
       mimeType: asset.mimeType,
       size: asset.data.length,
@@ -2009,7 +1921,7 @@ async function importFeishuPrd(body) {
     const { markdown, assetFiles, ...meta } = item;
     return meta;
   });
-  await writeWorkspaceJsonFile(workspacePath, 'prd/source/feishu.json', {
+  await writeWorkspaceJsonFile(workspacePath, 'input/source/feishu.json', {
     version: 1,
     importedAt: new Date().toISOString(),
     records,
@@ -2020,7 +1932,7 @@ async function importFeishuPrd(body) {
       imported.length > 1 ? `# 飞书文档 ${index + 1}${item.title ? `：${item.title}` : ''}` : '',
       item.markdown,
     ].filter(Boolean).join('\n\n')).join('\n\n---\n\n');
-    await writeWorkspaceTextFile(workspacePath, 'prd/document.md', documentMarkdown);
+    await writeWorkspaceTextFile(workspacePath, 'input/request.md', documentMarkdown);
   }
 
   const config = await readWorkspaceConfig(workspacePath);
@@ -2039,8 +1951,8 @@ async function importFeishuPrd(body) {
   return {
     imported: records.filter((item) => item.status === 'imported'),
     failed,
-    sourcePath: 'prd/source/feishu.json',
-    documentPath: imported.length ? 'prd/document.md' : '',
+    sourcePath: 'input/source/feishu.json',
+    documentPath: imported.length ? 'input/request.md' : '',
   };
 }
 
@@ -2170,7 +2082,7 @@ async function importUploadedFiles(req) {
   }
 
   const workspacePath = normalizeUserPath(fields.workspacePath);
-  const prdRoot = path.join(workspacePath, 'prd');
+  const prdRoot = path.join(workspacePath, 'input');
   const destinationDir = chooseDestinationDir(prdRoot, fields.targetSubdir);
   await ensureDir(destinationDir);
 
@@ -2182,7 +2094,7 @@ async function importUploadedFiles(req) {
     await fsp.writeFile(destination, file.body);
     imported.push(path.relative(workspacePath, destination).replace(/\\/g, '/'));
   }
-  const sourceImports = imported.filter((item) => item.startsWith('prd/source/'));
+  const sourceImports = imported.filter((item) => item.startsWith('input/source/'));
   const ingestion = sourceImports.length ? await ingestPrdSources(workspacePath, sourceImports) : null;
   return { imported, ingestion };
 }
@@ -2935,18 +2847,6 @@ async function route(req, res) {
       return;
     }
 
-    if (req.method === 'POST' && url.pathname === '/api/workspace/quality-summary/refresh') {
-      const body = await readJson(req);
-      sendJson(res, 200, await refreshQualitySummary(body.workspacePath));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/design-baselines/verify') {
-      const body = await readJson(req);
-      sendJson(res, 200, await verifyDesignBaselines(normalizeUserPath(body.workspacePath)));
-      return;
-    }
-
     if (req.method === 'POST' && url.pathname === '/api/workspace/delivery-report/complete') {
       const body = await readJson(req);
       const result = await completeDeliveryReport(body.workspacePath);
@@ -3009,98 +2909,6 @@ async function route(req, res) {
 
     if (req.method === 'POST' && url.pathname === '/api/harness-client/logout') {
       sendJson(res, 200, await logoutHarnessClient());
-      return;
-    }
-
-    if (req.method === 'GET' && url.pathname === '/api/workspace/changes') {
-      sendJson(res, 200, await listChangeSets(url.searchParams.get('workspacePath')));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/changes') {
-      sendJson(res, 200, await createChangeSet(await readJson(req)));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/changes/impact') {
-      const body = await readJson(req);
-      sendJson(res, 200, await getChangeImpact(body.workspacePath, body.changeSetId));
-      return;
-    }
-
-    if (req.method === 'GET' && url.pathname === '/api/workspace/patches') {
-      sendJson(res, 200, await listPatches(url.searchParams.get('workspacePath')));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/patches') {
-      sendJson(res, 200, await createPatch(await readJson(req)));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/patches/complete') {
-      sendJson(res, 200, await completePatch(await readJson(req)));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/patches/promote') {
-      sendJson(res, 200, await promotePatch(await readJson(req)));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/reopen') {
-      sendJson(res, 200, await reopenChange(await readJson(req)));
-      return;
-    }
-
-    if (req.method === 'GET' && url.pathname === '/api/workspace/candidates') {
-      sendJson(res, 200, await listCandidates(url.searchParams.get('workspacePath')));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/candidates') {
-      sendJson(res, 200, await createCandidate(await readJson(req)));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/candidates/verify') {
-      const body = await readJson(req);
-      sendJson(res, 200, await verifyCandidate(body.workspacePath, body.candidateId));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/candidates/evidence') {
-      sendJson(res, 200, await recordCandidateEvidence(await readJson(req)));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/gates/check') {
-      const body = await readJson(req);
-      sendJson(res, 200, await evaluateQualityGates(body.workspacePath));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/gates/approve') {
-      const body = await readJson(req);
-      sendJson(res, 200, await submitQualityGate({ ...body, action: 'approve' }));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/gates/reject') {
-      const body = await readJson(req);
-      sendJson(res, 200, await submitQualityGate({ ...body, action: 'reject' }));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/gates/exception') {
-      const body = await readJson(req);
-      sendJson(res, 200, await submitQualityGate({ ...body, action: 'exception' }));
-      return;
-    }
-
-    if (req.method === 'POST' && url.pathname === '/api/workspace/knowledge-update-proposal') {
-      const body = await readJson(req);
-      sendJson(res, 200, await createKnowledgeUpdateProposal(body.workspacePath));
       return;
     }
 
@@ -3277,6 +3085,34 @@ async function route(req, res) {
       return;
     }
 
+    if (req.method === 'GET' && url.pathname === '/api/risks') {
+      const workspacePath = url.searchParams.get('workspacePath');
+      sendJson(res, 200, await riskSummary(workspacePath));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/risks/report') {
+      sendJson(res, 200, await reportRisk(await readJson(req)));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/risks/decide') {
+      sendJson(res, 200, await decideRisk(await readJson(req)));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/delivery/collect') {
+      const body = await readJson(req);
+      sendJson(res, 200, await generateDeliveryArtifacts(body.workspacePath));
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/api/delivery/validate') {
+      const body = await readJson(req);
+      sendJson(res, 200, await validateDeliveryArtifacts(body.workspacePath));
+      return;
+    }
+
     if (req.method === 'POST' && url.pathname === '/api/runs/start') {
       const data = await startAgentRun(await readJson(req));
       sendJson(res, 200, data);
@@ -3437,6 +3273,7 @@ module.exports = {
   importFeishuPrd,
   prepareAgentHandoff,
   completeAgentHandoff,
+  submitCheckpoint,
   async matchWhitepaperFunctions(query) {
     const tools = await readToolsConfig();
     const catalog = await readWhitepaperCatalog(whitepaperRootForTools(tools));
@@ -3449,29 +3286,19 @@ module.exports = {
   inspectDomainHarness,
   attachDomainHarness,
   materializeDomainSources,
-  createChangeSet,
-  listChangeSets,
-  getChangeImpact,
-  createCandidate,
-  listCandidates,
-  verifyCandidate,
-  recordCandidateEvidence,
-  reopenChange,
-  createPatch,
-  listPatches,
-  completePatch,
-  promotePatch,
+  reportRisk,
+  listRisks,
+  decideRisk,
+  riskSummary,
+  generateDeliveryArtifacts,
+  validateDeliveryArtifacts,
   refreshWorkspaceCapabilities,
   fetchWhitepaperApplicationSource,
-  refreshQualitySummary,
   completeDeliveryReport,
   submitDeliveryReport,
   startHarnessAuthorization,
   authorizeHarnessClient,
   getHarnessClientStatus,
   logoutHarnessClient,
-  evaluateQualityGates,
-  submitQualityGate,
-  createKnowledgeUpdateProposal,
   buildWindowsPickerScript,
 };

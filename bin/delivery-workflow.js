@@ -32,28 +32,18 @@ const {
   getWorkspaceStatus,
   prepareAgentHandoff,
   completeAgentHandoff,
+  submitCheckpoint,
   matchWhitepaperFunctions,
   resolveWhitepaperWorkspaceContext,
   inspectDomainHarness,
   attachDomainHarness,
-  createChangeSet,
-  listChangeSets,
-  getChangeImpact,
-  createCandidate,
-  listCandidates,
-  verifyCandidate,
-  recordCandidateEvidence,
-  reopenChange,
-  createPatch,
-  listPatches,
-  completePatch,
-  promotePatch,
+  reportRisk,
+  listRisks,
+  decideRisk,
+  generateDeliveryArtifacts,
+  validateDeliveryArtifacts,
   fetchWhitepaperApplicationSource,
   refreshWorkspaceCapabilities,
-  refreshQualitySummary,
-  evaluateQualityGates,
-  submitQualityGate,
-  createKnowledgeUpdateProposal,
   completeDeliveryReport,
   submitDeliveryReport,
   materializeDomainSources,
@@ -70,7 +60,7 @@ const DEFAULT_PORT = 3040;
 
 function usage() {
   return [
-    'Delivery Workflow',
+    'Delivery Workflow V3',
     '',
     'Usage:',
     '  delivery-workflow start [--port 3040] [--no-open] [--foreground]',
@@ -82,28 +72,19 @@ function usage() {
     '  dw update --check',
     '  dw update',
     '  dw init <demand-name> --owner <name> --demand-url <url> [--context <text>] [--domain <local-path-or-git-url>] [--domain <source-2>] [--owner-id <id>] [--output-root <path>]',
-    '  dw prd import <file-or-directory> --workspace <path>',
+    '  dw input import <file-or-directory> --workspace <path>',
     '  dw domain inspect --root <domain-harness-path>',
     '  dw domain attach --workspace <path> --root <domain-harness-path>',
-    '  dw gate check --workspace <path>',
-    '  dw gate approve|reject|exception <gate-id> --workspace <path> [--note "..."]',
     '  dw skill list --workspace <path>',
     '  dw skill install <local-skill-path> --workspace <path> [--id <skill-id>]',
     '  dw skill enable|disable|remove <skill-id> --workspace <path>',
-    '  dw change create --type feature|requirement-change|design-change|defect|verification-only|hotfix --reason <text> --workspace <path>',
-    '  dw change list|impact <change-id> --workspace <path>',
-    '  dw defect create --source review|test|uat|production --reason <text> --workspace <path>',
-    '  dw patch start --mode quick|controlled --scope <text> --reason <text> --authorization <user-authority> --workspace <path> [--risk database,financial,api-contract,deletion,shared-component,ownership-unknown --impact <text>]',
-    '  dw patch list --workspace <path>',
-    '  dw patch complete <patch-id> --test <result> --summary <text> --workspace <path> [--files <path[,path]>]',
-    '  dw patch promote <patch-id> --workspace <path>',
-    '  dw candidate create [--change <id[,id]>] --workspace <path>',
-    '  dw candidate list|verify <candidate-id> --workspace <path>',
-    '  dw evidence record --candidate <id> --kind review|unit-test|smoke-test|uat --path <workspace-file> --workspace <path>',
+    '  dw risk report --type <type> --scope <text> --impact <text> --rollback <text> --workspace <path>',
+    '  dw risk list --workspace <path>',
+    '  dw risk approve|reject <risk-id> --note <text> --workspace <path>',
+    '  dw delivery collect --workspace <path>',
+    '  dw delivery validate --workspace <path>',
+    '  dw release approve|reject --note <text> --workspace <path>',
     '  dw done --step <step-id> [--revision <n>] [--idempotency-key <key>] --workspace <path>',
-    '  dw reopen --from <step-id> --reason <text> [--change <id>] [--revision <n>] --workspace <path>',
-    '  dw report complete --workspace <path>',
-    '  dw report submit --workspace <path>',
     '  dw harness configure --server-url <url> [--token-env HARNESS_INGEST_TOKEN]',
     '  dw harness login',
     '  dw harness status',
@@ -687,12 +668,12 @@ async function copyPrdSource(sourcePath, targetPath) {
 async function commandPrd(args) {
   const action = args._[1] || 'import';
   if (action !== 'import') {
-    throw new Error('Usage: dw prd import <file-or-directory> --workspace <path>');
+    throw new Error('Usage: dw input import <file-or-directory> --workspace <path>');
   }
   const sourceValue = args._[2] || args.source || args.path;
   const workspacePath = resolveWorkspaceArg(args);
   if (!sourceValue || !workspacePath) {
-    throw new Error('Usage: dw prd import <file-or-directory> --workspace <path>');
+    throw new Error('Usage: dw input import <file-or-directory> --workspace <path>');
   }
   if (!pathExists(path.join(workspacePath, 'AGENTS.md'))) {
     throw new Error('当前目录不是有效 Workspace');
@@ -701,13 +682,95 @@ async function commandPrd(args) {
   if (!pathExists(sourcePath)) {
     throw new Error(`PRD 来源不存在：${sourcePath}`);
   }
-  const targetPath = path.join(workspacePath, 'prd', 'source', path.basename(sourcePath));
+  const targetPath = path.join(workspacePath, 'input', 'source', path.basename(sourcePath));
   await copyPrdSource(sourcePath, targetPath);
   const sourceRelativePath = path.relative(workspacePath, targetPath).replace(/\\/g, '/');
   const ingestion = await ingestPrdSources(workspacePath, [sourceRelativePath]);
-  console.log(`prd: ${targetPath}`);
+  console.log(`input: ${targetPath}`);
   console.log(`markdown: ${ingestion.document.status} (${path.join(workspacePath, ingestion.document.path)})`);
-  console.log(`next: dw gate check --workspace "${workspacePath}"`);
+  console.log(`next: dw next --workspace "${workspacePath}"`);
+}
+
+async function commandRisk(args) {
+  const action = String(args._[1] || 'list').toLowerCase();
+  const workspacePath = resolveWorkspaceArg(args);
+  if (!workspacePath) throw new Error('Missing workspace. Run inside a Workspace or pass --workspace <path>.');
+  if (action === 'list') {
+    const risks = await listRisks(workspacePath);
+    if (!risks.length) {
+      console.log('No risk decisions.');
+      return;
+    }
+    for (const risk of risks) console.log(`${risk.id}\t${risk.status}\t${risk.type}\t${risk.scope}`);
+    return;
+  }
+  if (action === 'report') {
+    const risk = await reportRisk({
+      workspacePath,
+      type: args.type,
+      scope: args.scope,
+      impact: args.impact,
+      rollback: args.rollback,
+      recommendation: args.recommendation,
+      reporter: args.reporter || args.operator,
+    });
+    console.log(`risk: ${risk.id}`);
+    console.log(`status: ${risk.status}`);
+    console.log('work-run: pause before the high-risk change');
+    return;
+  }
+  if (['approve', 'reject'].includes(action)) {
+    const riskId = args._[2] || args.id;
+    if (!riskId) throw new Error(`Usage: dw risk ${action} <risk-id> --note <text> --workspace <path>`);
+    const risk = await decideRisk({ workspacePath, riskId, action, note: args.note, operator: args.operator });
+    console.log(`risk: ${risk.id}`);
+    console.log(`status: ${risk.status}`);
+    return;
+  }
+  throw new Error('Usage: dw risk report|list|approve|reject ...');
+}
+
+async function commandDelivery(args) {
+  const action = String(args._[1] || 'validate').toLowerCase();
+  const workspacePath = resolveWorkspaceArg(args);
+  if (!workspacePath) throw new Error('Missing workspace. Run inside a Workspace or pass --workspace <path>.');
+  if (action === 'collect') {
+    const result = await generateDeliveryArtifacts(workspacePath);
+    console.log(`delivery: collected`);
+    console.log(`fingerprint: ${result.snapshot.fingerprint}`);
+    for (const file of result.files) console.log(`file: ${path.join(workspacePath, file)}`);
+    return;
+  }
+  if (action === 'validate') {
+    const result = await validateDeliveryArtifacts(workspacePath);
+    console.log(`delivery: ${result.status}`);
+    console.log(`fingerprint: ${result.snapshot.fingerprint}`);
+    for (const issue of result.issues) console.log(`issue: ${issue}`);
+    if (result.status !== 'ready') process.exitCode = 1;
+    return;
+  }
+  throw new Error('Usage: dw delivery collect|validate --workspace <path>');
+}
+
+async function commandRelease(args) {
+  const action = String(args._[1] || '').toLowerCase();
+  if (!['approve', 'reject'].includes(action)) throw new Error('Usage: dw release approve|reject --note <text> --workspace <path>');
+  const workspacePath = resolveWorkspaceArg(args);
+  if (!workspacePath) throw new Error('Missing workspace. Run inside a Workspace or pass --workspace <path>.');
+  const status = await getWorkspaceStatus(workspacePath);
+  const step = status.steps && status.steps['manual-release'];
+  if (!step) throw new Error('当前 Workspace 不包含发布确认节点');
+  const checklist = (step.checklist || []).map((item) => ({ id: item.id, checked: true }));
+  const result = await submitCheckpoint({
+    workspacePath,
+    stepId: 'manual-release',
+    note: args.note,
+    operator: args.operator,
+    checklist,
+    revision: status.progress && status.progress.revision,
+  }, action);
+  console.log(`release: ${result.checkpoint.status}`);
+  console.log(`record: ${path.join(workspacePath, action === 'approve' ? step.approvalFile : step.rejectionFile)}`);
 }
 
 async function commandGate(args) {
@@ -886,11 +949,10 @@ async function commandStatus(args) {
   if (latest && latest.stepId) {
     console.log(`latest: ${latest.stepId} / ${latest.status || ''}`);
   }
-  if (status.iteration) {
-    console.log(`changeSet: ${status.iteration.activeChangeSetId || '(none)'}`);
-    console.log(`candidate: ${status.iteration.activeCandidateId || '(none)'} / ${status.iteration.candidateStatus || 'none'}`);
+  if (status.risks) {
+    console.log(`risks: ${status.risks.total} total / ${status.risks.unresolved.length} unresolved`);
   }
-  console.log('gates: 使用 `dw gate check --workspace <path>` 刷新质量门禁。');
+  if (status.deliveryValidation) console.log(`delivery: ${status.deliveryValidation.status}`);
   printNextRecommendation(status.nextRecommendation);
   printIndependentActions(status.independentActions);
 }
@@ -952,8 +1014,6 @@ async function commandDone(args) {
     taskId: args.task || args.taskId,
     summary: args.summary,
     status: args.status,
-    changeSetId: args.change || args.changeSet,
-    candidateId: args.candidate,
     returnStepId: args.returnStep || args.returnStepId,
     outputs: splitList(args.outputs),
     operator: args.operator,
@@ -962,14 +1022,6 @@ async function commandDone(args) {
     idempotencyKey: args.idempotencyKey || args.idempotency,
     port: args.port,
   });
-  if (['07-review-code', '06-generate-unit-tests'].includes(result.payload.stepId)) {
-    const quality = await refreshQualitySummary(result.workspacePath);
-    console.log(`quality: ${quality.status}`);
-  }
-  if (result.payload.stepId === '10-archive-knowledge') {
-    const proposal = await createKnowledgeUpdateProposal(result.workspacePath);
-    console.log(`knowledge-proposal: ${proposal.status}`);
-  }
   console.log(`done: ${path.join(result.workspacePath, result.doneFile)}`);
   console.log(`return: ${result.payload.returnStepId}`);
   console.log(result.payload.nextUrl);
@@ -1365,52 +1417,28 @@ async function main() {
     await commandDomain(args);
     return;
   }
-  if (command === 'prd') {
+  if (command === 'input') {
     await commandPrd(args);
-    return;
-  }
-  if (command === 'gate') {
-    await commandGate(args);
     return;
   }
   if (command === 'skill') {
     await commandSkill(args);
     return;
   }
-  if (command === 'change') {
-    await commandChange(args);
+  if (command === 'risk') {
+    await commandRisk(args);
     return;
   }
-  if (command === 'candidate') {
-    await commandCandidate(args);
+  if (command === 'delivery') {
+    await commandDelivery(args);
     return;
   }
-  if (command === 'evidence') {
-    await commandEvidence(args);
-    return;
-  }
-  if (command === 'reopen') {
-    await commandReopen(args);
-    return;
-  }
-  if (command === 'defect') {
-    await commandDefect(args);
-    return;
-  }
-  if (command === 'patch') {
-    await commandPatch(args);
+  if (command === 'release') {
+    await commandRelease(args);
     return;
   }
   if (command === 'app') {
     await commandApp(args);
-    return;
-  }
-  if (command === 'archive') {
-    await commandArchive(args);
-    return;
-  }
-  if (command === 'report') {
-    await commandReport(args);
     return;
   }
   if (command === 'harness') {

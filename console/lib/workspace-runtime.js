@@ -66,7 +66,7 @@ function emptyDomainContextMarkdown() {
     '## 当前状态',
     '',
     '- 当前 Workspace 未挂载领域 Harness；这不是流程阻塞项。',
-    '- 需求背景优先读取 `context/demand-context.md`、`prd/**`、人工确认与当前代码。',
+    '- 需求背景优先读取 `context/demand-context.md`、`input/**` 与当前代码。',
     '- 后续可按需挂载 Harness；挂载后系统会更新本快照。',
     '',
   ].join('\n');
@@ -97,7 +97,7 @@ async function initWorkspace(demandName, outputRoot, workspacePathValue, demandI
   await copyRecursive(TEMPLATE_DIR, targetDir);
   await fsp.writeFile(
     path.join(targetDir, '.workflow', 'workflow.json'),
-    JSON.stringify({ ...defaultWorkflowDefinition(), version: 2, description: 'Domain Workspace v2：需求、方案、测试基线与交付反验闭环。' }, null, 2),
+    JSON.stringify(defaultWorkflowDefinition(), null, 2),
     'utf8',
   );
 
@@ -106,21 +106,13 @@ async function initWorkspace(demandName, outputRoot, workspacePathValue, demandI
     'context/skills',
     'context/rules/linked',
     'context/skills/linked',
-    'prd/assets',
-    'prd/source',
-    'prd/metadata',
-    'prd/tables',
-    'prd/templates',
-    'prd/examples',
-    'prd/references',
-    'design/process',
-    'design/approvals',
-    'design/templates',
-    'tasks/process',
-    'tasks/approvals',
-    'review/process',
-    'review/evidence',
-    'archive/process',
+    'input/assets',
+    'input/source',
+    'input/metadata',
+    'workspace',
+    'delivery',
+    '.workflow/approvals',
+    '.workflow/risks',
   ];
   for (const dir of dirs) {
     await ensureDir(path.join(targetDir, dir));
@@ -150,6 +142,10 @@ async function initWorkspace(demandName, outputRoot, workspacePathValue, demandI
 
   const tools = await readToolsConfig();
   const inheritedConfig = await resolveTeamDefaultsForWorkspace(tools, safeDemandName);
+  inheritedConfig.skills = [];
+  inheritedConfig.capabilities = (inheritedConfig.capabilities || []).map((capability) => capability.type === 'skill'
+    ? { ...capability, installed: false, enabled: false, selectionSource: 'profile-recommendation' }
+    : capability);
   await writeWorkspaceConfig(targetDir, {
     demandName: safeDemandName,
     demand,

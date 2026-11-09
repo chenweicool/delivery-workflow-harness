@@ -3,8 +3,8 @@ const path = require('path');
 const zlib = require('zlib');
 const { assertWithin, ensureDir, exists } = require('./fs-utils');
 
-const PRD_DOCUMENT_FILE = 'prd/document.md';
-const PRD_INGESTION_FILE = 'prd/metadata/ingestion.json';
+const PRD_DOCUMENT_FILE = 'input/request.md';
+const PRD_INGESTION_FILE = 'input/metadata/ingestion.json';
 const TEXT_EXTENSIONS = new Set(['.md', '.markdown', '.txt']);
 
 function normalizeWorkspaceRelative(relativePath) {
@@ -121,7 +121,7 @@ function extractDocxMarkdown(buffer, sourcePath) {
     '',
     ...paragraphs,
     ...(tables.length ? ['', '## 原始表格', '', ...tables] : []),
-    ...(mediaCount ? ['', `> 原件含 ${mediaCount} 个图片资源，保留在 prd/source/，需结合原件核对图示内容。`] : []),
+    ...(mediaCount ? ['', `> 原件含 ${mediaCount} 个图片资源，保留在 input/source/，需结合原件核对图示内容。`] : []),
   ].join('\n').trim();
 }
 
@@ -138,8 +138,8 @@ async function ingestPrdSources(workspacePath, sourcePaths) {
 
   for (const input of sourcePaths || []) {
     const relativePath = normalizeWorkspaceRelative(input);
-    if (!relativePath.startsWith('prd/source/')) {
-      throw new Error(`PRD 原件必须位于 prd/source/：${relativePath}`);
+    if (!relativePath.startsWith('input/source/')) {
+      throw new Error(`需求原件必须位于 input/source/：${relativePath}`);
     }
     const sourcePath = path.join(root, relativePath);
     assertWithin(root, sourcePath);

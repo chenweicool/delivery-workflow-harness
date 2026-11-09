@@ -1,211 +1,137 @@
-# Delivery Workflow
+# Delivery Workflow V3
 
-Delivery Workflow 是一个目录原生、模型无关的 AI 辅助软件交付控制台。它围绕 PRD、Domain Harness 上下文、交付证据、质量门禁和人工确认组织需求 Workspace。
+Delivery Workflow 是一个目录原生、模型无关的 AI 软件交付 Harness。V3 不再把需求澄清、技术方案、任务拆分、Review、单测、冒烟和归档固定成串行门禁，而是让现代 Agent 在一个 Work Run 内自主循环，Workflow 只约束高风险决策、真实验证证据和最终发布。
 
-它不是 AI IDE，也不是聊天管理器。研发人员仍可在 Workspace 中使用自己的 Codex、Claude Code、IDE 或其他 AI 工具推进交付。
+## 核心模型
 
-## 安装、运行与卸载
-
-无需安装即可试用：
-
-```bash
-npx delivery-workflow-harness start
+```text
+需求材料 + 当前代码 + 可选领域上下文
+  -> 自主 Work Run（理解 / 实现 / Review / 测试 / 修复，可反复循环）
+  -> 单元测试报告 + JaCoCo 字节码覆盖率报告 + 发布配置
+  -> 人工发布确认
 ```
 
-推荐全局安装，以使用简短的 `dw` 命令：
+需求变动、普通缺陷和代码返工留在当前 Work Run 内，不需要重开需求、方案或任务步骤。过程文档可按复杂度创建在 `workspace/`，但不是门禁。
+
+## 安装与运行
 
 ```bash
 npm install -g delivery-workflow-harness
 dw start
 ```
 
-该命令默认在后台启动本地控制台，通常访问地址为：
+无需安装也可运行：
+
+```bash
+npx delivery-workflow-harness start
+```
+
+本地控制台默认访问 `http://127.0.0.1:3040`。
+
+## 快速开始
+
+```bash
+dw init policy-engine-change \
+  --owner 张三 \
+  --demand-url https://example.internal/demand/123 \
+  --context "目标、范围和关键约束"
+
+cd <workspace>
+dw input import <需求文件> --workspace .
+dw next --workspace .
+dw handoff --workspace . --step execute-delivery
+```
+
+Agent 在应用仓库中运行真实单测和 JaCoCo 后：
+
+```bash
+dw delivery collect --workspace .
+dw delivery validate --workspace .
+dw done --workspace . --step execute-delivery --summary "三份交付物已生成并校验"
+```
+
+随后在控制台核对三份正式交付物并完成人工发布确认，也可显式执行：
+
+```bash
+dw release approve --note "测试、覆盖率、发布配置和风险均已确认" --workspace .
+```
+
+## 风险触发，而不是固定门禁
+
+只有以下变更需要在实施前暂停并由人决策：
+
+- `database`：数据库结构、迁移、不可逆数据写入。
+- `financial`：金额、费用、报价、账单、结算、应付、清分语义。
+- `api-contract`：跨应用或公共 API 契约。
+- `deletion`：删除既有行为、数据或兼容路径。
+- `shared-component`：共享组件或多应用公共能力。
+- `external-write`：生产、远端平台或外部系统写操作。
+- `ownership-unknown`：应用、表、MQ、Job 或外部依赖归属不明。
+
+```bash
+dw risk report \
+  --type financial \
+  --scope "账单算费公式" \
+  --impact "可能改变账单金额" \
+  --rollback "回退提交并重跑受影响账期" \
+  --workspace .
+
+dw risk list --workspace .
+dw risk approve R-001 --note "影响范围和回滚方案已确认" --workspace .
+```
+
+低风险修改无需风险记录。风险批准后继续同一个 Work Run；不重开流程。
+
+## 三份正式交付物
 
 ```text
-http://127.0.0.1:3040
+delivery/unit-test-report.md     Surefire/Failsafe XML 的真实汇总
+delivery/coverage-report.md      JaCoCo XML 的字节码（INSTRUCTION）覆盖率
+delivery/release-config.yaml     应用、分支、提交、代码指纹、配置、观测和回滚
 ```
 
-卸载前请先停止本地控制台，然后执行 npm 的全局卸载命令：
+三份文件绑定同一个代码指纹。任何应用代码变化都会让 `dw delivery validate` 失败，必须重新收集证据。单测存在失败/错误、缺少 JaCoCo XML 或存在未批准风险时，也不能完成交付节点。
+
+## Skill 边界
+
+团队 Profile、Domain Harness 或能力目录可以推荐 Skill，但不会默认安装或启用。只有用户显式执行下面的命令后，Skill 才会进入当前 Workspace：
 
 ```bash
-dw stop
-npm uninstall -g delivery-workflow-harness
+dw skill install <local-skill-path> --workspace .
+dw skill enable <skill-id> --workspace .
 ```
 
-如果通过 `npx` 使用，则无需卸载；它不会安装为全局命令。
+未安装的 Skill 不得阻塞交付。
 
-## 常用命令
+## Workspace 结构
 
-```bash
-dw start
-dw stop
-dw restart
-dw status
-dw logs
-dw update --check
-dw update
-dw domain inspect --root <domain-harness-path>
-dw domain attach --workspace <path> --root <domain-harness-path>
-dw init <demand-name> --owner <name> --demand-url <url> [--context <text>] [--domain <source>]
-dw prd import <file-or-directory> --workspace <path>
-dw status --workspace <path>
-dw next --workspace <path>
-dw gate check --workspace <path>
-dw gate approve <gate-id> --workspace <path> --note "..."
-dw gate reject <gate-id> --workspace <path> --note "..."
+```text
+input/             原始需求、附件和规范化后的 request.md
+context/           本需求与可选领域上下文快照
+apps/              可选应用 worktree
+workspace/         可选过程记忆、中文技术方案和 Review 笔记
+delivery/          三份正式交付物
+.workflow/         机器状态、风险决策和最终发布确认
 ```
 
-`delivery-workflow` 是完整命令名，`dw` 是日常使用的简写。
-
-本地开发时可使用前台模式：
+## 本地开发与发布
 
 ```bash
-dw start --foreground
-```
-
-新用户可参阅[快速开始](docs/quick-start.md)。
-
-## 更新
-
-控制台启动后会检查新版本；发现更新时，左下角“检查更新”会显示红点。点击后仍需确认，安装完成后执行：
-
-```bash
-dw restart
-```
-
-也可在命令行完成同一操作：
-
-```bash
-dw update --check
-dw update
-dw restart
-```
-
-请勿将更新设为静默后台计划任务，以免运行中的本地控制台被替换。
-
-## 本地开发
-
-```bash
-cd delivery-workflow-harness
 npm run check
 npm run test:regression
-npm run start
+npm pack --dry-run
 ```
 
-本地控制台源代码位于 `console/`，Workspace 模板位于 `templates/`。
-
-## 产品模型
-
-```text
-PRD + 补充上下文 + 当前代码 + 可选 Domain Harness / 团队策略
-  -> 需求 Workspace
-  -> 研发人员使用 Codex / Claude / IDE 实施
-  -> 交付证据 + 人工质量门禁
-  -> 交付总结与知识更新提案
-```
-
-npm 包仅包含通用的流程机制和示例。团队专属资产应存放在独立的私有 Git 仓库中。
-
-## Domain Harness 挂载
-
-Domain Harness 不是创建 Workspace 的必选项。没有 Harness 时，Workflow 仍会使用 `context/demand-context.md`、PRD、人工确认和当前代码推进；后续可再挂载一个主 Domain Harness 和多个只读参考 Harness。每个来源可以是本地目录或 Git 地址。远程来源只会被克隆到当前 Workspace 的 `context/domain-sources/`；Workflow 会把版本、代码入口和来源记录到 `context/domain-summary.md` 和 `.workflow/domain.lock.json`，不会修改原始 Harness 或其源仓库。
+版本与 tag 保持一致后推送：
 
 ```bash
-# 不依赖 Harness，直接提供需求与补充上下文
-dw init <demand-name> --owner <负责人> --demand-url <需求链接> --context "业务背景、约束和关注点"
-
-# 创建时按需挂载 Harness
-dw init <demand-name> --domain <local-harness> --domain <reference-harness-git-url> --owner <负责人> --demand-url <需求链接>
-# 也可在初始化后挂载
-dw domain attach --workspace <workspace-path> --root <domain-harness-path>
+git add .
+git commit -m "refactor: delivery workflow v3"
+git tag -a v0.3.0 -m "Delivery Workflow v0.3.0"
+git push origin main
+git push origin v0.3.0
 ```
 
-Agent 应将 PRD 和人工确认视为目标行为，将当前代码视为当前行为来源，将 Domain Harness 材料视为领域背景和风险证据；有冲突时必须记录并交由人工确认。
+仓库的发布工作流会基于 tag 执行检查并发布 npm 包。npm 已发布版本不可覆盖；失败时修复后发布新版本。
 
-## 质量门禁
-
-每个 Workspace 都包含 `.workflow/quality-policy.yaml`，用于定义需求确认、技术方案就绪和交付验证所需的证据。`dw gate check` 会将可审计状态写入 `.workflow/gates.json`；仅证据齐备且未失效的门禁才能被批准。交付验证还要求 Review、单测、冒烟证据绑定到同一个有效 Candidate；代码、设计或已绑定证据变化后，旧放行自动失效。
-
-技术方案阶段会冻结 `design/unit-test-design.md`，测试用例必须以表格记录。冒烟用例不由 Workflow 设计：研发需在提测前提供 `review/evidence/smoke-test-case.md`，QA 将执行结果记录到 `review/evidence/smoke-test-result.md`。
-
-## ChangeSet、局部修复与 Candidate
-
-需求变动、技术调整、完整缺陷交付、仅验证和 Hotfix 都以 ChangeSet 记录；Candidate 固定本次 PRD、设计 baseline 和应用代码快照。不要以“分支仍在”或“文件还在”代替可验证的交付候选。
-
-用户已明确授权、范围局部且不触发高风险项的缺陷，先使用独立修复记录：它不重开主线，也不要求重写任务拆分和三份过程文档。金额/账单/结算、数据库、跨应用 API、删除、共享组件或归属不明的修复必须使用受控修复，并写明最小影响和验证。代码稳定后才提升到 ChangeSet、Candidate 与正式验证。
-
-```bash
-dw patch start --mode quick --scope "SettlementTask 的重试分支" --reason "已存在任务无法重试" --authorization "用户：直接修复该重试分支" --workspace <workspace-path>
-# 修改代码并执行最小相关测试后
-dw patch complete P-001 --files "src/SettlementTask.java" --test "mvn -Dtest=SettlementTaskTest test：通过" --summary "修复重复重试判断" --workspace <workspace-path>
-dw patch promote P-001 --workspace <workspace-path>
-dw candidate create --change BUG-001 --workspace <workspace-path>
-dw evidence record --candidate C-001 --kind uat --path review/evidence/uat-result.md --workspace <workspace-path>
-```
-
-需要重新执行主线某一节点时，才使用 `dw reopen`；它会重开该节点后的主线步骤，不应用于局部修复。
-
-Review、单测和冒烟步骤通过 `dw done` 完成时会自动写入其对应的 Candidate 证据。UAT、容量和发布审批等非标准节点使用 `dw evidence record` 显式绑定。
-
-每次状态提交都会生成递增的 `revision` 和追加事件。控制台会自动携带当前 revision；CLI/Agent 可在 `dw status` 读取后通过 `dw done --revision <n>` 或 `dw reopen --revision <n>` 提交。旧 revision 会被拒绝，使用相同 `--idempotency-key` 的重试不会重复推进状态。
-
-## Workspace 产物结构
-
-```text
-prd/document.md                    解析后的 PRD
-prd/source/                        原始 PRD 材料
-context/demand-context.md          创建时填写的本需求补充上下文
-context/domain-summary.md          可选领域 Harness 快照；未挂载时明确降级来源
-design/*.md                        已确认的设计与测试基线
-design/process/                    上下文、确认与修订记录
-design/approvals/                  检查点记录
-tasks/task-list.md                 已确认的任务计划
-tasks/process/                     任务确认与执行进度
-review/quality-report.md           独立评审结论
-review/evidence/                   测试、冒烟、风险和追溯证据
-review/process/                    变更日志与自检
-archive/                           知识提案和案例卡片
-.workflow/                         命令、锁文件与运行状态
-```
-
-技术方案检查点获批后，Workflow 会生成 `context/current-context.md`。新的 Codex 或 Claude 会话通过 Workspace 指引读取它，再按链接读取已确认的设计和测试基线。Skill 保持为外部能力：Workflow 负责路由和锁定选中的 Skill，但不会硬编码团队或集成专属实现。
-
-## PRD 导入
-
-本地 PRD 会先复制到 `prd/source/`。内置导入器会将 Markdown、纯文本和 DOCX 规范化到 `prd/document.md`，并保留可读的 Word 表格。每个来源和解析结果都会记录到 `prd/metadata/ingestion.json`；DOCX 解析失败会以 `parse-failed` 及原因明确记录。PDF 和旧版 DOC 会被安全归档并标记为 `needs-parser`，直至后续适配器或 Agent 产出规范化 Markdown。
-
-详细架构和连接器模型见[控制台重构方案](docs/control-plane-refactor-plan.md)。
-
-## 公开 npm 发布
-
-该包发布到公开 npm registry。用户无需 npm 账号，可直接运行已发布的 `latest` 版本：
-
-```bash
-npx -y delivery-workflow-harness@latest start
-```
-
-仓库有两条自动化发布相关流程：
-
-- Dependabot 每周为 npm 依赖和 GitHub Actions 更新创建 PR；它不会自动合并或发布。
-- 推送名为 `v<package-version>` 的 Git tag 后，将运行检查并发布 npm 包；稳定版使用 `latest`，预发布版使用 `beta`。
-
-发布限制、仓库维护位置与启用清单见[npm 发布与维护](docs/npm-release-and-maintenance.md)。
-
-启用发布工作流前，请为该 GitHub 仓库和 `Publish npm package` 工作流配置 npm **Trusted Publishing**。它使用 GitHub 的短期 OIDC 身份验证；请勿将 npm token 或 `.npmrc` 凭据提交到仓库。
-
-发布时先提交目标版本，然后创建并推送同版本的注释 tag：
-
-```bash
-npm version prerelease --preid beta
-git push origin main --follow-tags
-
-# beta 验证通过后：
-npm version 0.2.0
-git push origin main --follow-tags
-```
-
-npm 已发布版本不可覆盖。若工作流失败，请修复问题、创建新版本并为新版本打 tag；不要尝试重新发布同一版本。
-
-## 当前状态
-
-项目处于 v1 试运行阶段，适用于已有代码与测试基线的小型真实需求。首个完整交付的需求应成为白皮书案例，并经知识 Owner 审核后更新到 Git。
+更多操作见 [快速开始](docs/quick-start.md)，架构决策见 [ADR-0001](docs/adr/0001-outcome-driven-workflow-v3.md)。

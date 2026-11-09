@@ -1,113 +1,68 @@
-# AI 需求交付 Workspace
+# Delivery Workflow V3
 
-本 workspace 是由共享 `delivery-workflow` 模板生成的单需求执行区。
+本 Workspace 采用“结果驱动、风险触发”的交付模型。Agent 负责围绕用户目标自主完成理解、设计、实现、Review、测试和修复，不得把固定阶段或过程文档当成工作的前置条件。
 
-## 核心规则
+## 开始工作
 
-- 开始任何交付流程前，必须先读取本文件。
-- 按阶段执行 `.workflow/commands/` 下的命令文件。
-- 执行前先阅读 `.workflow/commands/README.md`，确认当前命令所属的交付生命周期、正式产物和人工确认点。
-- 禁止跳过人工确认点。
-- 完整交付主线的实施阶段在明确批准前，禁止修改代码；但存在有效的局部修复记录时，可按其授权范围独立修复，不受主线未完成确认点阻塞。
-- 未经人工确认，禁止扩大应用范围。
-- 本需求相关过程文件必须保存在当前 workspace 内。
-- 进度文件由 `dw done` 统一维护，Agent 不直接编辑 `.workflow/progress.md` 和 `.workflow/progress.json`。
-- 禁止把需求过程文件写回共享公共 AI 仓库。
-- 开始工作前必须阅读 `context/demand-context.md`、`context/domain-summary.md` 与 `context/capabilities.md`。`domain-summary.md` 可能明确当前未挂载领域 Harness，这不是阻塞项。实施、Review、测试和交付阶段还必须先阅读 `context/current-context.md`（若存在），再读取其指向的已批准方案、测试基线和确认记录。只读取其中标记为“本步骤启用 / available”的 skills / rules；未挂载或 unavailable 的能力不是前置条件，按当前命令的降级流程继续。
-- 挂载能力的只读链接位于 `context/skills/linked` 和 `context/rules/linked`；Skill 必须由用户显式安装后才会启用。不得向这些公共源写入需求过程文件；未安装的推荐 Skill 不得阻断当前阶段。
-- 所有面向用户的输出和 workspace 文档必须使用中文。
-- 输出保持简洁并聚焦当前阶段；不要添加泛泛免责声明、仪式化总结或对下一步没有帮助的宽泛兜底内容。
-- 证据不足时，只记录具体缺失输入或阻塞问题；不要写模糊兜底段落。
+1. 读取 `context/demand-context.md`、`input/request.md`（若存在）、`.workflow/workspace.json` 和必要的当前代码。
+2. 读取 `.workflow/commands/execute-delivery.md`，在一个 Work Run 内持续推进到可交付。
+3. 用户反馈、需求变动和普通缺陷直接进入当前 Work Run；修改后重新执行相关测试，不重开需求、方案或任务流程。
+4. 只有命中“风险决策边界”时暂停。
 
-## 目录说明
+## 风险决策边界
 
-```text
-context/          本需求共享知识快照
-prd/              产品 PRD、附件、模板、样例、截图
-design/           根目录仅放正式方案与测试基线；过程、确认、审批和模板分别在 process/、approvals/、templates/
-tasks/            根目录仅放实施任务清单；确认和进度在 process/，审批在 approvals/
-apps/             人工确认后的应用 worktree
-review/           根目录放质量结论；过程记录在 process/，测试和追溯证据在 evidence/
-delivery/         上线 checklist、交付总结和完成统计报告
-archive/          知识更新提案、知识卡片和归档索引；外部推送计划在 process/
-.workflow/        阶段命令模板和 workflow 本地元数据
-```
+以下变更在实施前必须执行 `dw risk report`，写明范围、影响和回滚方案，并等待人工批准：
 
-## 进度回写
+- `database`：数据库结构、迁移、不可逆数据写入。
+- `financial`：金额、费用、报价、账单、结算、应付、清分语义。
+- `api-contract`：跨应用或公共 API 契约兼容性。
+- `deletion`：删除既有行为、数据或兼容路径。
+- `shared-component`：共享组件或多应用公共能力。
+- `external-write`：生产、远端平台或外部系统写操作。
+- `ownership-unknown`：应用、表、MQ、Job 或外部依赖归属不明。
 
-- 每个阶段开始前先读取 `.workflow/progress.md`。
-- 当前阶段完成后执行 `dw done --workspace <path> --step <step-id> --summary "完成说明"`。
-- 如果无法继续，执行 `dw done --workspace <path> --step <step-id> --status blocked --summary "具体阻塞原因"`。
-- 产物会被校验，但不会自动把阶段标记为完成。
+低风险修改无需创建风险记录，也无需人工逐步确认。
 
-## ChangeSet、局部修复与 Candidate
+## Skill 与 Rule
 
-- 产品口径变化、技术方案调整、完整缺陷交付、仅验证和 Hotfix 使用 ChangeSet；不要覆盖旧批准或旧证据。
-- 已有用户明确授权、范围局部且不触发高风险项的缺陷，可先创建“快捷修复”记录；它不重开主线、不要求任务拆分，也不要求更新 `task-progress.md`、`change-log.md`、`self-check.md`。执行 `dw patch start --mode quick --scope "范围" --reason "原因" --authorization "用户原话" --workspace <path>` 后，才可在记录范围内改代码。
-- 涉及数据库、金额/费用/报价/账单/结算、跨应用 API、删除既有行为、共享组件或归属不明时，不得使用快捷修复；必须创建“受控修复”记录并写明风险与最小影响：`dw patch start --mode controlled --scope "范围" --reason "原因" --authorization "用户原话" --risk <触发项> --impact "影响与验证" --workspace <path>`。
-- 修复完成后必须记录真实测试结果：`dw patch complete <patch-id> --test "命令及结果，或未执行原因" --summary "完成说明" --workspace <path>`。准备 Review、单测、冒烟或 UAT 时，再执行 `dw patch promote <patch-id>`，创建 Candidate 并绑定正式证据。
-- 创建代码候选：`dw candidate create --workspace <path> [--change <change-id>]`。Candidate 固定 PRD、设计基线和应用代码快照。
-- 代码 Review、单测、冒烟和 UAT 证据必须绑定同一个有效 Candidate。执行 Review、单测或冒烟步骤的 `dw done` 会自动绑定正式证据；Candidate 变化后必须创建新 Candidate 并重新验证。
-- 需要从某节点重做时，使用 `dw reopen --from <step-id> --reason "原因" --workspace <path>`；它会保留旧审批记录并标记为已替代。
-- 不要直接修改 `.workflow/progress.*`。状态提交应携带当前 revision；旧 revision 会被拒绝，网络重试使用同一 `--idempotency-key`。
+- Skill 只有在用户执行 `dw skill install` 后才算安装，并且只有 enabled 的 Skill 才可使用。
+- Harness、团队 Profile 或领域材料中的推荐 Skill 默认不安装、不启用，也不得阻塞交付。
+- Rule 可以作为约束读取，但不能把 V3 重新扩展成固定阶段流水线。
 
-## 平台定位
-
-本平台是需求交付的 Harness / Leader 层：
-
-- 定义标准节点、输入输出、人工确认点、质量门禁和归档协议。
-- 调度 Codex / Claude / skills / rules / 本地工具等执行资源。
-- 通过 workspace 文件承接交接、状态、产物和知识沉淀。
-- 具体分析、方案生成、代码实现、单测、review 和调整，仍由 Codex / Claude 在目标项目上下文中完成。
-
-## 交付生命周期与命令
+## 目录
 
 ```text
-需求资料
-  -> 研发实施
-  -> 验证
-  -> 交付结果
+input/             需求原件、附件和规范化后的 request.md
+context/           本次需求与可选领域上下文快照
+apps/              可选应用 worktree
+workspace/         Agent 按复杂度创建的临时分析、中文技术方案或 Review 笔记
+delivery/          三份正式交付物
+.workflow/         机器状态、风险决策和最终发布确认
 ```
 
-页面按上述生命周期组织信息；命令仍按输入输出执行，不得仅因页面分类而跳过前置条件或人工确认。完整映射见 `.workflow/commands/README.md`。
+过程文件是工作记忆，不是门禁。复杂需求可使用中文文件名，例如 `workspace/技术方案.md`；简单修改可以不创建任何过程文件。
 
-每个节点可以按输入输出单独运行，也可以被团队封装成更短的场景，例如：
+## 正式交付契约
 
-- PRD -> 需求澄清。
-- PRD -> 技术方案。
-- 技术方案 -> 任务拆分。
-- 任务 -> 代码实现。
-- 代码变更 -> Review。
-- 代码变更 -> 单测补齐。
-- 验证结论 -> 上线 Checklist。
-- 交付结果 -> 知识归档。
-- 需求确认完成后，通过页面“确认完成并生成”或 `dw report complete --workspace <path>` 生成 `delivery/delivery-report.json`；该报告用于后续 Harness 使用效果统计，不包含代码或敏感信息。
+最终必须形成且只强制要求：
 
-## 必须人工确认点
+1. `delivery/unit-test-report.md`：真实 Surefire/Failsafe XML 汇总。
+2. `delivery/coverage-report.md`：真实 JaCoCo XML 字节码覆盖率汇总。
+3. `delivery/release-config.yaml`：应用、分支、提交、代码指纹、配置、观测和回滚。
 
-以下阶段完成后必须暂停并等待人工确认：
+运行应用测试和 JaCoCo 后执行：
 
-- 需求澄清完成。
-- 技术方案完成。
-- 任务拆分完成。
-- 上线 Checklist 存在阻塞项。
-- 归档推送远端知识库前。
+```bash
+dw delivery collect --workspace <path>
+dw delivery validate --workspace <path>
+```
 
-## 必须暂停条件
+禁止手写或伪造测试数、覆盖率和“通过”结论。代码变化后必须重新生成交付物。
 
-以下事项不得走快捷修复；必须按“受控修复”记录风险、影响和验证后再实施。若用户未明确授权风险范围，仍必须暂停：
+validate 返回 ready 后，执行：
 
-- 数据库结构变更。
-- 金额、费用、报价、账单、结算、应付、清分逻辑。
-- 跨应用 API 请求或响应变更。
-- 删除既有行为。
-- 共享组件变更。
-- 技术方案与真实代码不一致。
-- 需要修改未确认应用。
-- 应用、表、MQ topic、job 或外部依赖归属不明确。
+```bash
+dw done --workspace <path> --step execute-delivery --summary "三份交付物已生成并校验"
+```
 
-## 实施规则
-
-- 完整交付主线：修改文件前说明任务编号和计划修改文件；只实现已确认任务；代码变更后更新 `review/process/change-log.md` 和 `review/process/self-check.md`。
-- 局部修复：修改文件前说明修复记录编号和计划修改文件；只实现记录中的 scope，不得借机扩大范围。完成时将实际文件和测试结果写入修复记录。
-- Review 和总结必须基于 `git diff`。
+最终发布始终需要人工确认；Workflow 不自动发布、不自动写远端系统。

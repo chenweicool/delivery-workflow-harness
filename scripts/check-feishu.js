@@ -189,17 +189,17 @@ async function main() {
       links: [feishuPrdUrl],
     });
     assert.strictEqual(workspaceImport.imported.length, 1);
-    const document = await fsp.readFile(path.join(workspacePath, 'prd', 'document.md'), 'utf8');
-    const source = JSON.parse(await fsp.readFile(path.join(workspacePath, 'prd', 'source', 'feishu.json'), 'utf8'));
+    const document = await fsp.readFile(path.join(workspacePath, 'input', 'request.md'), 'utf8');
+    const source = JSON.parse(await fsp.readFile(path.join(workspacePath, 'input', 'source', 'feishu.json'), 'utf8'));
     const workspaceConfig = JSON.parse(await fsp.readFile(path.join(workspacePath, '.workflow', 'workspace.json'), 'utf8'));
-    const savedImage = await fsp.readFile(path.join(workspacePath, 'prd', 'assets', 'mock-image.png'));
+    const savedImage = await fsp.readFile(path.join(workspacePath, 'input', 'assets', 'mock-image.png'));
     assert(document.includes('公司飞书 PRD'));
     assert(document.includes('![流程图](assets/mock-image.png)'));
     assert.deepStrictEqual([...savedImage], [1, 2, 3]);
     assert.strictEqual(source.records[0].status, 'imported');
     assert.strictEqual(source.records[0].raw.contentSource, 'block-tree');
     assert.strictEqual(source.records[0].raw.contentStatus, 'complete');
-    assert.strictEqual(source.records[0].raw.savedAssets[0].localPath, 'prd/assets/mock-image.png');
+    assert.strictEqual(source.records[0].raw.savedAssets[0].localPath, 'input/assets/mock-image.png');
     assert.strictEqual(workspaceConfig.demand.url, demandTrackingUrl);
     assert.deepStrictEqual(workspaceConfig.feishuDocs, [feishuPrdUrl]);
   } finally {

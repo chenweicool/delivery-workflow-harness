@@ -1,106 +1,19 @@
-const path = require('path');
-
 function createAgentPromptRuntime(deps) {
   const {
     normalizeUserPath,
     readWorkflowDefinition,
     ensureWorkflowProgressFiles,
     readWorkflowProgress,
-    assertTaskAllowedForImplementation,
     workflowStepPosition,
-    workflowStepSequence,
     readWorkspaceConfig,
-    shouldExposeAppContextForStep,
-    readToolsConfig,
-    linkConfiguredCapabilities,
-    routeCapabilitiesForStep,
-    capabilityDisplayName,
     agentContractForStep,
     localConsoleUrl,
-    getImplementationTargets,
-    collectDiffSummary,
-    readWorkspaceTextFileIfExists,
-    truncateText,
-    readIterationStatus,
     WORKFLOW_PROGRESS_FILE,
     HANDOFF_DONE_FILE,
   } = deps;
 
-  async function buildQualityGateContext(workspacePath, stepId, config) {
-    if (!['07-review-code', '08-verify-tests', '09-run-smoke'].includes(stepId)) {
-      return '';
-    }
-    const targets = await getImplementationTargets(workspacePath, config);
-    const diff = await collectDiffSummary(targets.map((app) => ({
-      ...app,
-      worktreePath: app.exists ? app.worktreePath : app.sourcePath,
-    }))).catch((error) => `无法读取 diff：${error.message}`);
-    const files = [
-      ['需求确认', 'design/process/requirement-confirmation.md'],
-      ['技术方案', 'design/technical-design.md'],
-      ['技术确认', 'design/process/technical-confirmation.md'],
-      ['任务清单', 'tasks/task-list.md'],
-      ['任务确认', 'tasks/process/task-confirmation.md'],
-      ['本次交付说明', 'design/known-facts.md'],
-      ['变更记录', 'review/process/change-log.md'],
-      ['实现自检', 'review/process/self-check.md'],
-    ];
-    if (stepId === '08-verify-tests') {
-      files.push(['AI Review', 'review/quality-report.md']);
-      files.push(['风险清单', 'review/evidence/risk-list.md']);
-    }
-    const sections = [];
-    for (const [label, relativePath] of files) {
-      const content = await readWorkspaceTextFileIfExists(workspacePath, relativePath);
-      if (content.trim()) {
-        sections.push(`### ${label}：${relativePath}\n\n${truncateText(content, 6000)}`);
-      }
-    }
-    const qualityRules = stepId === '07-review-code'
-      ? [
-          '- 使用独立 Review Agent 视角，不要沿用实现 Agent 的自我结论。',
-          '- 发现问题优先，按 P0/P1/P2/P3 输出；没有阻塞问题也必须写剩余测试缺口。',
-          '- 重点检查需求覆盖、边界条件、兼容性、数据一致性、权限/资金/结算风险和回归风险。',
-          '- 禁止修改代码，只输出评审结论和风险清单。',
-        ]
-      : stepId === '08-verify-tests' ? [
-          '- 单测必须优先覆盖本次 diff 触达的分支、边界条件、异常路径和 Review 发现的风险。',
-          '- 优先复用项目现有测试框架、基类、mock 风格、断言方式和命名规范。',
-          '- 能执行就记录真实命令和结果；不能执行必须写具体阻塞原因。',
-          '- 如必须为可测性调整生产代码，只允许最小接缝改动并写入 `review/evidence/unit-test-result.md`。',
-          '- 集成测试只生成计划；只有检测到项目已有集成测试入口时才执行。',
-        ]
-      : [
-          '- 按研发在提测前提供的 `review/evidence/smoke-test-case.md` 执行或记录每个场景；缺失时明确阻塞。',
-          '- 初版只允许记录 manual 执行证据；未执行必须标识 `not-run` 或 `blocked`。',
-          '- 禁止把 planned 或 not-run 写成通过。',
-        ];
-    const domain = config.domainContext || config.domain || {};
-    const domainRisks = [
-      domain.name || domain.id ? `- 领域: ${domain.name || domain.id}` : '- 未挂载领域上下文。',
-      domain.revision ? `- 领域版本: ${domain.revision}` : '',
-      domain.productDocuments && domain.productDocuments.length ? `- 产品资料: ${domain.productDocuments.join('、')}` : '',
-      domain.memoryDocuments && domain.memoryDocuments.length ? `- 领域记忆: ${domain.memoryDocuments.join('、')}` : '',
-    ].filter(Boolean).join('\n');
-    return [
-      '## 质量门禁上下文包',
-      '',
-      '本段由 Delivery Workflow 自动打包，用于把本次需求背景显式加入质量门禁。',
-      '',
-      '### 质量执行规则',
-      '',
-      qualityRules.join('\n'),
-      '',
-      '### 领域约束',
-      '',
-      domainRisks,
-      '',
-      '### 代码变更摘要',
-      '',
-      diff || '暂无 diff 或无法读取 diff',
-      '',
-      sections.join('\n\n'),
-    ].filter(Boolean).join('\n');
+  async function buildQualityGateContext() {
+    return '';
   }
 
   async function buildAgentCollaborationPrompt(workspacePathValue, stepId, taskId, targetAgent, options = {}) {
@@ -110,197 +23,69 @@ function createAgentPromptRuntime(deps) {
     await ensureWorkflowProgressFiles(workspacePath, workflow);
     const progress = await readWorkflowProgress(workspacePath, workflow);
     const definition = workflow.steps[stepId];
-    if (!definition) {
-      throw new Error(`未知步骤：${stepId}`);
-    }
-    if (stepId === '06-implement-task') {
-      await assertTaskAllowedForImplementation(workspacePath, taskId);
-    }
+    if (!definition) throw new Error(`未知步骤：${stepId}`);
+    if (stepId !== 'execute-delivery') throw new Error(`步骤 ${stepId} 不是 Agent 自主交付节点`);
     const stepPosition = workflowStepPosition(workflow, stepId);
-    const sequence = workflowStepSequence(workflow);
-    const currentIndex = sequence.findIndex((step) => step.id === stepId);
-    const nextStep = currentIndex >= 0 ? sequence[currentIndex + 1] : null;
-    const returnStepId = nextStep && workflow.steps[nextStep.id] && workflow.steps[nextStep.id].kind === 'manual'
-      ? nextStep.id
-      : stepId;
     const config = await readWorkspaceConfig(workspacePath);
-    const perspectiveRules = {
-      backend: '后端视角：重点核对接口契约、权限与数据范围、批量/导入导出、事务、异步任务、数据库影响及回滚。',
-      frontend: '前端视角：重点核对页面流程、交互状态、接口契约、兼容性、异常提示及可访问性。',
-      qa: '测试视角：重点核对可验收场景、边界、回归范围、测试数据与可追溯证据。',
-      ops: '运维视角：重点核对发布步骤、配置、观测、容量、回滚和依赖可用性。',
-    };
-    const perspective = config.perspective || 'backend';
-    const perspectiveLine = perspectiveRules[perspective] || perspectiveRules.backend;
-    const promptConfig = shouldExposeAppContextForStep(stepId, config)
-      ? config
-      : { ...config, appPaths: [], apps: [] };
-    const tools = await readToolsConfig();
-    const capabilities = await linkConfiguredCapabilities(workspacePath, tools, config);
-    const routedCapabilities = await routeCapabilitiesForStep(workspacePath, stepId, capabilities, workflow);
-    const appLines = (promptConfig.appPaths || [])
-      .map((item) => `- ${item.name}: ${item.path}`)
-      .join('\n');
-    const knowledgeLines = (promptConfig.knowledge || [])
-      .map((item) => `- ${item.name}: ${item.path}`)
-      .join('\n');
-    const whitepaper = promptConfig.whitepaperContext || {};
-    const whitepaperLines = whitepaper.primaryFunction ? [
-      `- 已确认功能点: ${whitepaper.primaryFunction.name} (${whitepaper.primaryFunction.id})`,
-      whitepaper.root ? `- 白皮书仓库: ${whitepaper.root}` : '',
-      whitepaper.revision ? `- 白皮书版本: ${whitepaper.revision}` : '',
-      whitepaper.whitepaperRefs && whitepaper.whitepaperRefs.length
-        ? `- 必读白皮书: ${whitepaper.whitepaperRefs.join('、')}`
-        : '',
-      whitepaper.riskTags && whitepaper.riskTags.length
-        ? `- 领域风险: ${whitepaper.riskTags.join('、')}`
-        : '',
-      routedCapabilities.selection && routedCapabilities.selection.enabledIds && routedCapabilities.selection.enabledIds.length
-        ? `- 本步骤自动启用能力: ${routedCapabilities.selection.enabledIds.join('、')}`
-        : '',
-      routedCapabilities.selection && routedCapabilities.selection.missingIds && routedCapabilities.selection.missingIds.length
-        ? `- 未安装的推荐能力: ${routedCapabilities.selection.missingIds.join('、')}`
-        : '',
-      '- 本次快照: `context/whitepaper-context.md`',
-    ].filter(Boolean).join('\n') : '';
-    const domain = promptConfig.domainContext || promptConfig.domain || {};
-    const domainLines = domain.root ? [
-      `- 领域 Harness: ${domain.name || domain.id || path.basename(domain.root)}`,
-      `- 本地目录: ${domain.root}`,
-      domain.revision ? `- 知识库版本: ${domain.revision}` : '',
-      domain.productDocuments && domain.productDocuments.length
-        ? `- 产品白皮书: ${domain.productDocuments.length} 个文档（仅作为领域背景）`
-        : '',
-      domain.memoryDocuments && domain.memoryDocuments.length
-        ? `- 领域记忆: ${domain.memoryDocuments.length} 个文档`
-        : '',
-      domain.codeRepositories && domain.codeRepositories.length
-        ? `- 领域代码入口: ${domain.codeRepositories.map((item) => item.name).join('、')}`
-        : '',
-      '- 本次领域摘要: `context/domain-summary.md`',
-      '- 结论优先级: PRD/人工确认 > 当前代码 > 领域知识库；冲突必须记录并转人工确认。',
-    ].filter(Boolean).join('\n') : '';
-    const outputLines = (definition.outputs || [])
-      .map((item) => `- ${typeof item === 'string' ? item : item.path}`)
-      .join('\n');
-    const enabledSkills = (routedCapabilities.enabled && routedCapabilities.enabled.skills) || [];
-    const enabledRules = (routedCapabilities.enabled && routedCapabilities.enabled.rules) || [];
-    const capabilityLines = [
-      enabledSkills.length ? `- Skills: ${enabledSkills.map(capabilityDisplayName).join('；')}` : '',
-      enabledRules.length ? `- Rules: ${enabledRules.map(capabilityDisplayName).join('；')}` : '',
-      routedCapabilities.enabled && routedCapabilities.enabled.notes ? '- Notes: see `.workflow/workspace.json` and team configuration notes.' : '',
-    ].filter(Boolean).join('\n');
-    const qualityGateContext = await buildQualityGateContext(workspacePath, stepId, config);
-    const iteration = readIterationStatus ? await readIterationStatus(workspacePath) : null;
-    const candidateRequired = ['07-review-code', '08-verify-tests', '09-run-smoke'].includes(stepId);
-    const candidateLines = candidateRequired ? [
-      iteration && iteration.activeChangeSetId ? `- 当前 ChangeSet：${iteration.activeChangeSetId}` : '- 当前没有激活 ChangeSet；如本次属于变更或缺陷，先执行 `dw change create`。',
-      iteration && iteration.activeCandidateId
-        ? `- 当前 Candidate：${iteration.activeCandidateId} / ${iteration.candidateStatus}`
-        : '- 当前没有激活 Candidate；完成本节点前必须先执行 `dw candidate create --workspace <path>`。',
-      '- Review、单测和冒烟完成时会由 `dw done` 自动绑定到当前有效 Candidate；Candidate 变化后必须生成新 Candidate 并重新记录证据。',
-      `- 本次状态 revision：${progress.revision || 0}。完成时携带此 revision；若提示旧 revision，重新读取进度后再提交。`,
-    ].join('\n') : '';
-    const returnUrl = `${localConsoleUrl(options.port)}/?workspace=${encodeURIComponent(workspacePath)}&step=${encodeURIComponent(returnStepId)}`;
-    const doneJsonExample = JSON.stringify({
-      stepId,
-      taskId: taskId || '',
-      status: 'done',
-      changeSetId: iteration && iteration.activeChangeSetId || '',
-      candidateId: iteration && iteration.activeCandidateId || '',
-      expectedRevision: progress.revision || 0,
-      returnStepId,
-      outputs: (definition.outputs || []).map((item) => (typeof item === 'string' ? item : item.path)),
-      summary: '简要说明本轮完成内容、用户纠偏点和剩余风险。',
-      nextUrl: returnUrl,
-    }, null, 2);
-    const doneCommand = `delivery-workflow done --workspace "${workspacePath}" --step ${stepId} --revision ${progress.revision || 0} --summary "已完成当前步骤"`;
-    const openCommand = `delivery-workflow open --workspace "${workspacePath}" --step ${returnStepId}`;
-    const agentContract = agentContractForStep(stepId);
-    const contractOutputLines = agentContract && agentContract.requiredOutputs && agentContract.requiredOutputs.length
-      ? agentContract.requiredOutputs.map((item) => `- ${item}`).join('\n')
-      : '';
+    const contract = agentContractForStep(stepId);
+    const enabledCapabilities = (config.capabilities || []).filter((item) => item && item.installed === true && item.enabled === true);
+    const capabilityLines = enabledCapabilities.length
+      ? enabledCapabilities.map((item) => `- ${item.type}: ${item.name || item.id}（${item.path || '无路径'}）`).join('\n')
+      : '- 当前没有用户显式安装并启用的 Skill；不要自动启用 Harness 或全局推荐 Skill。';
+    const appLines = (config.apps || []).map((app) => `- ${app.name}: ${app.worktreePath || app.sourcePath}`).join('\n') || '- 尚未配置应用；先根据 Workspace 配置或请用户补充代码范围。';
+    const doneCommand = `dw done --workspace "${workspacePath}" --step execute-delivery --summary "三份交付物已生成并校验"`;
+    const blockedCommand = `dw done --workspace "${workspacePath}" --step execute-delivery --status blocked --summary "等待风险决策或外部输入"`;
+    const returnUrl = `${localConsoleUrl(options.port)}/?workspace=${encodeURIComponent(workspacePath)}&step=manual-release`;
+    const doneJsonExample = JSON.stringify({ stepId, status: 'done', outputs: definition.outputs, summary: '三份交付物已生成并校验' }, null, 2);
     return [
-      `# ${agent} 协作入口`,
-      '',
-      `请在 ${agent} 中接手当前 Delivery Workflow 步骤。此文件只做轻量交接，详细规则按需读取对应文件。`,
-      '',
-      agentContract ? [
-        '## 当前角色 Agent',
-        '',
-        `- Agent: ${agentContract.name}`,
-        `- 角色职责: ${agentContract.role}`,
-        `- 会话策略: ${agentContract.sessionPolicy}`,
-        '- 结束标准: 无论中间与用户对话多少轮，最终必须回写本 Agent 的结构化产物，并执行 `delivery-workflow done`。',
-        '',
-      ].join('\n') : '',
-      '## 当前目标',
-      '',
+      `# ${agent} 自主交付指令`, '',
+      '你负责一个完整的 Work Run。目标是完成用户需求，而不是逐个填写流程模板。可以在同一循环中理解需求、查看代码、修改实现、Review、运行测试并根据结果继续修复。', '',
+      '## 当前目标', '',
       `- Workspace: ${workspacePath}`,
-      `- Step: ${stepPosition.current || '?'} / ${stepPosition.total}: ${stepId} / ${definition.title}`,
-      definition.commandFile ? `- Command: ${definition.commandFile}` : '',
-      `- Workflow: ${workflow.source} / v${workflow.version}`,
+      `- Step: ${stepPosition.current}/${stepPosition.total} ${stepId} / ${definition.title}`,
+      `- Workflow: V${workflow.version}`,
       `- Status revision: ${progress.revision || 0}`,
-      taskId ? `- Task: ${taskId}` : '',
-      `- Progress: ${WORKFLOW_PROGRESS_FILE}`,
-      '',
-      '## 最小读取顺序',
-      '',
-      '1. 读取 `AGENTS.md`、`CLAUDE.md`。',
-      '2. 读取 `.workflow/workspace.json` 和 `.workflow/progress.md`，确认当前进度。',
-      '3. 读取 `context/demand-context.md`，确认本次需求的人工补充背景和约束。',
-      domainLines ? '4. 读取 `context/domain-summary.md`，再按摘要中的最小路径读取领域材料和当前代码。' : '4. 当前未挂载领域 Harness，继续使用 PRD、人工确认与当前代码，不得因此阻塞。',
-      definition.commandFile ? `5. 读取 \`${definition.commandFile}\`，只执行当前步骤。` : '5. 按当前人工步骤要求处理。',
-      '6. 如命令文件要求使用 skill/rule，再读取下方启用项；不要主动展开未启用能力。',
-      '7. 所有产物写回 workspace，输出中文且保持简洁。',
-      '8. 完成或阻塞时执行 `delivery-workflow done`；不要直接编辑 `.workflow/progress.*`。',
-      '',
-      '## Harness 内置边界',
-      '',
-      '- 本段规则来自 Delivery Workflow 平台，优先级高于团队模板和用户补充说明。',
-      '- 不要修改 `.workflow/workflow.json`、`.workflow/progress.json`；状态只由 `delivery-workflow done` 写入。',
-      '- 不要跳过 manual checkpoint；但已按 `11-patch-fix.md` 创建有效局部修复记录的工作独立于主线，允许仅在其 scope 内修复，不能借此扩大范围或替代人工确认。',
-      '- 不要把聊天中的临时结论当作最终交付，最终结论必须落到本步骤产物文件。',
-      '- 团队 rules / skills 只能增强当前步骤，不得扩大本步骤允许读取和允许修改范围。',
-      '',
-      (contractOutputLines || outputLines) ? `## Agent 必须回写产物\n\n${contractOutputLines || outputLines}\n` : '',
-      contractOutputLines && outputLines && contractOutputLines !== outputLines ? `## 当前步骤补充产物\n\n${outputLines}\n` : '',
-      capabilityLines ? `## 本步骤启用能力\n\n${capabilityLines}\n` : '',
-      candidateLines ? `## ChangeSet 与 Candidate\n\n${candidateLines}\n` : '',
-      `## 当前交付视角\n\n- ${perspectiveLine}\n`,
-      appLines ? `## 候选应用\n\n${appLines}\n` : '',
-      '## 本次需求补充上下文\n\n- 读取 `context/demand-context.md`。\n',
-      whitepaperLines ? `## 白皮书与功能上下文\n\n${whitepaperLines}\n` : '',
-      domainLines ? `## 领域 Harness 上下文\n\n${domainLines}\n` : '',
-      knowledgeLines ? `## 背景知识\n\n${knowledgeLines}\n` : '',
-      qualityGateContext,
-      '## 回到页面验收',
-      '',
-      `- 完成或阻塞后，优先执行：\`${doneCommand}\`。`,
-      `- 然后打开页面：\`${openCommand}\`。`,
-      '- 只有在 `delivery-workflow done` 命令不可用时，才按下面示例手工写入完成标记。',
-      '',
-      `- 降级完成标记路径：\`${HANDOFF_DONE_FILE}\`。`,
-      '- 完成标记示例：',
-      '',
-      '```json',
-      doneJsonExample,
-      '```',
-      '',
-      `- 然后在终端执行：\`${openCommand}\`。`,
-      `- 如果命令不可用，请把这个链接展示给用户：${returnUrl}`,
-      '- 页面以 `.workflow/progress.json` 的显式状态为准；产物仅用于校验状态转换。',
-      '- 在“产物”下拉中查看本步骤输出文件。',
-      '- 如果当前步骤后面是人工确认，请在页面勾选确认清单，或写入评审意见后退回修改。',
+      taskId ? `- 用户工作项: ${taskId}` : '',
+      `- 进度文件: ${WORKFLOW_PROGRESS_FILE}`, '',
+      '## 最小读取顺序', '',
+      '1. 读取 `AGENTS.md`、`context/demand-context.md`、`input/request.md`（若存在）和 `.workflow/workspace.json`。',
+      '2. 按需求只读取必要的领域材料、规则、代码和测试，不要求先生成需求分析、技术方案或任务拆分文件。',
+      '3. 已安装 Skill 只有在下方明确为 enabled 时才可使用；未安装能力不能成为阻塞。',
+      '4. 修改后自主 Review，执行最相关的测试；失败就继续修复，避免为每轮修改重开流程。', '',
+      '## 风险决策边界', '',
+      '低风险代码修改由你自主完成。命中以下任一项时，在修改对应高风险内容前执行 `dw risk report` 并暂停：', '',
+      '- `database`：数据库结构、迁移或不可逆数据写入。',
+      '- `financial`：金额、费用、报价、账单、结算、应付或清分语义。',
+      '- `api-contract`：跨应用请求/响应或公共 API 兼容性。',
+      '- `deletion`：删除既有行为、数据或兼容路径。',
+      '- `shared-component`：共享组件或多应用公共能力。',
+      '- `external-write`：对生产、远端平台或外部系统执行写操作。',
+      '- `ownership-unknown`：应用、表、MQ、Job 或外部依赖归属不明。', '',
+      '上报示例：', '',
+      '`dw risk report --type financial --scope "算费公式" --impact "可能改变账单金额" --rollback "回退提交并重跑受影响账期" --workspace "<workspace>"`', '',
+      `上报后执行：\`${blockedCommand}\`。待人工 approve 后继续；reject 表示当前方案不可实施，应调整方案后重新上报。`, '',
+      '## 正式交付契约', '',
+      '最终只要求三份正式交付物：', '',
+      '- `delivery/unit-test-report.md`：从 Surefire/Failsafe XML 汇总真实单测结果。',
+      '- `delivery/coverage-report.md`：从 JaCoCo XML 汇总字节码（INSTRUCTION）覆盖率。',
+      '- `delivery/release-config.yaml`：记录应用、分支、提交、代码指纹、风险决策、发布配置、观测和回滚。', '',
+      '需求分析、中文技术方案、任务清单、Review 笔记都可按复杂度放入 `workspace/`，但不是强制门禁，也不是正式交付物。复杂需求建议用中文文件名，例如 `workspace/技术方案.md`。', '',
+      '先在各应用内运行真实测试和 JaCoCo，再执行：', '',
+      `- \`dw delivery collect --workspace "${workspacePath}"\``,
+      `- \`dw delivery validate --workspace "${workspacePath}"\``, '',
+      '禁止手写或伪造测试数、覆盖率和通过结论。代码变化后必须重新 collect。', '',
+      '## 当前应用', '', appLines, '',
+      '## 用户显式启用的能力', '', capabilityLines, '',
+      '## 完成', '',
+      `只有 validate 返回 ready 时，执行：\`${doneCommand}\`。`,
+      `随后打开：\`${returnUrl}\`，由人完成最终发布确认。`,
+      `如果 CLI 不可用，降级完成标记路径为 \`${HANDOFF_DONE_FILE}\`：`, '',
+      '```json', doneJsonExample, '```', '',
+      contract ? `Agent 契约：${contract.role}` : '',
     ].filter(Boolean).join('\n');
   }
 
-  return {
-    buildQualityGateContext,
-    buildAgentCollaborationPrompt,
-  };
+  return { buildQualityGateContext, buildAgentCollaborationPrompt };
 }
 
-module.exports = {
-  createAgentPromptRuntime,
-};
+module.exports = { createAgentPromptRuntime };
